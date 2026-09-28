@@ -5,7 +5,7 @@ import { IService } from '@/types';
 
 const initialServices: IService[] = [
   { _id: 's1', name: 'Hydra Facial & Skin Brightening Therapy', category: 'Skin Care', duration: 60, price: 2499, description: 'Deep cleansing, exfoliation, and hydration skin care' },
-  { _id: 's2', name: 'Advanced Keratin Hair Spa & Restoration', category: 'Hair Care', duration: 90, price: 3200, description: 'Deep hair nourishing & smoothening treatment with keratin' },
+  { _id: 's2', name: 'Advanced Keratin Hair Therapy & Restoration', category: 'Hair Care', duration: 90, price: 3200, description: 'Deep hair nourishing & smoothening treatment with keratin' },
   { _id: 's3', name: 'Laser Hair Reduction & Pigmentation Care', category: 'Skin Care', duration: 45, price: 4500, description: 'Clinical laser treatment for permanent smooth skin' },
   { _id: 's4', name: 'Hair Fall Control & Scalp Therapy', category: 'Hair Care', duration: 60, price: 3800, description: 'Specialized scalp rejuvenation & hair growth treatment' },
   { _id: 's5', name: 'Anti-Aging & Collagen Skin Rejuvenation', category: 'Skin Care', duration: 60, price: 2999, description: 'Tightening & youthful skin collagen enhancement' },

@@ -5,9 +5,9 @@ import { IStaff } from '@/types';
 
 const initialStaff: IStaff[] = [
   { _id: 'st1', name: 'Anitha R.', role: 'Senior Hair & Skin Specialist', phone: '+91 98401 22334', commissionRate: 15, status: 'Busy', revenueGenerated: 42500 },
-  { _id: 'st2', name: 'Kavitha M.', role: 'Keratin & Hair Color Master', phone: '+91 97890 33445', commissionRate: 12, status: 'Available', revenueGenerated: 38900 },
-  { _id: 'st3', name: 'Rajesh V.', role: 'Senior Stylist & Barber', phone: '+91 98940 55667', commissionRate: 10, status: 'Available', revenueGenerated: 29400 },
-  { _id: 'st4', name: 'Sujatha P.', role: 'Nail & Spa Expert', phone: '+91 94441 77889', commissionRate: 10, status: 'Available', revenueGenerated: 21500 },
+  { _id: 'st2', name: 'Kavitha M.', role: 'Trichologist & Hair Therapy Expert', phone: '+91 97890 33445', commissionRate: 12, status: 'Available', revenueGenerated: 38900 },
+  { _id: 'st3', name: 'Rajesh V.', role: 'Senior Dermatologist & Specialist', phone: '+91 98940 55667', commissionRate: 10, status: 'Available', revenueGenerated: 29400 },
+  { _id: 'st4', name: 'Sujatha P.', role: 'Laser & Aesthetic Care Specialist', phone: '+91 94441 77889', commissionRate: 10, status: 'Available', revenueGenerated: 21500 },
 ];
 
 export async function GET() {

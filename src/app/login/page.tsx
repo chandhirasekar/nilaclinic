@@ -7,7 +7,7 @@ import { MessageSquare, ArrowRight, ShieldCheck, Eye, EyeOff } from 'lucide-reac
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('theni@bonitaa.co.in');
+  const [email, setEmail] = useState('theni@nilaclinic.com');
   const [password, setPassword] = useState('Nilan@2022');
   const [showPassword, setShowPassword] = useState(true);
   const [loading, setLoading] = useState(false);

@@ -7,7 +7,7 @@ import {
   Calendar,
   CreditCard,
   Users,
-  Scissors,
+  Sparkles,
   UserCheck,
   Package,
   BarChart3,
@@ -22,7 +22,7 @@ import {
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [user, setUser] = useState({ email: 'theni@bonitaa.co.in', name: 'Nila Clinic Admin', salonName: 'Nila Clinic - Skin & Hair Care' });
+  const [user, setUser] = useState({ email: 'theni@nilaclinic.com', name: 'Nila Clinic Admin', salonName: 'Nila Clinic - Skin & Hair Care' });
   const [selectedBranch, setSelectedBranch] = useState('Nila Clinic - Main Branch');
 
   useEffect(() => {
@@ -39,7 +39,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { name: 'Appointments', href: '/admin/appointments', icon: Calendar },
     { name: 'POS / Billing', href: '/admin/pos', icon: CreditCard },
     { name: 'Customers CRM', href: '/admin/customers', icon: Users },
-    { name: 'Service Catalog', href: '/admin/services', icon: Scissors },
+    { name: 'Service Catalog', href: '/admin/services', icon: Sparkles },
     { name: 'Staff & Roster', href: '/admin/staff', icon: UserCheck },
     { name: 'Inventory & Stock', href: '/admin/inventory', icon: Package },
     { name: 'Reports & Analytics', href: '/admin/reports', icon: BarChart3 },

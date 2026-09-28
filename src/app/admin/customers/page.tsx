@@ -68,8 +68,8 @@ export default function CustomersPage() {
       
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Customer CRM & Loyalty</h1>
-          <p className="text-sm text-slate-500">Track salon client profiles, visit history, and loyalty reward points.</p>
+          <h1 className="text-2xl font-bold text-slate-900">Patient & Client CRM</h1>
+          <p className="text-sm text-slate-500">Track patient & client profiles, visit history, and loyalty reward points.</p>
         </div>
         <button
           onClick={() => setShowModal(true)}

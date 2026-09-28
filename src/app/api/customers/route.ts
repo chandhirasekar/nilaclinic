@@ -4,11 +4,11 @@ import Customer from '@/lib/models/Customer';
 import { ICustomer } from '@/types';
 
 const initialCustomers: ICustomer[] = [
-  { _id: 'c1', name: 'Priya Sharma', phone: '+91 98450 11223', email: 'priya.s@gmail.com', gender: 'Female', visits: 8, totalSpent: 18500, loyaltyPoints: 450, notes: 'Prefers Organic Facial Products' },
-  { _id: 'c2', name: 'Deepa Lakshmi', phone: '+91 98765 88990', email: 'deepa.l@gmail.com', gender: 'Female', visits: 4, totalSpent: 9200, loyaltyPoints: 230, notes: 'Keratin treatment history' },
-  { _id: 'c3', name: 'Sangeetha Mohan', phone: '+91 94431 55667', email: 'sangeetha.m@yahoo.com', gender: 'Female', visits: 12, totalSpent: 34000, loyaltyPoints: 890, notes: 'VIP Customer - Bridal Booking' },
-  { _id: 'c4', name: 'Kavya S.', phone: '+91 99011 22334', email: 'kavya.s@outlook.com', gender: 'Female', visits: 3, totalSpent: 6500, loyaltyPoints: 150, notes: 'Regular Haircut & Highlights' },
-  { _id: 'c5', name: 'Meera Nair', phone: '+91 91234 56789', email: 'meera.nair@gmail.com', gender: 'Female', visits: 5, totalSpent: 11000, loyaltyPoints: 310, notes: 'Loves Spa Treatments' },
+  { _id: 'c1', name: 'Priya Sharma', phone: '+91 98450 11223', email: 'priya.s@gmail.com', gender: 'Female', visits: 8, totalSpent: 18500, loyaltyPoints: 450, notes: 'Prefers Organic Skin Care Products' },
+  { _id: 'c2', name: 'Deepa Lakshmi', phone: '+91 98765 88990', email: 'deepa.l@gmail.com', gender: 'Female', visits: 4, totalSpent: 9200, loyaltyPoints: 230, notes: 'Keratin hair treatment history' },
+  { _id: 'c3', name: 'Sangeetha Mohan', phone: '+91 94431 55667', email: 'sangeetha.m@yahoo.com', gender: 'Female', visits: 12, totalSpent: 34000, loyaltyPoints: 890, notes: 'VIP Patient - Laser Therapy' },
+  { _id: 'c4', name: 'Kavya S.', phone: '+91 99011 22334', email: 'kavya.s@outlook.com', gender: 'Female', visits: 3, totalSpent: 6500, loyaltyPoints: 150, notes: 'Regular Hair Fall & Scalp Care' },
+  { _id: 'c5', name: 'Meera Nair', phone: '+91 91234 56789', email: 'meera.nair@gmail.com', gender: 'Female', visits: 5, totalSpent: 11000, loyaltyPoints: 310, notes: 'Prefers Hydra Facial Treatments' },
 ];
 
 export async function GET() {

@@ -11,7 +11,7 @@ import {
   Plus,
   CreditCard,
   MessageCircle,
-  Scissors,
+  Stethoscope,
   ArrowUpRight
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -111,7 +111,7 @@ export default function AdminDashboardPage() {
               <h3 className="text-2xl font-black text-slate-900 mt-1">4 / 4 Staff</h3>
             </div>
             <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
-              <Scissors className="w-6 h-6" />
+              <Stethoscope className="w-6 h-6" />
             </div>
           </div>
           <div className="mt-4 flex items-center text-xs text-emerald-600 font-medium">
@@ -208,7 +208,7 @@ export default function AdminDashboardPage() {
                   </div>
                   <div>
                     <h4 className="text-xs font-bold text-slate-900">Book Patient Appointment</h4>
-                    <p className="text-[11px] text-slate-500">Schedule patient with doctor/stylist</p>
+                    <p className="text-[11px] text-slate-500">Schedule patient consultation with doctor / specialist</p>
                   </div>
                 </div>
                 <Plus className="w-4 h-4 text-sky-600" />

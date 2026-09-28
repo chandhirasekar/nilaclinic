@@ -16,7 +16,7 @@ export default function StaffPage() {
     commissionRate: number;
   }>({
     name: '',
-    role: 'Senior Hair Stylist',
+    role: 'Senior Hair & Skin Specialist',
     phone: '',
     commissionRate: 12,
   });
@@ -48,7 +48,7 @@ export default function StaffPage() {
       if (data.success) {
         setStaff([...staff, data.data]);
         setShowModal(false);
-        setNewStaff({ name: '', role: 'Senior Hair Stylist', phone: '', commissionRate: 12 });
+        setNewStaff({ name: '', role: 'Senior Hair & Skin Specialist', phone: '', commissionRate: 12 });
       }
     } catch (err) {
       alert('Error adding staff member');
@@ -60,15 +60,15 @@ export default function StaffPage() {
       
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Staff & Stylist Management</h1>
-          <p className="text-sm text-slate-500">Track staff rosters, daily shifts, and calculated sales commission rates.</p>
+          <h1 className="text-2xl font-bold text-slate-900">Staff & Specialist Management</h1>
+          <p className="text-sm text-slate-500">Track clinic staff rosters, daily shifts, and calculated sales commission rates.</p>
         </div>
         <button
           onClick={() => setShowModal(true)}
           className="flex items-center justify-center space-x-2 px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-semibold text-sm rounded-xl shadow-md transition-all"
         >
           <Plus className="w-4 h-4" />
-          <span>Add New Stylist</span>
+          <span>Add New Specialist</span>
         </button>
       </div>
 
@@ -115,7 +115,7 @@ export default function StaffPage() {
         <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-100 p-6 relative">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="font-bold text-slate-900 text-base">Register New Stylist / Staff</h3>
+              <h3 className="font-bold text-slate-900 text-base">Register New Specialist / Staff</h3>
               <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600">
                 <X className="w-5 h-5" />
               </button>
@@ -139,7 +139,7 @@ export default function StaffPage() {
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Master Stylist & Colorist"
+                  placeholder="e.g. Senior Dermatologist & Hair Specialist"
                   value={newStaff.role}
                   onChange={(e) => setNewStaff({ ...newStaff, role: e.target.value })}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-sky-500 outline-none"

@@ -21,10 +21,8 @@ export default function ReportsPage() {
   }, []);
 
   const servicePie = data?.serviceBreakdown || [
-    { name: 'Hair Services', percentage: 42, color: '#0284c7' },
-    { name: 'Facial & Skin', percentage: 28, color: '#06b6d4' },
-    { name: 'Spa & Body Care', percentage: 18, color: '#8b5cf6' },
-    { name: 'Nails & Pedicure', percentage: 12, color: '#ec4899' },
+    { name: 'Skin Care & Dermatology', percentage: 55, color: '#0284c7' },
+    { name: 'Hair Care & Trichology', percentage: 45, color: '#06b6d4' },
   ];
 
   return (

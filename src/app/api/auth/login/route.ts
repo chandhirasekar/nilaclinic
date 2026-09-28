@@ -25,6 +25,7 @@ export async function POST(req: Request) {
     }
 
     if (
+      (email === 'theni@nilaclinic.com' && password === 'Nilan@2022') ||
       (email === 'theni@bonitaa.co.in' && password === 'Nilan@2022') ||
       (email === 'admin@nilaclinic.com' && password === 'admin123') ||
       (password && password.length >= 4)
@@ -32,7 +33,7 @@ export async function POST(req: Request) {
       return NextResponse.json({
         success: true,
         user: {
-          email: email || 'theni@bonitaa.co.in',
+          email: email || 'theni@nilaclinic.com',
           name: 'Nila Clinic Administrator',
           role: 'admin',
           salonName: 'Nila Clinic - Skin & Hair Care',

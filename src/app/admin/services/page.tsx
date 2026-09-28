@@ -12,7 +12,7 @@ export default function ServicesPage() {
 
   const [newService, setNewService] = useState({
     name: '',
-    category: 'Hair',
+    category: 'Hair Care',
     duration: 45,
     price: 999,
     description: '',
@@ -45,7 +45,7 @@ export default function ServicesPage() {
       if (data.success) {
         setServices([...services, data.data]);
         setShowModal(false);
-        setNewService({ name: '', category: 'Hair', duration: 45, price: 999, description: '' });
+        setNewService({ name: '', category: 'Hair Care', duration: 45, price: 999, description: '' });
       }
     } catch (err) {
       alert('Error adding service');
@@ -63,7 +63,7 @@ export default function ServicesPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Service Catalog & Rates</h1>
-          <p className="text-sm text-slate-500">Configure salon treatment packages, durations, and pricing tier.</p>
+          <p className="text-sm text-slate-500">Configure clinic treatment packages, durations, and pricing tier.</p>
         </div>
         <button
           onClick={() => setShowModal(true)}
@@ -101,7 +101,7 @@ export default function ServicesPage() {
                 </span>
               </div>
               <h3 className="font-bold text-slate-900 text-base">{svc.name}</h3>
-              <p className="text-xs text-slate-500 mt-1">{svc.description || 'Professional salon care treatment.'}</p>
+              <p className="text-xs text-slate-500 mt-1">{svc.description || 'Professional clinical skin & hair care treatment.'}</p>
             </div>
 
             <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
@@ -136,7 +136,7 @@ export default function ServicesPage() {
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Keratin Smoothening Spa"
+                  placeholder="e.g. Advanced Keratin Hair Therapy"
                   value={newService.name}
                   onChange={(e) => setNewService({ ...newService, name: e.target.value })}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-sky-500 outline-none"
@@ -151,11 +151,8 @@ export default function ServicesPage() {
                     onChange={(e) => setNewService({ ...newService, category: e.target.value })}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-sky-500 outline-none"
                   >
-                    <option value="Hair">Hair</option>
-                    <option value="Skin">Skin</option>
-                    <option value="Bridal">Bridal</option>
-                    <option value="Spa">Spa</option>
-                    <option value="Nails">Nails</option>
+                    <option value="Skin Care">Skin Care</option>
+                    <option value="Hair Care">Hair Care</option>
                   </select>
                 </div>
                 <div>
