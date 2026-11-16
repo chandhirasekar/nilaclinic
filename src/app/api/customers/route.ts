@@ -1,40 +1,62 @@
 import { NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/db';
-import Customer from '@/lib/models/Customer';
-import { ICustomer } from '@/types';
+import clinicService from '@/lib/clinicService';
 
-const initialCustomers: ICustomer[] = [
-  { _id: 'c1', name: 'Priya Sharma', phone: '+91 98450 11223', email: 'priya.s@gmail.com', gender: 'Female', visits: 8, totalSpent: 18500, loyaltyPoints: 450, notes: 'Prefers Organic Skin Care Products' },
-  { _id: 'c2', name: 'Deepa Lakshmi', phone: '+91 98765 88990', email: 'deepa.l@gmail.com', gender: 'Female', visits: 4, totalSpent: 9200, loyaltyPoints: 230, notes: 'Keratin hair treatment history' },
-  { _id: 'c3', name: 'Sangeetha Mohan', phone: '+91 94431 55667', email: 'sangeetha.m@yahoo.com', gender: 'Female', visits: 12, totalSpent: 34000, loyaltyPoints: 890, notes: 'VIP Patient - Laser Therapy' },
-  { _id: 'c4', name: 'Kavya S.', phone: '+91 99011 22334', email: 'kavya.s@outlook.com', gender: 'Female', visits: 3, totalSpent: 6500, loyaltyPoints: 150, notes: 'Regular Hair Fall & Scalp Care' },
-  { _id: 'c5', name: 'Meera Nair', phone: '+91 91234 56789', email: 'meera.nair@gmail.com', gender: 'Female', visits: 5, totalSpent: 11000, loyaltyPoints: 310, notes: 'Prefers Hydra Facial Treatments' },
-];
-
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const db = await connectToDatabase();
-    if (db) {
-      const customers = await Customer.find().sort({ createdAt: -1 });
-      if (customers.length > 0) return NextResponse.json({ success: true, data: customers });
+    const { searchParams } = new URL(req.url);
+    const storeCode = searchParams.get('storeCode') || undefined;
+    const search = searchParams.get('search') || undefined;
+    const mobile = searchParams.get('mobile') || undefined;
+
+    if (mobile) {
+      // FR-20 & FR-21: Search by mobile number with dropdown matches
+      const matches = await clinicService.searchCustomerByMobile(mobile);
+      return NextResponse.json({ success: true, data: matches });
     }
-    return NextResponse.json({ success: true, data: initialCustomers });
-  } catch (err) {
-    return NextResponse.json({ success: true, data: initialCustomers });
+
+    const customers = await clinicService.getCustomers(storeCode, search);
+    return NextResponse.json({ success: true, data: customers });
+  } catch (err: any) {
+    return NextResponse.json({ success: false, message: err.message }, { status: 500 });
   }
 }
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const db = await connectToDatabase();
-    if (db) {
-      const newCust = await Customer.create(body);
-      return NextResponse.json({ success: true, data: newCust });
+    const { name, mobile, phone, gender, dob, email, area, allergyNotes, skinHairNotes, firstStoreId } = body;
+
+    const targetMobile = mobile || phone;
+    if (!name || !targetMobile) {
+      return NextResponse.json({
+        success: false,
+        message: 'Customer name and mobile number are required'
+      }, { status: 400 });
     }
-    const newCust: ICustomer = { _id: 'c' + Date.now(), visits: 1, totalSpent: 0, loyaltyPoints: 100, ...body };
-    initialCustomers.unshift(newCust);
-    return NextResponse.json({ success: true, data: newCust });
+
+    // FR-23: Duplicate check (same mobile + same name is blocked)
+    const isDuplicate = await clinicService.checkDuplicateCustomer(name, targetMobile);
+    if (isDuplicate) {
+      return NextResponse.json({
+        success: false,
+        isDuplicate: true,
+        message: `A client named "${name}" with mobile ${targetMobile} already exists.`
+      }, { status: 409 });
+    }
+
+    const newCustomer = await clinicService.createCustomer({
+      name,
+      mobile: targetMobile,
+      gender: gender || 'Female',
+      dob,
+      email,
+      area,
+      allergyNotes,
+      skinHairNotes,
+      firstStoreId: firstStoreId || 'NILA-TH',
+    });
+
+    return NextResponse.json({ success: true, data: newCustomer });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });
   }

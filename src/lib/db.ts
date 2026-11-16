@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/miosalon_neelaclinic';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/Neelaclinic';
 
 interface GlobalMongoose {
   conn: typeof mongoose | null;
@@ -25,11 +25,12 @@ export async function connectToDatabase(): Promise<typeof mongoose | null> {
   if (!cached.promise) {
     const opts = {
       bufferCommands: false,
-      serverSelectionTimeoutMS: 3000,
+      serverSelectionTimeoutMS: 5000,
+      dbName: 'Neelaclinic',
     };
 
     cached.promise = mongoose.connect(MONGODB_URI, opts).then((m) => {
-      console.log('Connected to MongoDB successfully.');
+      console.log('Connected to MongoDB Atlas (Neelaclinic) successfully.');
       return m;
     }).catch((err) => {
       console.warn('MongoDB live connection fallback active:', err.message);

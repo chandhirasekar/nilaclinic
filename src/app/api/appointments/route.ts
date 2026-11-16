@@ -1,42 +1,149 @@
 import { NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/db';
-import Appointment from '@/lib/models/Appointment';
-import { IAppointment } from '@/types';
+import clinicService from '@/lib/clinicService';
 
-const initialAppointments: IAppointment[] = [
-  { _id: '1', customerName: 'Priya Sharma', customerPhone: '+91 98450 11223', serviceName: 'Hydra Facial & Glowing Treatment', stylistName: 'Anitha R.', date: '2026-09-27', time: '10:00 AM', amount: 2499, status: 'Completed' },
-  { _id: '2', customerName: 'Deepa Lakshmi', customerPhone: '+91 98765 88990', serviceName: 'Advanced Keratin Hair Therapy', stylistName: 'Kavitha M.', date: '2026-09-27', time: '11:30 AM', amount: 3200, status: 'In Progress' },
-  { _id: '3', customerName: 'Sangeetha Mohan', customerPhone: '+91 94431 55667', serviceName: 'Laser Hair Reduction & Skin Rejuvenation', stylistName: 'Anitha R.', date: '2026-09-27', time: '01:00 PM', amount: 8500, status: 'Confirmed' },
-  { _id: '4', customerName: 'Kavya S.', customerPhone: '+91 99011 22334', serviceName: 'Hair Fall Control & Scalp Therapy', stylistName: 'Rajesh V.', date: '2026-09-27', time: '03:00 PM', amount: 4100, status: 'Scheduled' },
-  { _id: '5', customerName: 'Meera Nair', customerPhone: '+91 91234 56789', serviceName: 'Anti-Aging Collagen Skin Rejuvenation', stylistName: 'Sujatha P.', date: '2026-09-27', time: '04:30 PM', amount: 1800, status: 'Scheduled' },
-];
-
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const db = await connectToDatabase();
-    if (db) {
-      const appointments = await Appointment.find().sort({ createdAt: -1 });
-      if (appointments.length > 0) {
-        return NextResponse.json({ success: true, data: appointments });
-      }
-    }
-    return NextResponse.json({ success: true, data: initialAppointments });
-  } catch (err) {
-    return NextResponse.json({ success: true, data: initialAppointments });
+    const { searchParams } = new URL(req.url);
+    const storeCode = searchParams.get('storeCode') || undefined;
+    const date = searchParams.get('date') || undefined;
+    const staffId = searchParams.get('staffId') || undefined;
+
+    const appointments = await clinicService.getAppointments(storeCode, date, staffId);
+    return NextResponse.json({ success: true, data: appointments });
+  } catch (err: any) {
+    return NextResponse.json({ success: false, message: err.message }, { status: 500 });
   }
 }
 
+// FR-58 & FR-61: Book appointment with double-booking check & inline client support
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const db = await connectToDatabase();
-    if (db) {
-      const newAppt = await Appointment.create(body);
-      return NextResponse.json({ success: true, data: newAppt });
+    const {
+      customerId,
+      customerName,
+      customerPhone,
+      serviceName,
+      serviceId,
+      staffName,
+      staffId,
+      doctorId,
+      doctorName,
+      storeId,
+      date,
+      startTime,
+      time,
+      durationMins,
+      amount,
+      notes,
+      force, // flag to override double-booking warning
+    } = body;
+
+    const targetStore = (storeId || 'NILA-TH').toUpperCase();
+    const apptTime = startTime || time || '10:00 AM';
+    const duration = Number(durationMins) || 15;
+    const targetStaff = staffId || doctorId || staffName || doctorName || 'Staff';
+
+    // Double-booking check (FR-61)
+    if (!force) {
+      const conflictCheck = await clinicService.checkDoubleBooking(
+        date || new Date().toISOString().split('T')[0],
+        apptTime,
+        duration,
+        targetStaff
+      );
+
+      if (conflictCheck.hasConflict) {
+        return NextResponse.json({
+          success: false,
+          warning: 'Double Booking Conflict',
+          conflict: conflictCheck.conflictingAppt,
+          message: `Specialist ${targetStaff} already has an overlapping appointment at ${conflictCheck.conflictingAppt?.startTime || conflictCheck.conflictingAppt?.time}. Do you want to proceed anyway?`,
+        }, { status: 409 });
+      }
     }
-    const newAppt: IAppointment = { _id: Date.now().toString(), status: 'Scheduled', ...body };
-    initialAppointments.unshift(newAppt);
-    return NextResponse.json({ success: true, data: newAppt });
+
+    // Ensure customer exists in shared master
+    let client = customerId ? (await clinicService.getCustomers()).find(c => c._id === customerId || c.customerId === customerId) : null;
+    if (!client && customerPhone) {
+      const matches = await clinicService.searchCustomerByMobile(customerPhone);
+      if (matches.length > 0) {
+        client = matches[0];
+      } else {
+        client = await clinicService.createCustomer({
+          name: customerName,
+          mobile: customerPhone,
+          firstStoreId: targetStore,
+          notes: `Created via appointment for ${serviceName}`,
+        });
+      }
+    }
+
+    const newAppt = await clinicService.createAppointment({
+      customerId: client?.customerId || client?._id || customerId,
+      customerName: customerName || client?.name || 'Client',
+      customerPhone: customerPhone || client?.mobile || '',
+      serviceName,
+      serviceId,
+      staffName: staffName || doctorName || 'Attending Specialist',
+      staffId,
+      doctorId,
+      doctorName,
+      storeId: targetStore,
+      date: date || new Date().toISOString().split('T')[0],
+      startTime: apptTime,
+      durationMins: duration,
+      status: 'Booked',
+      amount: Number(amount) || 0,
+      notes: notes || '',
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: newAppt,
+      message: 'Appointment booked successfully',
+    });
+  } catch (err: any) {
+    return NextResponse.json({ success: false, message: err.message }, { status: 500 });
+  }
+}
+
+// FR-62 & FR-63: Update appointment status (Arrived, Cancelled, Completed, etc.)
+export async function PUT(req: Request) {
+  try {
+    const body = await req.json();
+    const { id, _id, action, status, cancelReason, ...otherUpdates } = body;
+    const targetId = id || _id;
+
+    if (!targetId) {
+      return NextResponse.json({ success: false, message: 'Appointment ID is required' }, { status: 400 });
+    }
+
+    // Check-in action (marks Arrived and pushes patient to Doctor queue)
+    if (action === 'check-in' || status === 'Arrived') {
+      const result = await clinicService.checkInAppointment(targetId);
+      return NextResponse.json({
+        success: true,
+        data: result.appointment,
+        visit: result.visit,
+        message: 'Client checked in successfully. Doctor queue updated.',
+      });
+    }
+
+    const updates: any = { ...otherUpdates };
+    if (status) updates.status = status;
+    if (cancelReason) updates.cancelReason = cancelReason;
+
+    const updated = await clinicService.updateAppointment(targetId, updates);
+    if (!updated) {
+      return NextResponse.json({ success: false, message: 'Appointment not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: updated,
+      message: `Appointment status updated to ${updated.status}`,
+    });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });
   }
