@@ -46,15 +46,26 @@ export async function POST(req: Request) {
 
     // Enforce BR-01: Check if doctor is active and belongs to the same store
     const users = await clinicService.getUsers(storeId);
-    let doctor = users.find(u => (u._id === doctorId || u.email === doctorId || u.name === doctorId) && u.role === 'doctor');
+    const targetDocStr = String(doctorId).toLowerCase().trim();
+    let doctor = users.find(u => 
+      (String(u._id).toLowerCase() === targetDocStr || 
+       u.email?.toLowerCase().trim() === targetDocStr || 
+       u.name?.toLowerCase().trim() === targetDocStr) && 
+      u.role === 'doctor'
+    );
 
     if (!doctor) {
-      // Also check staff directory
+      // Also check staff directory of this store
       const staffList = await clinicService.getStaff(storeId);
-      const stDoctor = staffList.find(s => (s._id === doctorId || s.name === doctorId || s.email === doctorId) && s.designation === 'Doctor');
+      const stDoctor = staffList.find(s => 
+        (String(s._id).toLowerCase() === targetDocStr || 
+         s.name?.toLowerCase().trim() === targetDocStr || 
+         s.email?.toLowerCase().trim() === targetDocStr) && 
+        s.designation === 'Doctor'
+      );
       if (stDoctor) {
         doctor = {
-          _id: stDoctor._id,
+          _id: String(stDoctor._id),
           name: stDoctor.name,
           email: stDoctor.email || 'doctor@nilaclinic.com',
           role: 'doctor',
@@ -67,9 +78,37 @@ export async function POST(req: Request) {
     }
 
     if (!doctor) {
-      // Fallback search across all doctors
+      // Fallback search across all doctors across branches
       const allUsers = await clinicService.getUsers();
-      doctor = allUsers.find(u => (u._id === doctorId || u.email === doctorId) && u.role === 'doctor');
+      doctor = allUsers.find(u => 
+        (String(u._id).toLowerCase() === targetDocStr || 
+         u.email?.toLowerCase().trim() === targetDocStr || 
+         u.name?.toLowerCase().trim() === targetDocStr) && 
+        u.role === 'doctor'
+      );
+    }
+
+    if (!doctor) {
+      // Fallback search across all staff across branches
+      const allStaff = await clinicService.getStaff();
+      const stDoctor = allStaff.find(s => 
+        (String(s._id).toLowerCase() === targetDocStr || 
+         s.name?.toLowerCase().trim() === targetDocStr || 
+         s.email?.toLowerCase().trim() === targetDocStr) && 
+        s.designation === 'Doctor'
+      );
+      if (stDoctor) {
+        doctor = {
+          _id: String(stDoctor._id),
+          name: stDoctor.name,
+          email: stDoctor.email || 'doctor@nilaclinic.com',
+          role: 'doctor',
+          phone: stDoctor.mobile,
+          assignedStoreIds: stDoctor.stores || [storeId],
+          primaryStoreId: stDoctor.stores?.[0] || storeId,
+          isActive: stDoctor.isActive !== false,
+        };
+      }
     }
 
     if (!doctor) {

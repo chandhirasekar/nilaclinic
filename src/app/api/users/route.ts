@@ -12,8 +12,37 @@ export async function GET(req: Request) {
       users = users.filter(u => u.role === role);
     }
 
+    if (role === 'doctor') {
+      // Also include staff registered as Doctor
+      const staffList = await clinicService.getStaff(storeCode);
+      const docStaff = staffList.filter(s => s.designation === 'Doctor');
+      for (const ds of docStaff) {
+        const alreadyExists = users.some(u => 
+          String(u._id) === String(ds._id) || 
+          (ds.email && u.email.toLowerCase() === ds.email.toLowerCase()) ||
+          u.name.toLowerCase() === ds.name.toLowerCase()
+        );
+        if (!alreadyExists) {
+          users.push({
+            _id: String(ds._id),
+            name: ds.name,
+            email: ds.email || `doctor.${ds.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@nilaclinic.com`,
+            role: 'doctor',
+            phone: ds.mobile,
+            assignedStoreIds: ds.stores || (storeCode ? [storeCode] : ['NILA-TH']),
+            primaryStoreId: ds.stores?.[0] || storeCode || 'NILA-TH',
+            isActive: ds.isActive !== false,
+            specialization: 'Consulting Doctor',
+          } as any);
+        }
+      }
+    }
+
     // Do not leak raw passwords
-    const safeUsers = users.map(({ password, ...rest }) => rest);
+    const safeUsers = users.map(({ password, ...rest }) => ({
+      ...rest,
+      _id: String(rest._id),
+    }));
     return NextResponse.json({ success: true, data: safeUsers });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });

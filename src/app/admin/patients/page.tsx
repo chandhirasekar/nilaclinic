@@ -130,7 +130,8 @@ export default function PatientEntryAndQueuePage() {
     e.preventDefault();
     setAssignError('');
 
-    if (!selectedPatientForAssign || !selectedDoctorId) {
+    const activeDocId = selectedDoctorId || (doctors.length > 0 ? String(doctors[0]._id || doctors[0].email) : '');
+    if (!selectedPatientForAssign || !activeDocId) {
       setAssignError('Please select both patient and an active doctor.');
       return;
     }
@@ -153,7 +154,7 @@ export default function PatientEntryAndQueuePage() {
           patientName: selectedPatientForAssign.name,
           patientPhone: targetPhone,
           storeId: selectedStore,
-          doctorId: selectedDoctorId,
+          doctorId: activeDocId,
         }),
       });
       const data = await res.json();

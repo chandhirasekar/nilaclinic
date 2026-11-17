@@ -1217,7 +1217,9 @@ class ClinicService {
           query.assignedStoreIds = { $in: [storeCode.toUpperCase(), storeCode.replace('NILA-', '')] };
         }
         const docs = await (User as any).find(query).lean();
-        if (docs && docs.length > 0) return docs as any;
+        if (docs && docs.length > 0) {
+          return docs.map((d: any) => ({ ...d, _id: d._id?.toString() }));
+        }
       }
     } catch (e) {}
 
@@ -1232,7 +1234,7 @@ class ClinicService {
       const db = await connectToDatabase();
       if (db) {
         const doc = await (User as any).findOne({ email: email.toLowerCase().trim() }).lean();
-        if (doc) return doc as any;
+        if (doc) return { ...doc, _id: doc._id?.toString() } as any;
       }
     } catch (e) {}
 
@@ -1302,7 +1304,9 @@ class ClinicService {
           query.stores = storeCode.toUpperCase();
         }
         const docs = await (Staff as any).find(query).sort({ name: 1 }).lean();
-        if (docs && docs.length > 0) return docs as any;
+        if (docs && docs.length > 0) {
+          return docs.map((d: any) => ({ ...d, _id: d._id?.toString() }));
+        }
       }
     } catch (e) {}
 
