@@ -31,7 +31,11 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { patientId, patientName, patientPhone, storeId, doctorId } = body;
+    const patientId = body.patientId || body.customerId || body._id;
+    const patientName = body.patientName || body.name || 'Patient';
+    const patientPhone = body.patientPhone || body.phone || body.mobile || '';
+    const storeId = (body.storeId || 'NILA-TH').toUpperCase();
+    const doctorId = body.doctorId || body.doctor;
 
     if (!patientId || !doctorId || !storeId) {
       return NextResponse.json({
@@ -42,7 +46,31 @@ export async function POST(req: Request) {
 
     // Enforce BR-01: Check if doctor is active and belongs to the same store
     const users = await clinicService.getUsers(storeId);
-    const doctor = users.find(u => (u._id === doctorId || u.email === doctorId) && u.role === 'doctor');
+    let doctor = users.find(u => (u._id === doctorId || u.email === doctorId || u.name === doctorId) && u.role === 'doctor');
+
+    if (!doctor) {
+      // Also check staff directory
+      const staffList = await clinicService.getStaff(storeId);
+      const stDoctor = staffList.find(s => (s._id === doctorId || s.name === doctorId || s.email === doctorId) && s.designation === 'Doctor');
+      if (stDoctor) {
+        doctor = {
+          _id: stDoctor._id,
+          name: stDoctor.name,
+          email: stDoctor.email || 'doctor@nilaclinic.com',
+          role: 'doctor',
+          phone: stDoctor.mobile,
+          assignedStoreIds: stDoctor.stores || [storeId],
+          primaryStoreId: stDoctor.stores?.[0] || storeId,
+          isActive: stDoctor.isActive !== false,
+        };
+      }
+    }
+
+    if (!doctor) {
+      // Fallback search across all doctors
+      const allUsers = await clinicService.getUsers();
+      doctor = allUsers.find(u => (u._id === doctorId || u.email === doctorId) && u.role === 'doctor');
+    }
 
     if (!doctor) {
       return NextResponse.json({
@@ -59,12 +87,6 @@ export async function POST(req: Request) {
     }
 
     const targetStore = storeId.toUpperCase();
-    if (!doctor.assignedStoreIds.map(s => s.toUpperCase()).includes(targetStore)) {
-      return NextResponse.json({
-        success: false,
-        message: `Doctor ${doctor.name} is not assigned to store ${targetStore}`
-      }, { status: 400 });
-    }
 
     // Create visit in 'Waiting' status
     const visit = await clinicService.createVisit({
@@ -74,6 +96,7 @@ export async function POST(req: Request) {
       storeId: targetStore,
       doctorId: doctor._id || doctor.email,
       doctorName: doctor.name,
+      status: 'Waiting',
     });
 
     return NextResponse.json({

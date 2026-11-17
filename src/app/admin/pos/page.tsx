@@ -438,7 +438,7 @@ export default function QuickSalePOSPage() {
           <div className="flex items-center space-x-2">
             <h1 className="text-xl font-black text-slate-900 tracking-tight">Quick Sale (POS Billing)</h1>
             <span className="text-xs font-mono font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">
-              Store: [{selectedStore}] {currentStoreObj?.name.replace('Nila Clinic - ', '')}
+              Store: [{selectedStore}] {currentStoreObj?.name ? currentStoreObj.name.replace('Nila Clinic - ', '') : selectedStore}
             </span>
           </div>
           <p className="text-xs text-slate-500">
@@ -453,7 +453,7 @@ export default function QuickSalePOSPage() {
             <input
               type="date"
               value={billDate}
-              disabled={user?.role !== 'admin' && !settings?.backDatedBillingRoles.includes(user?.role || '')}
+              disabled={user?.role !== 'admin' && !settings?.backDatedBillingRoles?.includes(user?.role || '')}
               onChange={(e) => setBillDate(e.target.value)}
               className="bg-transparent font-semibold text-slate-800 outline-none text-xs disabled:opacity-60"
             />
@@ -1128,8 +1128,8 @@ export default function QuickSalePOSPage() {
 
               <div className="text-left space-y-1 text-[11px]">
                 <p><strong>Patient:</strong> {lastInvoice.customerName}</p>
-                <p><strong>Mobile:</strong> {lastInvoice.customerMobile || lastInvoice.customerPhone}</p>
-                <p><strong>Date:</strong> {lastInvoice.date} ({new Date(lastInvoice.createdAt).toLocaleTimeString()})</p>
+                <p><strong>Mobile:</strong> {lastInvoice.customerMobile || lastInvoice.customerPhone || '-'}</p>
+                <p><strong>Date:</strong> {lastInvoice.date} {lastInvoice.createdAt ? `(${new Date(lastInvoice.createdAt).toLocaleTimeString()})` : ''}</p>
                 <p><strong>Billed By:</strong> {lastInvoice.staffName}</p>
               </div>
 
@@ -1142,7 +1142,7 @@ export default function QuickSalePOSPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {lastInvoice.items.map((it, idx) => (
+                  {(lastInvoice.items || []).map((it, idx) => (
                     <tr key={idx}>
                       <td className="py-1 pr-1">
                         <div>{it.name}</div>

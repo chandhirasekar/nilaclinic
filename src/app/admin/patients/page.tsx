@@ -135,14 +135,23 @@ export default function PatientEntryAndQueuePage() {
       return;
     }
 
+    const targetPatientId =
+      selectedPatientForAssign.patientId ||
+      (selectedPatientForAssign as any).customerId ||
+      selectedPatientForAssign._id;
+    const targetPhone =
+      selectedPatientForAssign.phone ||
+      (selectedPatientForAssign as any).mobile ||
+      '';
+
     try {
       const res = await fetch('/api/visits', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          patientId: selectedPatientForAssign.patientId,
+          patientId: targetPatientId,
           patientName: selectedPatientForAssign.name,
-          patientPhone: selectedPatientForAssign.phone,
+          patientPhone: targetPhone,
           storeId: selectedStore,
           doctorId: selectedDoctorId,
         }),
@@ -318,32 +327,40 @@ export default function PatientEntryAndQueuePage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {patients.map((p) => (
-                <tr key={p._id || p.patientId} className="hover:bg-slate-50/80 transition-colors">
-                  <td className="px-4 py-3 font-mono font-bold text-slate-900">{p.patientId}</td>
-                  <td className="px-4 py-3 font-semibold text-slate-900">{p.name}</td>
-                  <td className="px-4 py-3 font-medium text-slate-700">{p.phone}</td>
-                  <td className="px-4 py-3">{p.gender} / {p.age || '-'} yrs</td>
-                  <td className="px-4 py-3">
-                    <span className="bg-slate-100 text-slate-700 text-[10px] font-bold px-2 py-0.5 rounded">
-                      {p.storeId}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-slate-400 max-w-xs truncate">{p.notes || '-'}</td>
-                  <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => {
-                        setSelectedPatientForAssign(p);
-                        setShowAssignModal(true);
-                      }}
-                      className="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg font-semibold text-xs shadow-2xs transition-all inline-flex items-center space-x-1"
-                    >
-                      <Stethoscope className="w-3.5 h-3.5" />
-                      <span>Assign Doctor</span>
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {patients.map((p) => {
+                const pid = p.patientId || (p as any).customerId || p._id;
+                const contact = p.phone || (p as any).mobile || '-';
+                return (
+                  <tr key={p._id || pid} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="px-4 py-3 font-mono font-bold text-slate-900">{pid}</td>
+                    <td className="px-4 py-3 font-semibold text-slate-900">{p.name}</td>
+                    <td className="px-4 py-3 font-medium text-slate-700">{contact}</td>
+                    <td className="px-4 py-3">{p.gender} / {p.age || '-'} yrs</td>
+                    <td className="px-4 py-3">
+                      <span className="bg-slate-100 text-slate-700 text-[10px] font-bold px-2 py-0.5 rounded">
+                        {p.storeId || (p as any).firstStoreId || selectedStore}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-slate-400 max-w-xs truncate">{p.notes || '-'}</td>
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        onClick={() => {
+                          setSelectedPatientForAssign({
+                            ...p,
+                            patientId: pid,
+                            phone: contact,
+                          });
+                          setShowAssignModal(true);
+                        }}
+                        className="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg font-semibold text-xs shadow-2xs transition-all inline-flex items-center space-x-1"
+                      >
+                        <Stethoscope className="w-3.5 h-3.5" />
+                        <span>Assign Doctor</span>
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -476,8 +493,8 @@ export default function PatientEntryAndQueuePage() {
 
             <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 mb-3 text-xs space-y-0.5">
               <p><strong>Patient:</strong> {selectedPatientForAssign.name}</p>
-              <p><strong>Phone:</strong> {selectedPatientForAssign.phone}</p>
-              <p><strong>ID:</strong> {selectedPatientForAssign.patientId}</p>
+              <p><strong>Phone:</strong> {selectedPatientForAssign.phone || (selectedPatientForAssign as any).mobile || 'N/A'}</p>
+              <p><strong>ID:</strong> {selectedPatientForAssign.patientId || (selectedPatientForAssign as any).customerId || selectedPatientForAssign._id}</p>
             </div>
 
             {assignError && (

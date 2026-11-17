@@ -21,21 +21,19 @@ import {
   Stethoscope,
   ClipboardList,
   Store as StoreIcon,
-  ShieldAlert,
-  ChevronDown,
 } from 'lucide-react';
 import { ClinicProvider, useClinic } from '@/context/ClinicContext';
 
 function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user, selectedStore, setSelectedStore, stores, unreadDoctorVisits, logout, setUser } = useClinic();
+  const { user, selectedStore, setSelectedStore, stores, unreadDoctorVisits, logout } = useClinic();
 
   const userRole = user?.role || 'admin';
 
   // Navigation Items customized by Role (FR-02 & Section 9 matrix)
   const navItems = [
-    // Dashboard: Admin (all stores), Staff (own store), Doctor (hidden)
+    // Dashboard: Admin (all stores / consolidated) and Staff (own store)
     ...(userRole !== 'doctor'
       ? [{ name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard }]
       : []),
@@ -97,63 +95,23 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
       ? [{ name: 'Reports & Analytics', href: '/admin/reports', icon: BarChart3 }]
       : []),
 
-    // Settings
+    // Settings: Admin ONLY
     ...(userRole === 'admin'
       ? [{ name: 'Settings', href: '/admin/settings', icon: Settings }]
       : []),
   ];
 
-  // Allowed stores for the user
+  // Allowed stores for the user (Bug 6: Admin can see ALL stores consolidated)
   const selectableStores =
     userRole === 'admin'
-      ? stores
-      : stores.filter((s) => user?.assignedStoreIds?.map((id) => id.toUpperCase()).includes(s.code.toUpperCase()));
-
-  // Role fast-switch simulator for testing / demo verification
-  const switchDemoRole = (role: 'admin' | 'staff' | 'doctor') => {
-    if (role === 'admin') {
-      const u = {
-        _id: 'user-admin-1',
-        email: 'admin@nilaclinic.com',
-        name: 'Mohan Raj (Admin)',
-        role: 'admin' as const,
-        assignedStoreIds: ['THN', 'MDU', 'CHN'],
-        primaryStoreId: 'THN',
-        isActive: true,
-      };
-      setUser(u);
-      localStorage.setItem('nilaclinic_user', JSON.stringify(u));
-    } else if (role === 'doctor') {
-      const u = {
-        _id: 'user-doc-1',
-        email: 'doctor.theni@nilaclinic.com',
-        name: 'Dr. Anitha Ramachandran',
-        role: 'doctor' as const,
-        phone: '+91 98450 22334',
-        assignedStoreIds: ['THN'],
-        primaryStoreId: 'THN',
-        specialization: 'Senior Dermatologist',
-        isActive: true,
-      };
-      setUser(u);
-      setSelectedStore('THN');
-      localStorage.setItem('nilaclinic_user', JSON.stringify(u));
-    } else {
-      const u = {
-        _id: 'user-staff-1',
-        email: 'staff.theni@nilaclinic.com',
-        name: 'Pooja Sharma (Staff)',
-        role: 'staff' as const,
-        phone: '+91 98450 55667',
-        assignedStoreIds: ['THN'],
-        primaryStoreId: 'THN',
-        isActive: true,
-      };
-      setUser(u);
-      setSelectedStore('THN');
-      localStorage.setItem('nilaclinic_user', JSON.stringify(u));
-    }
-  };
+      ? [
+          { code: 'ALL', name: 'All Branches (Consolidated)' },
+          ...stores,
+        ]
+      : stores.filter((s) => {
+          const userStores = (user?.assignedStoreIds || []).map((id) => id.toUpperCase());
+          return userStores.includes(s.code.toUpperCase()) || userStores.includes(s.code.replace('NILA-', '').toUpperCase());
+        });
 
   return (
     <div className="min-h-screen bg-slate-100 flex font-sans text-slate-800">
@@ -180,7 +138,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
             </button>
           </div>
 
-          {/* Active Store Selector (FR-03, FR-05) */}
+          {/* Active Store Selector (FR-03, FR-05 & Bug 6 Multi-store) */}
           <div className="p-3 mx-3 my-3 bg-slate-800/80 rounded-xl border border-slate-700/60">
             <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider flex items-center justify-between">
               <span>Active Clinic Store</span>
@@ -194,12 +152,15 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
             >
               {selectableStores.map((st) => (
                 <option key={st.code} value={st.code}>
-                  [{st.code}] {st.name.replace('Nila Clinic - ', '')}
+                  [{st.code}] {(st.name || '').replace('Nila Clinic - ', '')}
                 </option>
               ))}
             </select>
             {userRole !== 'admin' && (
               <span className="text-[10px] text-slate-400 block mt-1">Locked to assigned store ({selectedStore})</span>
+            )}
+            {userRole === 'admin' && selectedStore === 'ALL' && (
+              <span className="text-[10px] text-emerald-400 block mt-1 font-semibold">Viewing Consolidated Network Data</span>
             )}
           </div>
 
@@ -234,43 +195,12 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
           </nav>
         </div>
 
-        {/* Demo Fast Role Switcher & User Account Footer */}
-        <div className="p-3 border-t border-slate-800 bg-slate-950/60 space-y-2.5">
-          {/* Quick Role Tester Pill */}
-          <div className="bg-slate-900 p-2 rounded-xl border border-slate-800 text-[10px]">
-            <span className="text-slate-400 uppercase font-bold block mb-1">Simulate Role Login:</span>
-            <div className="grid grid-cols-3 gap-1">
-              <button
-                onClick={() => switchDemoRole('admin')}
-                className={`py-1 rounded font-bold transition-colors ${
-                  userRole === 'admin' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                }`}
-              >
-                Admin
-              </button>
-              <button
-                onClick={() => switchDemoRole('doctor')}
-                className={`py-1 rounded font-bold transition-colors ${
-                  userRole === 'doctor' ? 'bg-sky-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                }`}
-              >
-                Doctor
-              </button>
-              <button
-                onClick={() => switchDemoRole('staff')}
-                className={`py-1 rounded font-bold transition-colors ${
-                  userRole === 'staff' ? 'bg-teal-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                }`}
-              >
-                Staff
-              </button>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between pt-1">
+        {/* User Account Footer (Clean & Secure - Fixes Bug 5 & Bug 9) */}
+        <div className="p-3 border-t border-slate-800 bg-slate-950/80 space-y-2">
+          <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2.5 overflow-hidden">
               <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${
+                className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
                   userRole === 'admin'
                     ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                     : userRole === 'doctor'
@@ -281,13 +211,28 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
                 {userRole === 'admin' ? 'AD' : userRole === 'doctor' ? 'DR' : 'ST'}
               </div>
               <div className="truncate">
-                <p className="text-xs font-semibold text-white truncate">{user?.name || 'Nila User'}</p>
-                <p className="text-[10px] text-slate-400 uppercase font-medium">Role: {userRole}</p>
+                <p className="text-xs font-bold text-white truncate">{user?.name || 'Nila User'}</p>
+                <div className="flex items-center space-x-1.5">
+                  <span
+                    className={`text-[9px] font-bold uppercase px-1.5 py-0.2 rounded ${
+                      userRole === 'admin'
+                        ? 'bg-purple-900/60 text-purple-300'
+                        : userRole === 'doctor'
+                        ? 'bg-sky-900/60 text-sky-300'
+                        : 'bg-teal-900/60 text-teal-300'
+                    }`}
+                  >
+                    {userRole}
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-medium truncate">
+                    {user?.primaryStoreId ? `[${user.primaryStoreId}]` : ''}
+                  </span>
+                </div>
               </div>
             </div>
             <button
               onClick={logout}
-              className="text-slate-400 hover:text-red-400 p-1.5 rounded-lg hover:bg-slate-800"
+              className="text-slate-400 hover:text-red-400 p-2 rounded-xl hover:bg-slate-800 transition-colors"
               title="Logout"
             >
               <LogOut className="w-4 h-4" />
@@ -322,7 +267,9 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
                   {userRole}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500">Store: <span className="font-semibold text-slate-700">[{selectedStore}]</span></p>
+              <p className="text-[11px] text-slate-500">
+                Active Store: <span className="font-semibold text-slate-700">[{selectedStore}]</span>
+              </p>
             </div>
           </div>
 

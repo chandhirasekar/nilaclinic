@@ -102,7 +102,22 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
     window.location.href = '/login';
   };
 
-  const currentStoreObj = stores.find(s => s.code.toUpperCase() === selectedStore.toUpperCase()) || stores[0] || null;
+  const currentStoreObj: IStore | null =
+    selectedStore === 'ALL'
+      ? ({
+          _id: 'store-all',
+          name: 'All Clinic Branches (Consolidated)',
+          code: 'ALL',
+          address: 'Multi-Store Consolidated View',
+          phone: '+91 98450 11223',
+          email: 'admin@nilaclinic.com',
+          gstin: '33ABCDE1234F1Z5',
+          workingHours: { open: '09:00 AM', close: '08:00 PM', weeklyOff: 'None' },
+          invoicePrefix: 'NILA-',
+          nextInvoiceNumber: 1001,
+          isActive: true,
+        } as IStore)
+      : stores.find((s) => s.code.toUpperCase() === selectedStore.toUpperCase()) || stores[0] || null;
 
   return (
     <ClinicContext.Provider

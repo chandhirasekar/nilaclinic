@@ -1156,11 +1156,16 @@ class ClinicService {
     try {
       const db = await connectToDatabase();
       if (db) {
-        const doc = await (Store as any).create(newStore);
-        this.stores.push(newStore);
-        return doc.toObject();
+        const { _id, ...storeData } = newStore;
+        const doc = await (Store as any).create(storeData);
+        const saved = doc.toObject();
+        saved._id = saved._id.toString();
+        this.stores.push(saved);
+        return saved;
       }
-    } catch (e) {}
+    } catch (e) {
+      console.error('Error creating store in MongoDB:', e);
+    }
 
     this.stores.push(newStore);
     return newStore;
@@ -1251,11 +1256,16 @@ class ClinicService {
     try {
       const db = await connectToDatabase();
       if (db) {
-        const doc = await (User as any).create(newUser);
-        this.users.push(newUser);
-        return doc.toObject();
+        const { _id, ...userData } = newUser;
+        const doc = await (User as any).create({ ...userData, username: userData.email });
+        const saved = doc.toObject();
+        saved._id = saved._id.toString();
+        this.users.push(saved);
+        return saved;
       }
-    } catch (e) {}
+    } catch (e) {
+      console.error('Error creating user in MongoDB:', e);
+    }
 
     this.users.push(newUser);
     return newUser;
@@ -1319,11 +1329,16 @@ class ClinicService {
     try {
       const db = await connectToDatabase();
       if (db) {
-        const doc = await (Staff as any).create(newStaff);
-        this.staff.push(newStaff);
-        return doc.toObject();
+        const { _id, ...staffData } = newStaff;
+        const doc = await (Staff as any).create(staffData);
+        const saved = doc.toObject();
+        saved._id = saved._id.toString();
+        this.staff.push(saved);
+        return saved;
       }
-    } catch (e) {}
+    } catch (e) {
+      console.error('Error creating staff in MongoDB:', e);
+    }
 
     this.staff.push(newStaff);
     return newStaff;
@@ -1382,11 +1397,16 @@ class ClinicService {
     try {
       const db = await connectToDatabase();
       if (db) {
-        const doc = await (Service as any).create(newService);
-        this.services.push(newService);
-        return doc.toObject();
+        const { _id, ...svcData } = newService;
+        const doc = await (Service as any).create(svcData);
+        const saved = doc.toObject();
+        saved._id = saved._id.toString();
+        this.services.push(saved);
+        return saved;
       }
-    } catch (e) {}
+    } catch (e) {
+      console.error('Error creating service in MongoDB:', e);
+    }
 
     this.services.push(newService);
     return newService;
@@ -1422,11 +1442,16 @@ class ClinicService {
     try {
       const db = await connectToDatabase();
       if (db) {
-        const doc = await (Product as any).create(newProd);
-        this.products.push(newProd);
-        return doc.toObject();
+        const { _id, ...prodData } = newProd;
+        const doc = await (Product as any).create(prodData);
+        const saved = doc.toObject();
+        saved._id = saved._id.toString();
+        this.products.push(saved);
+        return saved;
       }
-    } catch (e) {}
+    } catch (e) {
+      console.error('Error creating product in MongoDB:', e);
+    }
 
     this.products.push(newProd);
     return newProd;
@@ -1456,11 +1481,16 @@ class ClinicService {
     try {
       const db = await connectToDatabase();
       if (db) {
-        const doc = await (PaymentMode as any).create(newMode);
-        this.paymentModes.push(newMode);
-        return doc.toObject();
+        const { _id, ...pmData } = newMode;
+        const doc = await (PaymentMode as any).create(pmData);
+        const saved = doc.toObject();
+        saved._id = saved._id.toString();
+        this.paymentModes.push(saved);
+        return saved;
       }
-    } catch (e) {}
+    } catch (e) {
+      console.error('Error creating payment mode in MongoDB:', e);
+    }
 
     this.paymentModes.push(newMode);
     return newMode;
@@ -1545,39 +1575,62 @@ class ClinicService {
 
   async createCustomer(data: Partial<ICustomer>): Promise<ICustomer> {
     const count = this.customers.length + 1001;
-    const newCust: ICustomer = {
-      _id: `cust-${Date.now()}`,
-      customerId: `CID-${count}`,
+    const cid = data.customerId || `CID-${count}`;
+    const mob = data.mobile || (data as any).phone || '';
+    const newCust: any = {
+      customerId: cid,
+      patientId: cid,
       name: data.name || 'New Customer',
-      mobile: data.mobile || '',
+      mobile: mob,
+      phone: mob,
       gender: data.gender || 'Female',
       dob: data.dob || '',
       email: data.email || '',
-      area: data.area || '',
+      area: data.area || (data as any).address || '',
+      address: data.area || (data as any).address || '',
       allergyNotes: data.allergyNotes || '',
       skinHairNotes: data.skinHairNotes || '',
-      firstStoreId: (data.firstStoreId || 'NILA-TH').toUpperCase(),
-      visits: 0,
-      totalSpent: 0,
+      notes: data.notes || data.skinHairNotes || '',
+      firstStoreId: (data.firstStoreId || (data as any).storeId || 'NILA-TH').toUpperCase(),
+      storeId: (data.firstStoreId || (data as any).storeId || 'NILA-TH').toUpperCase(),
+      visits: data.visits || 0,
+      totalSpent: data.totalSpent || 0,
       createdAt: new Date().toISOString(),
     };
 
     try {
       const db = await connectToDatabase();
       if (db) {
-        const doc = await (Customer as any).create(newCust);
-        this.customers.unshift(newCust);
-        return doc.toObject();
+        const { _id, ...custData } = newCust;
+        const doc = await (Customer as any).create(custData);
+        const saved = doc.toObject();
+        saved._id = saved._id.toString();
+        saved.patientId = saved.customerId;
+        saved.phone = saved.mobile;
+        this.customers.unshift(saved);
+        return saved;
       }
-    } catch (e) {}
+    } catch (e) {
+      console.error('Error creating customer in MongoDB:', e);
+    }
 
-    this.customers.unshift(newCust);
-    return newCust;
+    const fallback: ICustomer = {
+      _id: `cust-${Date.now()}`,
+      ...newCust,
+    };
+    this.customers.unshift(fallback);
+    return fallback;
   }
 
   // Compatibility aliases for legacy patient endpoints
   async getPatients(storeCode?: string, search?: string) {
-    return this.getCustomers(storeCode, search);
+    const customers = await this.getCustomers(storeCode, search);
+    return customers.map(c => ({
+      ...c,
+      patientId: c.customerId || (c as any).patientId || c._id,
+      phone: c.mobile || (c as any).phone || '',
+      storeId: c.firstStoreId || (c as any).storeId || 'NILA-TH',
+    }));
   }
 
   async checkDuplicatePatientPhone(phone: string, storeCode?: string) {

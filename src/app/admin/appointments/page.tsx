@@ -26,8 +26,8 @@ import Link from 'next/link';
 export default function AppointmentsCalendarPage() {
   const { user, selectedStore, stores } = useClinic();
 
-  // Calendar View: 'day' | 'week' | 'list'
-  const [currentView, setCurrentView] = useState<'day' | 'week' | 'list'>('day');
+  // Calendar View: 'cards' (Schedule Cards) | 'list' (Table View) - Fixes Bug 3
+  const [currentView, setCurrentView] = useState<'cards' | 'list'>('cards');
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
 
   // Masters
@@ -331,15 +331,15 @@ export default function AppointmentsCalendarPage() {
             </button>
           </div>
 
-          {/* View Switcher (Day / Week / List) */}
+          {/* View Switcher (Cards / List - Replaces empty 15-min slot grid: Bug 3) */}
           <div className="flex bg-slate-100 p-1 rounded-xl text-xs font-semibold">
             <button
-              onClick={() => setCurrentView('day')}
+              onClick={() => setCurrentView('cards')}
               className={`px-3 py-1.5 rounded-lg transition-all ${
-                currentView === 'day' ? 'bg-white text-sky-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                currentView === 'cards' ? 'bg-white text-sky-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Day Grid
+              Schedule Cards
             </button>
             <button
               onClick={() => setCurrentView('list')}
@@ -347,7 +347,7 @@ export default function AppointmentsCalendarPage() {
                 currentView === 'list' ? 'bg-white text-sky-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Queue List
+              Table View
             </button>
           </div>
 
@@ -412,110 +412,138 @@ export default function AppointmentsCalendarPage() {
         </div>
       </div>
 
-      {/* VIEW 1: DAY MULTI-COLUMN TIME GRID */}
-      {currentView === 'day' && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-xs">
-                  <th className="p-3 w-24 text-center font-bold text-slate-500 border-r border-slate-200 sticky left-0 bg-slate-50 z-10">
-                    Time Slot
-                  </th>
-                  {staffMembers
-                    .filter((st) => selectedStaffFilter === 'ALL' || st.name === selectedStaffFilter)
-                    .map((st) => (
-                      <th key={st._id} className="p-3 text-left font-bold text-slate-800 min-w-[200px] border-r border-slate-100">
-                        <div className="flex items-center space-x-2">
-                          <span
-                            className="w-3 h-3 rounded-full flex-shrink-0"
-                            style={{ backgroundColor: st.calendarColour || '#0284c7' }}
-                          />
-                          <div>
-                            <span className="block">{st.name}</span>
-                            <span className="text-[10px] text-slate-400 font-normal">{st.designation}</span>
-                          </div>
-                        </div>
-                      </th>
-                    ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-xs">
-                {timeSlots.map((slot) => (
-                  <tr key={slot} className="hover:bg-slate-50/50">
-                    <td className="p-2 text-center font-mono text-[11px] font-semibold text-slate-500 border-r border-slate-200 bg-slate-50/80 sticky left-0 z-10">
-                      {slot}
-                    </td>
-                    {staffMembers
-                      .filter((st) => selectedStaffFilter === 'ALL' || st.name === selectedStaffFilter)
-                      .map((st) => {
-                        // Find appointment for this staff at this slot
-                        const appt = appointments.find(
-                          (a) =>
-                            (a.startTime === slot || a.time === slot) &&
-                            (a.staffName === st.name || a.doctorName === st.name || a.stylistName === st.name) &&
-                            a.status !== 'Cancelled'
-                        );
+      {/* VIEW 1: APPOINTMENT SCHEDULE CARDS (Clean, usable, replaces empty 15-min slot grid: Bug 3) */}
+      {currentView === 'cards' && (
+        <div className="space-y-4">
+          {filteredAppointments.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center space-y-3">
+              <div className="w-12 h-12 bg-sky-50 text-sky-600 rounded-full flex items-center justify-center mx-auto">
+                <CalendarIcon className="w-6 h-6" />
+              </div>
+              <h3 className="text-sm font-bold text-slate-800">No Appointments for {selectedDate}</h3>
+              <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                There are no scheduled visits or consultations booked for this clinic branch on the selected date.
+              </p>
+              <button
+                onClick={() => {
+                  setShowBookingModal(true);
+                  setConflictWarning(null);
+                }}
+                className="mt-2 inline-flex items-center space-x-1.5 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold rounded-xl shadow-xs"
+              >
+                <Plus className="w-4 h-4" />
+                <span>+ Book New Appointment</span>
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredAppointments.map((appt) => {
+                const staffObj = staffMembers.find((s) => s.name === appt.staffName || s.name === appt.doctorName);
+                const color = staffObj?.calendarColour || '#0284c7';
 
-                        return (
-                          <td
-                            key={st._id}
-                            className="p-1.5 border-r border-slate-100 align-top h-14"
-                            onClick={() => {
-                              if (!appt) {
-                                setBookingTime(slot);
-                                setBookingStaff(st.name);
-                                setShowBookingModal(true);
-                              }
-                            }}
-                          >
-                            {appt ? (
-                              <div
-                                className="p-2 rounded-xl text-left shadow-xs space-y-1 border cursor-pointer hover:shadow-md transition"
-                                style={{
-                                  borderLeftColor: st.calendarColour || '#0284c7',
-                                  borderLeftWidth: '4px',
-                                  backgroundColor: '#f8fafc',
-                                }}
-                              >
-                                <div className="flex justify-between items-start">
-                                  <span className="font-bold text-slate-900 truncate block pr-1">
-                                    {appt.customerName}
-                                  </span>
-                                  {getStatusBadge(appt.status)}
-                                </div>
-                                <div className="text-[11px] text-slate-600 truncate flex items-center">
-                                  <Sparkles className="w-3 h-3 mr-1 text-sky-500" />
-                                  {appt.serviceName}
-                                </div>
-                                <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1">
-                                  <span>{appt.durationMins || 15} mins</span>
-                                  {appt.status === 'Booked' && (
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleCheckIn(appt._id || appt.appointmentId!);
-                                      }}
-                                      className="px-2 py-0.5 bg-emerald-600 text-white font-bold rounded hover:bg-emerald-700"
-                                    >
-                                      Check-in
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="h-full w-full rounded hover:bg-sky-50/40 flex items-center justify-center opacity-0 hover:opacity-100 transition cursor-pointer text-sky-600 text-[10px] font-semibold">
-                                + Available
-                              </div>
-                            )}
-                          </td>
-                        );
-                      })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                return (
+                  <div
+                    key={appt._id || appt.appointmentId}
+                    className="bg-white rounded-2xl border border-slate-200/90 hover:border-slate-300 p-4 shadow-xs hover:shadow-md transition-all flex flex-col justify-between space-y-3 relative overflow-hidden group"
+                  >
+                    <div
+                      className="absolute top-0 left-0 bottom-0 w-1.5"
+                      style={{ backgroundColor: color }}
+                    />
+
+                    <div>
+                      {/* Top Bar: Time & Status */}
+                      <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                        <div className="flex items-center space-x-1.5 font-bold text-slate-900 text-xs">
+                          <Clock className="w-3.5 h-3.5 text-slate-400" />
+                          <span>{appt.startTime || appt.time}</span>
+                          <span className="text-[10px] text-slate-400 font-normal">({appt.durationMins || 30} mins)</span>
+                        </div>
+                        {getStatusBadge(appt.status)}
+                      </div>
+
+                      {/* Client Info */}
+                      <div className="pt-2 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-bold text-slate-900 text-sm">{appt.customerName}</h4>
+                          <span className="text-[10px] font-mono text-slate-400">
+                            {appt.customerId || appt.appointmentId}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 flex items-center">
+                          <Phone className="w-3 h-3 mr-1 text-slate-400" />
+                          {appt.customerPhone}
+                        </p>
+                      </div>
+
+                      {/* Service & Specialist */}
+                      <div className="mt-2.5 p-2 bg-slate-50 rounded-xl border border-slate-100 space-y-1">
+                        <div className="flex items-center justify-between text-xs font-semibold text-slate-800">
+                          <span className="flex items-center truncate">
+                            <Sparkles className="w-3.5 h-3.5 text-amber-500 mr-1.5 shrink-0" />
+                            <span className="truncate">{appt.serviceName}</span>
+                          </span>
+                          {appt.amount ? <span className="font-mono text-slate-700">₹{appt.amount}</span> : null}
+                        </div>
+                        <div className="flex items-center space-x-1.5 text-[11px] text-slate-500">
+                          <Stethoscope className="w-3 h-3 text-sky-500 shrink-0" />
+                          <span className="truncate">Attending: <strong>{appt.staffName || appt.doctorName}</strong></span>
+                        </div>
+                      </div>
+
+                      {appt.notes && (
+                        <p className="text-[11px] text-slate-400 italic mt-2 line-clamp-2">
+                          &ldquo;{appt.notes}&rdquo;
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Actions */}
+                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                      {appt.status === 'Booked' && (
+                        <button
+                          onClick={() => handleCheckIn(appt._id || appt.appointmentId!)}
+                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-xs transition-all flex items-center space-x-1"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Mark Arrived</span>
+                        </button>
+                      )}
+
+                      {appt.status === 'Arrived' && (
+                        <Link
+                          href="/admin/patients"
+                          className="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl font-bold shadow-xs transition-all flex items-center space-x-1"
+                        >
+                          <Stethoscope className="w-3.5 h-3.5" />
+                          <span>In Doctor Queue</span>
+                        </Link>
+                      )}
+
+                      {appt.status === 'Completed' && (
+                        <Link
+                          href="/admin/pos"
+                          className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-semibold shadow-xs transition-all flex items-center space-x-1"
+                        >
+                          <CreditCard className="w-3.5 h-3.5" />
+                          <span>Quick Sale Bill</span>
+                        </Link>
+                      )}
+
+                      {appt.status !== 'Cancelled' && appt.status !== 'Completed' && (
+                        <button
+                          onClick={() => setCancellingAppt(appt)}
+                          className="text-slate-400 hover:text-red-600 text-xs font-semibold p-1"
+                        >
+                          Cancel
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
