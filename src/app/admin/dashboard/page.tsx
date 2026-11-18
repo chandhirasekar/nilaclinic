@@ -22,6 +22,8 @@ import {
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useClinic } from '@/context/ClinicContext';
+import CardSkeleton from '@/components/ui/skeletons/CardSkeleton';
+import TableSkeleton from '@/components/ui/skeletons/TableSkeleton';
 
 export default function ClinicDashboardPage() {
   const { user, selectedStore, setSelectedStore, stores } = useClinic();
@@ -79,6 +81,19 @@ export default function ClinicDashboardPage() {
   const staffCounts = reportData?.staffCounts || [];
   const salesTrend = reportData?.salesTrend || [];
   const storeBreakdown = reportData?.storeBreakdown || [];
+
+  if (loading && !reportData) {
+    return (
+      <div className="space-y-6">
+        <div className="h-20 bg-slate-200 rounded-2xl w-full animate-pulse" />
+        <CardSkeleton count={4} />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <TableSkeleton rows={4} columns={4} />
+          <TableSkeleton rows={4} columns={4} />
+        </div>
+      </div>
+    );
+  }
 
   // ================= 1. DOCTOR DASHBOARD (Rule BR-03: No bills or financial amounts) =================
   if (userRole === 'doctor') {

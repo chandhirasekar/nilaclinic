@@ -32,4 +32,9 @@ const AppointmentSchema: Schema = new Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
+// ESR Compound Indexes for high-performance schedule queries
+AppointmentSchema.index({ storeId: 1, date: 1, startTime: 1 });
+AppointmentSchema.index({ doctorId: 1, date: 1, status: 1 });
+AppointmentSchema.index({ customerId: 1, createdAt: -1 });
+
 export default mongoose.models.Appointment || mongoose.model<IAppointmentDocument>('Appointment', AppointmentSchema);

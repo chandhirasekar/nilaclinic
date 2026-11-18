@@ -17,6 +17,9 @@ import {
 } from 'lucide-react';
 import { IPatient, IVisit, IUser } from '@/types';
 import { useClinic } from '@/context/ClinicContext';
+import { useDebounce } from '@/hooks/useDebounce';
+import { ButtonLoader } from '@/components/ui/ButtonLoader';
+import { TableSkeleton } from '@/components/ui/skeletons/TableSkeleton';
 
 export default function PatientEntryAndQueuePage() {
   const { selectedStore, user } = useClinic();
@@ -24,7 +27,10 @@ export default function PatientEntryAndQueuePage() {
   const [visits, setVisits] = useState<IVisit[]>([]);
   const [doctors, setDoctors] = useState<IUser[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery, 300);
   const [loading, setLoading] = useState(true);
+  const [isSubmittingReg, setIsSubmittingReg] = useState(false);
+  const [isSubmittingAssign, setIsSubmittingAssign] = useState(false);
 
   // Registration Form State
   const [showRegModal, setShowRegModal] = useState(false);
@@ -49,7 +55,7 @@ export default function PatientEntryAndQueuePage() {
     setLoading(true);
     try {
       const [patRes, visRes, docRes] = await Promise.all([
-        fetch(`/api/patients?storeCode=${selectedStore}&search=${searchQuery}`),
+        fetch(`/api/patients?storeCode=${selectedStore}&search=${encodeURIComponent(debouncedSearch)}`),
         fetch(`/api/visits?storeCode=${selectedStore}`),
         fetch(`/api/users?storeCode=${selectedStore}&role=doctor`),
       ]);
@@ -77,7 +83,7 @@ export default function PatientEntryAndQueuePage() {
 
   useEffect(() => {
     loadData();
-  }, [selectedStore, searchQuery]);
+  }, [selectedStore, debouncedSearch]);
 
   // Real-time duplicate phone check (FR-10)
   const handlePhoneChange = async (phoneVal: string) => {
@@ -99,6 +105,7 @@ export default function PatientEntryAndQueuePage() {
 
   const handleRegisterPatient = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmittingReg(true);
     try {
       const res = await fetch('/api/patients', {
         method: 'POST',
@@ -123,6 +130,8 @@ export default function PatientEntryAndQueuePage() {
       }
     } catch (err) {
       alert('Failed to register patient');
+    } finally {
+      setIsSubmittingReg(false);
     }
   };
 
@@ -145,6 +154,7 @@ export default function PatientEntryAndQueuePage() {
       (selectedPatientForAssign as any).mobile ||
       '';
 
+    setIsSubmittingAssign(true);
     try {
       const res = await fetch('/api/visits', {
         method: 'POST',
@@ -167,6 +177,8 @@ export default function PatientEntryAndQueuePage() {
       }
     } catch (err: any) {
       setAssignError(err.message || 'Error occurred');
+    } finally {
+      setIsSubmittingAssign(false);
     }
   };
 
@@ -328,7 +340,26 @@ export default function PatientEntryAndQueuePage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {patients.map((p) => {
+              {loading && patients.length === 0 ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i} className="animate-pulse">
+                    <td className="px-4 py-3"><div className="h-4 bg-slate-200 rounded w-16" /></td>
+                    <td className="px-4 py-3"><div className="h-4 bg-slate-200 rounded w-28" /></td>
+                    <td className="px-4 py-3"><div className="h-4 bg-slate-100 rounded w-24" /></td>
+                    <td className="px-4 py-3"><div className="h-4 bg-slate-100 rounded w-16" /></td>
+                    <td className="px-4 py-3"><div className="h-4 bg-slate-100 rounded w-12" /></td>
+                    <td className="px-4 py-3"><div className="h-4 bg-slate-100 rounded w-32" /></td>
+                    <td className="px-4 py-3 text-right"><div className="h-6 bg-slate-200 rounded-lg w-24 ml-auto" /></td>
+                  </tr>
+                ))
+              ) : patients.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
+                    No patients registered yet. Click &quot;Register Patient&quot; above.
+                  </td>
+                </tr>
+              ) : (
+                patients.map((p) => {
                 const pid = p.patientId || (p as any).customerId || p._id;
                 const contact = p.phone || (p as any).mobile || '-';
                 return (
@@ -361,7 +392,7 @@ export default function PatientEntryAndQueuePage() {
                     </td>
                   </tr>
                 );
-              })}
+              }))}
             </tbody>
           </table>
         </div>
@@ -471,12 +502,14 @@ export default function PatientEntryAndQueuePage() {
                 >
                   Cancel
                 </button>
-                <button
+                <ButtonLoader
                   type="submit"
+                  isLoading={isSubmittingReg}
+                  loadingText="Saving & Registering..."
                   className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl shadow-xs"
                 >
                   Save & Continue to Doctor
-                </button>
+                </ButtonLoader>
               </div>
             </form>
           </div>
@@ -534,13 +567,15 @@ export default function PatientEntryAndQueuePage() {
                 >
                   Cancel
                 </button>
-                <button
+                <ButtonLoader
                   type="submit"
+                  isLoading={isSubmittingAssign}
+                  loadingText="Placing in Queue..."
                   disabled={doctors.length === 0}
                   className="px-5 py-2 bg-sky-600 hover:bg-sky-700 text-white font-semibold rounded-xl shadow-xs disabled:opacity-50"
                 >
                   Place in Waiting Queue
-                </button>
+                </ButtonLoader>
               </div>
             </form>
           </div>

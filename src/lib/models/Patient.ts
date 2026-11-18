@@ -18,5 +18,8 @@ const PatientSchema: Schema = new Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
+PatientSchema.index({ storeId: 1, createdAt: -1 });
+PatientSchema.index({ storeId: 1, phone: 1 });
+
 export default mongoose.models.Patient || mongoose.model<IPatientDocument>('Patient', PatientSchema);
 

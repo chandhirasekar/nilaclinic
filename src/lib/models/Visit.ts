@@ -21,5 +21,10 @@ const VisitSchema: Schema = new Schema({
   consultedAt: { type: Date },
 });
 
+// ESR Compound Indexes for Queue, Doctor workbench, and Patient History
+VisitSchema.index({ storeId: 1, status: 1, createdAt: -1 });
+VisitSchema.index({ doctorId: 1, status: 1, createdAt: -1 });
+VisitSchema.index({ patientId: 1, createdAt: -1 });
+
 export default mongoose.models.Visit || mongoose.model<IVisitDocument>('Visit', VisitSchema);
 

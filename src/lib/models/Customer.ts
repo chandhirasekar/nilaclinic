@@ -21,4 +21,10 @@ const CustomerSchema: Schema = new Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
+// ESR Compound Indexes for fast patient search and duplicate validation
+CustomerSchema.index({ firstStoreId: 1, createdAt: -1 });
+CustomerSchema.index({ firstStoreId: 1, mobile: 1 });
+CustomerSchema.index({ mobile: 1, name: 1 });
+CustomerSchema.index({ phone: 1, name: 1 });
+
 export default mongoose.models.Customer || mongoose.model<ICustomerDocument>('Customer', CustomerSchema);

@@ -7,6 +7,8 @@ export async function GET(req: Request) {
     const storeCode = searchParams.get('storeCode') || undefined;
     const status = searchParams.get('status') || undefined;
     const invoiceNo = searchParams.get('invoiceNo') || undefined;
+    const limit = Math.min(Number(searchParams.get('limit')) || 50, 100);
+    const page = Number(searchParams.get('page')) || 1;
 
     if (invoiceNo) {
       const inv = await clinicService.getInvoiceById(invoiceNo);
@@ -16,8 +18,16 @@ export async function GET(req: Request) {
       return NextResponse.json({ success: true, data: inv });
     }
 
-    const invoices = await clinicService.getInvoices(storeCode, status);
-    return NextResponse.json({ success: true, data: invoices });
+    const invoices = await clinicService.getInvoices(storeCode, status, { limit, page });
+    return NextResponse.json({
+      success: true,
+      data: invoices,
+      pagination: {
+        page,
+        limit,
+        count: invoices.length,
+      },
+    });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });
   }

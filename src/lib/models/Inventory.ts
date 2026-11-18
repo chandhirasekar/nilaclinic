@@ -12,4 +12,7 @@ const InventorySchema: Schema = new Schema({
   supplier: { type: String, default: 'L\'Oréal Professional' },
 });
 
+InventorySchema.index({ category: 1, name: 1 });
+InventorySchema.index({ stockQty: 1 });
+
 export default mongoose.models.Inventory || mongoose.model<IInventoryDocument>('Inventory', InventorySchema);

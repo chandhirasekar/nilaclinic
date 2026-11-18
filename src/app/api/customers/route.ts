@@ -7,15 +7,21 @@ export async function GET(req: Request) {
     const storeCode = searchParams.get('storeCode') || undefined;
     const search = searchParams.get('search') || undefined;
     const mobile = searchParams.get('mobile') || undefined;
+    const limit = Math.min(Number(searchParams.get('limit')) || 25, 100);
+    const page = Number(searchParams.get('page')) || 1;
 
     if (mobile) {
-      // FR-20 & FR-21: Search by mobile number with dropdown matches
+      // FR-20 & FR-21: Search by mobile number with dropdown matches (instant indexed lookup)
       const matches = await clinicService.searchCustomerByMobile(mobile);
       return NextResponse.json({ success: true, data: matches });
     }
 
-    const customers = await clinicService.getCustomers(storeCode, search);
-    return NextResponse.json({ success: true, data: customers });
+    const customers = await clinicService.getCustomers(storeCode, search, { limit, page });
+    return NextResponse.json({
+      success: true,
+      data: customers,
+      pagination: { page, limit, count: customers.length },
+    });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });
   }

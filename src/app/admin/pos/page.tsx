@@ -35,6 +35,10 @@ import {
   ICustomerPackage,
 } from '@/types';
 import { useClinic } from '@/context/ClinicContext';
+import { useDebounce } from '@/hooks/useDebounce';
+import { useMasterData } from '@/hooks/useMasterData';
+import { ButtonLoader } from '@/components/ui/ButtonLoader';
+import { PosGridSkeleton } from '@/components/ui/skeletons/PosGridSkeleton';
 
 export default function QuickSalePOSPage() {
   const { user, selectedStore, stores, currentStoreObj } = useClinic();
@@ -100,50 +104,44 @@ export default function QuickSalePOSPage() {
     );
   }
 
-  // Load masters on store change
-  const loadMasters = async () => {
-    try {
-      const [sRes, pRes, pkgRes, stRes, pmRes, setRes, invRes] = await Promise.all([
-        fetch(`/api/masters/services?storeCode=${selectedStore}`),
-        fetch(`/api/masters/products?storeCode=${selectedStore}`),
-        fetch(`/api/packages?storeCode=${selectedStore}`),
-        fetch(`/api/masters/staff?storeCode=${selectedStore}`),
-        fetch('/api/masters/payment-modes'),
-        fetch('/api/masters/settings'),
-        fetch(`/api/invoices?storeCode=${selectedStore}`),
-      ]);
+  // Optimized Client-side SWR Cache for Master Data
+  const {
+    services: cachedServices,
+    products: cachedProducts,
+    packages: cachedPackages,
+    staff: cachedStaff,
+    paymentModes: cachedPaymentModes,
+    settings: cachedSettings,
+    invoices: cachedInvoices,
+    isLoading: isMasterLoading,
+    refreshInvoices,
+  } = useMasterData(selectedStore);
 
-      const sData = await sRes.json();
-      const pData = await pRes.json();
-      const pkgData = await pkgRes.json();
-      const stData = await stRes.json();
-      const pmData = await pmRes.json();
-      const setData = await setRes.json();
-      const invData = await invRes.json();
-
-      if (sData.success) setServices(sData.data);
-      if (pData.success) setProducts(pData.data);
-      if (pkgData.success) setPackages(pkgData.data);
-      if (stData.success) setStaffList(stData.data);
-      if (pmData.success) {
-        setPaymentModes(pmData.data);
-        // Initialize default payments map
-        const initialMap: Record<string, number> = {};
-        pmData.data.forEach((pm: IPaymentMode) => {
-          initialMap[pm.name] = 0;
-        });
-        setPayments(initialMap);
-      }
-      if (setData.success) setSettings(setData.data);
-      if (invData.success) setRecentBills(invData.data);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
+  // Sync SWR cache into local component state
   useEffect(() => {
-    loadMasters();
-  }, [selectedStore]);
+    if (cachedServices) setServices(cachedServices);
+    if (cachedProducts) setProducts(cachedProducts);
+    if (cachedPackages) setPackages(cachedPackages);
+    if (cachedStaff) setStaffList(cachedStaff);
+    if (cachedPaymentModes && cachedPaymentModes.length > 0) {
+      setPaymentModes(cachedPaymentModes);
+      const initialMap: Record<string, number> = {};
+      cachedPaymentModes.forEach((pm: IPaymentMode) => {
+        initialMap[pm.name] = 0;
+      });
+      setPayments(initialMap);
+    }
+    if (cachedSettings) setSettings(cachedSettings as any);
+    if (cachedInvoices) setRecentBills(cachedInvoices);
+  }, [
+    cachedServices,
+    cachedProducts,
+    cachedPackages,
+    cachedStaff,
+    cachedPaymentModes,
+    cachedSettings,
+    cachedInvoices,
+  ]);
 
   // Load customer packages when selectedCustomer changes
   useEffect(() => {
@@ -163,26 +161,32 @@ export default function QuickSalePOSPage() {
     }
   }, [selectedCustomer]);
 
-  // Real-time mobile lookup (FR-20 & FR-21)
-  const handleMobileLookup = async (mob: string) => {
-    setSearchMobile(mob);
-    setSelectedCustomer(null);
-    setShowInlineAddClient(false);
+  // 300ms Debounced mobile lookup (avoids firing API queries on every keystroke)
+  const debouncedSearchMobile = useDebounce(searchMobile, 300);
 
-    if (mob.trim().length >= 4) {
-      try {
-        const res = await fetch(`/api/customers?mobile=${encodeURIComponent(mob)}`);
-        const data = await res.json();
-        if (data.success) {
-          setMatchingCustomers(data.data || []);
-          if (data.data.length === 1) {
-            setSelectedCustomer(data.data[0]);
+  useEffect(() => {
+    const mob = debouncedSearchMobile.trim();
+    if (mob.length >= 4) {
+      fetch(`/api/customers?mobile=${encodeURIComponent(mob)}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success) {
+            setMatchingCustomers(data.data || []);
+            if (data.data.length === 1 && !selectedCustomer) {
+              setSelectedCustomer(data.data[0]);
+            }
           }
-        }
-      } catch (e) {}
+        })
+        .catch(() => {});
     } else {
       setMatchingCustomers([]);
     }
+  }, [debouncedSearchMobile]);
+
+  const handleMobileLookup = (mob: string) => {
+    setSearchMobile(mob);
+    setSelectedCustomer(null);
+    setShowInlineAddClient(false);
   };
 
   // Inline Add Client (FR-22)
@@ -403,7 +407,7 @@ export default function QuickSalePOSPage() {
         setShowReceiptModal(true);
         // Clear screen (FR-50)
         handleReset();
-        await loadMasters();
+        refreshInvoices();
       } else {
         alert(data.message || 'Error completing checkout');
       }
@@ -429,6 +433,21 @@ export default function QuickSalePOSPage() {
     });
     setPayments(initialMap);
   };
+
+  if (isMasterLoading && services.length === 0 && products.length === 0) {
+    return (
+      <div className="space-y-4">
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
+          <div className="space-y-1">
+            <div className="h-5 bg-slate-200 rounded-md w-48 animate-pulse" />
+            <div className="h-3 bg-slate-100 rounded w-72 animate-pulse" />
+          </div>
+          <div className="h-8 bg-slate-100 rounded-xl w-32 animate-pulse" />
+        </div>
+        <PosGridSkeleton />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -919,15 +938,17 @@ export default function QuickSalePOSPage() {
 
           {/* Action Buttons (Reset & Save + Print) */}
           <div className="space-y-2 pt-4 border-t border-slate-100">
-            <button
+            <ButtonLoader
               type="button"
               onClick={handleSaveBill}
-              disabled={isProcessing || items.length === 0}
-              className="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-600/20 active:scale-[0.99] transition-all disabled:opacity-50 flex items-center justify-center space-x-2"
+              isLoading={isProcessing}
+              loadingText="Processing & Printing..."
+              disabled={items.length === 0}
+              className="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-600/20 active:scale-[0.99] transition-all disabled:opacity-50 flex items-center justify-center space-x-2 cursor-pointer"
             >
-              <Printer className="w-4 h-4" />
-              <span>{isProcessing ? 'Processing...' : `Save + Print (₹${payableAmount})`}</span>
-            </button>
+              <Printer className="w-4 h-4 mr-1.5" />
+              <span>Save + Print (₹{payableAmount.toFixed(2)})</span>
+            </ButtonLoader>
 
             <button
               type="button"

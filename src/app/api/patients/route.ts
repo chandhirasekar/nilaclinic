@@ -7,6 +7,8 @@ export async function GET(req: Request) {
     const storeCode = searchParams.get('storeCode') || undefined;
     const search = searchParams.get('search') || undefined;
     const checkPhone = searchParams.get('checkPhone') || undefined;
+    const limit = Math.min(Number(searchParams.get('limit')) || 25, 100);
+    const page = Number(searchParams.get('page')) || 1;
 
     if (checkPhone) {
       const duplicate = await clinicService.checkDuplicatePatientPhone(checkPhone, storeCode);
@@ -17,8 +19,19 @@ export async function GET(req: Request) {
       });
     }
 
-    const patients = await clinicService.getPatients(storeCode, search);
-    return NextResponse.json({ success: true, data: patients });
+    const customers = await clinicService.getCustomers(storeCode, search, { limit, page });
+    const patients = customers.map(c => ({
+      ...c,
+      patientId: c.customerId || (c as any).patientId || c._id,
+      phone: c.mobile || (c as any).phone || '',
+      storeId: c.firstStoreId || (c as any).storeId || 'NILA-TH',
+    }));
+
+    return NextResponse.json({
+      success: true,
+      data: patients,
+      pagination: { page, limit, count: patients.length },
+    });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });
   }

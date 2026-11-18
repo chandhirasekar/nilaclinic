@@ -56,4 +56,11 @@ const InvoiceSchema: Schema = new Schema({
   paidAt: { type: Date },
 });
 
+// ESR Compound Indexes for high-speed POS billing queries and analytics
+InvoiceSchema.index({ storeId: 1, createdAt: -1 });
+InvoiceSchema.index({ storeId: 1, status: 1, createdAt: -1 });
+InvoiceSchema.index({ storeId: 1, date: -1 });
+InvoiceSchema.index({ customerId: 1, createdAt: -1 });
+InvoiceSchema.index({ customerMobile: 1, createdAt: -1 });
+
 export default mongoose.models.Invoice || mongoose.model<IInvoiceDocument>('Invoice', InvoiceSchema);

@@ -1123,8 +1123,14 @@ class ClinicService {
     try {
       const db = await connectToDatabase();
       if (db) {
-        const docs = await (Store as any).find().sort({ createdAt: 1 }).lean();
-        if (docs && docs.length > 0) return docs as any;
+        const docs = await (Store as any)
+          .find({ isActive: { $ne: false } })
+          .select('name code address phone email gstin workingHours invoicePrefix nextInvoiceNumber isActive')
+          .sort({ createdAt: 1 })
+          .lean();
+        if (docs && docs.length > 0) {
+          return docs.map((d: any) => ({ ...d, _id: d._id?.toString() }));
+        }
       }
     } catch (e) {}
     return this.stores;
@@ -1374,8 +1380,18 @@ class ClinicService {
     try {
       const db = await connectToDatabase();
       if (db) {
-        const docs = await (Service as any).find({ isActive: true }).sort({ category: 1, name: 1 }).lean();
-        if (docs && docs.length > 0) return docs as any;
+        const docs = await (Service as any)
+          .find({ isActive: true })
+          .select('name category duration price gstPercent availableStores description isActive')
+          .sort({ category: 1, name: 1 })
+          .lean();
+        if (docs && docs.length > 0) {
+          const mapped = docs.map((d: any) => ({ ...d, _id: d._id?.toString() }));
+          if (!storeCode || storeCode === 'ALL') return mapped;
+          return mapped.filter((s: any) =>
+            s.availableStores?.includes('ALL') || s.availableStores?.includes(storeCode.toUpperCase())
+          );
+        }
       }
     } catch (e) {}
 
@@ -1420,8 +1436,18 @@ class ClinicService {
     try {
       const db = await connectToDatabase();
       if (db) {
-        const docs = await (Product as any).find({ isActive: true }).sort({ category: 1, name: 1 }).lean();
-        if (docs && docs.length > 0) return docs as any;
+        const docs = await (Product as any)
+          .find({ isActive: true })
+          .select('name category sku price costPrice stockQuantity barcode availableStores isActive')
+          .sort({ category: 1, name: 1 })
+          .lean();
+        if (docs && docs.length > 0) {
+          const mapped = docs.map((d: any) => ({ ...d, _id: d._id?.toString() }));
+          if (!storeCode || storeCode === 'ALL') return mapped;
+          return mapped.filter((p: any) =>
+            p.availableStores?.includes('ALL') || p.availableStores?.includes(storeCode.toUpperCase())
+          );
+        }
       }
     } catch (e) {}
 
@@ -1529,25 +1555,51 @@ class ClinicService {
   }
 
   // ================= CUSTOMERS MASTER (M3 - Shared across stores) =================
-  async getCustomers(storeCode?: string, search?: string): Promise<ICustomer[]> {
+  async getCustomers(
+    storeCode?: string,
+    search?: string,
+    options?: { limit?: number; page?: number; skip?: number }
+  ): Promise<ICustomer[]> {
+    const limit = options?.limit ?? 25;
+    const page = options?.page ?? 1;
+    const skip = options?.skip ?? (page - 1) * limit;
+
     try {
       const db = await connectToDatabase();
       if (db) {
         const query: any = {};
         if (storeCode && storeCode !== 'ALL' && !search) {
-          query.firstStoreId = storeCode.toUpperCase();
+          query.firstStoreId = { $in: [storeCode.toUpperCase(), storeCode.replace('NILA-', '')] };
         }
         if (search) {
+          const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
           query.$or = [
-            { name: { $regex: search, $options: 'i' } },
-            { mobile: { $regex: search, $options: 'i' } },
-            { customerId: { $regex: search, $options: 'i' } },
+            { name: { $regex: escaped, $options: 'i' } },
+            { mobile: { $regex: escaped, $options: 'i' } },
+            { customerId: { $regex: escaped, $options: 'i' } },
           ];
         }
-        const docs = await (Customer as any).find(query).sort({ createdAt: -1 }).lean();
-        if (docs && docs.length > 0) return docs as any;
+        const docs = await (Customer as any)
+          .find(query)
+          .select('customerId patientId name mobile phone gender dob email area address allergyNotes skinHairNotes notes firstStoreId storeId visits totalSpent createdAt')
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(limit)
+          .lean();
+
+        if (docs && docs.length > 0) {
+          return docs.map((d: any) => ({
+            ...d,
+            _id: d._id?.toString(),
+            customerId: d.customerId || d.patientId || d._id?.toString(),
+            patientId: d.customerId || d.patientId || d._id?.toString(),
+            phone: d.mobile || d.phone || '',
+          }));
+        }
       }
-    } catch (e) {}
+    } catch (e) {
+      console.error('Error in getCustomers:', e);
+    }
 
     let res = this.customers;
     if (storeCode && storeCode !== 'ALL' && !search) {
@@ -1557,24 +1609,81 @@ class ClinicService {
       const q = search.toLowerCase();
       res = res.filter(c =>
         c.name.toLowerCase().includes(q) ||
-        c.mobile.includes(q) ||
+        (c.mobile || '').includes(q) ||
         (c.customerId || '').toLowerCase().includes(q)
       );
     }
-    return res;
+    return res.slice(skip, skip + limit);
   }
 
   async searchCustomerByMobile(mobileNumber: string): Promise<ICustomer[]> {
     const cleanNumber = mobileNumber.replace(/[^0-9]/g, '');
-    const all = await this.getCustomers();
-    return all.filter(c => c.mobile.replace(/[^0-9]/g, '').slice(-10) === cleanNumber.slice(-10));
+    if (!cleanNumber) return [];
+
+    const last10 = cleanNumber.length >= 10 ? cleanNumber.slice(-10) : cleanNumber;
+
+    try {
+      const db = await connectToDatabase();
+      if (db) {
+        const docs = await (Customer as any)
+          .find({
+            $or: [
+              { mobile: { $regex: last10 } },
+              { phone: { $regex: last10 } },
+            ],
+          })
+          .select('customerId patientId name mobile phone gender area address firstStoreId storeId totalSpent visits createdAt')
+          .limit(10)
+          .lean();
+
+        if (docs && docs.length > 0) {
+          return docs.map((d: any) => ({
+            ...d,
+            _id: d._id?.toString(),
+            customerId: d.customerId || d.patientId || d._id?.toString(),
+            patientId: d.customerId || d.patientId || d._id?.toString(),
+            phone: d.mobile || d.phone || '',
+          }));
+        }
+      }
+    } catch (e) {
+      console.error('Error in searchCustomerByMobile:', e);
+    }
+
+    return this.customers
+      .filter(c => (c.mobile || '').replace(/[^0-9]/g, '').includes(last10))
+      .slice(0, 10);
   }
 
   async checkDuplicateCustomer(name: string, mobile: string): Promise<boolean> {
     const cleanMobile = mobile.replace(/[^0-9]/g, '');
     const cleanName = name.trim().toLowerCase();
-    const matches = await this.searchCustomerByMobile(cleanMobile);
-    return matches.some(m => m.name.trim().toLowerCase() === cleanName);
+    const last10 = cleanMobile.slice(-10);
+
+    try {
+      const db = await connectToDatabase();
+      if (db) {
+        const found = await (Customer as any)
+          .findOne({
+            $and: [
+              { $or: [{ mobile: { $regex: last10 } }, { phone: { $regex: last10 } }] },
+              { name: { $regex: `^${cleanName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' } },
+            ],
+          })
+          .select('_id')
+          .lean();
+
+        return !!found;
+      }
+    } catch (e) {
+      console.error('Error in checkDuplicateCustomer:', e);
+    }
+
+    return this.customers.some(
+      m =>
+        m.name.trim().toLowerCase() === cleanName &&
+        (m.mobile || '').replace(/[^0-9]/g, '').slice(-10) === last10
+    );
   }
 
   async createCustomer(data: Partial<ICustomer>): Promise<ICustomer> {
@@ -2232,7 +2341,15 @@ class ClinicService {
   }
 
   // ================= QUICK SALE & INVOICING (M5) =================
-  async getInvoices(storeCode?: string, status?: string): Promise<IInvoice[]> {
+  async getInvoices(
+    storeCode?: string,
+    status?: string,
+    options?: { limit?: number; page?: number; skip?: number; selectFields?: string }
+  ): Promise<IInvoice[]> {
+    const limit = options?.limit ?? 50;
+    const page = options?.page ?? 1;
+    const skip = options?.skip ?? (page - 1) * limit;
+
     try {
       const db = await connectToDatabase();
       if (db) {
@@ -2241,8 +2358,20 @@ class ClinicService {
           query.storeId = { $in: [storeCode.toUpperCase(), storeCode.replace('NILA-', '')] };
         }
         if (status) query.status = status;
-        const docs = await (Invoice as any).find(query).sort({ createdAt: -1 }).lean();
-        if (docs && docs.length > 0) return docs as any;
+
+        const projection = options?.selectFields || 'invoiceNo storeId customerId customerName customerMobile customerPhone date items subtotal discount tax grandTotal payableAmount paidAmount paymentMethod status staffName visitId createdAt paidAt';
+
+        const docs = await (Invoice as any)
+          .find(query)
+          .select(projection)
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(limit)
+          .lean();
+
+        if (docs && docs.length > 0) {
+          return docs.map((d: any) => ({ ...d, _id: d._id?.toString() }));
+        }
       }
     } catch (e) {}
 
@@ -2257,7 +2386,220 @@ class ClinicService {
     if (status) {
       res = res.filter(inv => inv.status === status);
     }
-    return res;
+    return res.slice(skip, skip + limit);
+  }
+
+  // High-performance MongoDB Aggregation Pipeline for Dashboard Analytics
+  async getReportAggregates(storeCode?: string, dateRange: string = 'today') {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay());
+    startOfWeek.setHours(0, 0, 0, 0);
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    let startDate = startOfToday;
+    if (dateRange === 'week') startDate = startOfWeek;
+    if (dateRange === 'month') startDate = startOfMonth;
+
+    try {
+      const db = await connectToDatabase();
+      if (db) {
+        const invoiceMatch: any = {
+          $or: [
+            { createdAt: { $gte: startDate } },
+            { date: { $gte: startDate.toISOString().split('T')[0] } },
+          ],
+        };
+        if (storeCode && storeCode !== 'ALL') {
+          invoiceMatch.storeId = { $in: [storeCode.toUpperCase(), storeCode.replace('NILA-', '')] };
+        }
+
+        const visitMatch: any = {
+          createdAt: { $gte: startDate },
+        };
+        if (storeCode && storeCode !== 'ALL') {
+          visitMatch.storeId = { $in: [storeCode.toUpperCase(), storeCode.replace('NILA-', '')] };
+        }
+
+        const [invoiceAgg, visitAgg, allStores, allUsers] = await Promise.all([
+          (Invoice as any).aggregate([
+            { $match: invoiceMatch },
+            {
+              $facet: {
+                totals: [
+                  {
+                    $group: {
+                      _id: null,
+                      totalBills: { $sum: 1 },
+                      paidRevenue: {
+                        $sum: { $cond: [{ $eq: ['$status', 'Paid'] }, '$grandTotal', 0] },
+                      },
+                      pendingPayments: {
+                        $sum: { $cond: [{ $eq: ['$status', 'Unpaid'] }, '$grandTotal', 0] },
+                      },
+                      paidCount: {
+                        $sum: { $cond: [{ $eq: ['$status', 'Paid'] }, 1, 0] },
+                      },
+                      unpaidCount: {
+                        $sum: { $cond: [{ $eq: ['$status', 'Unpaid'] }, 1, 0] },
+                      },
+                    },
+                  },
+                ],
+                byPaymentMode: [
+                  { $match: { status: 'Paid' } },
+                  {
+                    $group: {
+                      _id: '$paymentMethod',
+                      amount: { $sum: '$grandTotal' },
+                      count: { $sum: 1 },
+                    },
+                  },
+                ],
+                byStaff: [
+                  { $match: { status: 'Paid' } },
+                  {
+                    $group: {
+                      _id: '$staffName',
+                      revenueCollected: { $sum: '$grandTotal' },
+                      billsProcessed: { $sum: 1 },
+                    },
+                  },
+                ],
+                byStore: [
+                  { $match: { status: 'Paid' } },
+                  {
+                    $group: {
+                      _id: '$storeId',
+                      revenue: { $sum: '$grandTotal' },
+                      invoices: { $sum: 1 },
+                    },
+                  },
+                ],
+              },
+            },
+          ]),
+          (Visit as any).aggregate([
+            { $match: visitMatch },
+            {
+              $facet: {
+                totalVisits: [{ $count: 'count' }],
+                byDoctor: [
+                  {
+                    $group: {
+                      _id: '$doctorName',
+                      visits: { $sum: 1 },
+                      completed: {
+                        $sum: { $cond: [{ $eq: ['$status', 'Done'] }, 1, 0] },
+                      },
+                    },
+                  },
+                ],
+                byStore: [
+                  {
+                    $group: {
+                      _id: '$storeId',
+                      patients: { $sum: 1 },
+                    },
+                  },
+                ],
+              },
+            },
+          ]),
+          this.getStores(),
+          this.getUsers(),
+        ]);
+
+        const invFacets = invoiceAgg?.[0] || {};
+        const visFacets = visitAgg?.[0] || {};
+        const totals = invFacets.totals?.[0] || {
+          totalBills: 0,
+          paidRevenue: 0,
+          pendingPayments: 0,
+          paidCount: 0,
+          unpaidCount: 0,
+        };
+
+        const paymentModeTotals: Record<string, { amount: number; count: number }> = {
+          Cash: { amount: 0, count: 0 },
+          Card: { amount: 0, count: 0 },
+          UPI: { amount: 0, count: 0 },
+        };
+        (invFacets.byPaymentMode || []).forEach((pm: any) => {
+          const mode = pm._id || 'Cash';
+          if (paymentModeTotals[mode]) {
+            paymentModeTotals[mode] = { amount: pm.amount || 0, count: pm.count || 0 };
+          }
+        });
+
+        const staffCounts: Record<string, { name: string; billsProcessed: number; revenueCollected: number }> = {};
+        (invFacets.byStaff || []).forEach((st: any) => {
+          const name = st._id || 'Staff';
+          staffCounts[name] = {
+            name,
+            billsProcessed: st.billsProcessed || 0,
+            revenueCollected: st.revenueCollected || 0,
+          };
+        });
+
+        const doctorCounts: Record<string, { name: string; visits: number; completed: number }> = {};
+        const doctors = allUsers.filter(u => u.role === 'doctor');
+        doctors.forEach(doc => {
+          doctorCounts[doc.name] = { name: doc.name, visits: 0, completed: 0 };
+        });
+        (visFacets.byDoctor || []).forEach((doc: any) => {
+          const name = doc._id || 'Doctor';
+          doctorCounts[name] = {
+            name,
+            visits: doc.visits || 0,
+            completed: doc.completed || 0,
+          };
+        });
+
+        const storeBreakdown: Record<string, { storeId: string; name: string; revenue: number; invoices: number; patients: number }> = {};
+        allStores.forEach(st => {
+          const code = st.code.toUpperCase();
+          storeBreakdown[code] = {
+            storeId: code,
+            name: st.name.replace('Nila Clinic - ', ''),
+            revenue: 0,
+            invoices: 0,
+            patients: 0,
+          };
+        });
+        (invFacets.byStore || []).forEach((s: any) => {
+          const code = String(s._id || '').toUpperCase();
+          if (storeBreakdown[code]) {
+            storeBreakdown[code].revenue = s.revenue || 0;
+            storeBreakdown[code].invoices = s.invoices || 0;
+          }
+        });
+        (visFacets.byStore || []).forEach((s: any) => {
+          const code = String(s._id || '').toUpperCase();
+          if (storeBreakdown[code]) {
+            storeBreakdown[code].patients = s.patients || 0;
+          }
+        });
+
+        return {
+          totalRevenue: totals.paidRevenue || 0,
+          pendingPayments: totals.pendingPayments || 0,
+          totalBillsCount: totals.totalBills || 0,
+          totalPatientsCount: visFacets.totalVisits?.[0]?.count || 0,
+          paidBillsCount: totals.paidCount || 0,
+          unpaidBillsCount: totals.unpaidCount || 0,
+          paymentModeTotals,
+          doctorCounts,
+          staffCounts,
+          storeBreakdown,
+        };
+      }
+    } catch (e) {
+      console.error('Error in getReportAggregates, falling back to memory compute:', e);
+    }
+
+    return null;
   }
 
   async getInvoiceById(invoiceNoOrId: string): Promise<IInvoice | null> {
