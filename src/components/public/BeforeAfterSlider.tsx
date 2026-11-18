@@ -111,25 +111,25 @@ export default function BeforeAfterSlider({ caseStudy = sampleCaseStudies[0] }: 
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden shadow-sm">
+    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
       {/* Case Header */}
-      <div className="p-5 sm:p-6 border-b border-stone-100 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-stone-50/50">
+      <div className="p-5 sm:p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-50/70">
         <div>
           <div className="flex items-center space-x-2 mb-1">
             <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200">
               {caseStudy.category} Case Study
             </span>
-            <span className="text-xs text-stone-500 font-medium">{caseStudy.patientProfile}</span>
+            <span className="text-xs text-slate-500 font-medium">{caseStudy.patientProfile}</span>
           </div>
-          <h3 className="text-lg sm:text-xl font-serif font-bold text-slate-900">{caseStudy.title}</h3>
+          <h3 className="text-lg sm:text-xl font-bold text-slate-900">{caseStudy.title}</h3>
         </div>
 
-        <div className="flex items-center space-x-3 text-xs text-stone-600">
-          <div className="bg-white px-3 py-1.5 rounded-lg border border-stone-200 font-medium">
+        <div className="flex items-center space-x-3 text-xs text-slate-600">
+          <div className="bg-white px-3 py-1.5 rounded-lg border border-slate-200 font-medium">
             <span className="text-slate-400 block text-[10px] uppercase">Protocol</span>
             <span className="font-semibold text-slate-800">{caseStudy.sessions}</span>
           </div>
-          <div className="bg-white px-3 py-1.5 rounded-lg border border-stone-200 font-medium">
+          <div className="bg-white px-3 py-1.5 rounded-lg border border-slate-200 font-medium">
             <span className="text-slate-400 block text-[10px] uppercase">Timeline</span>
             <span className="font-semibold text-slate-800">{caseStudy.duration}</span>
           </div>
@@ -215,24 +215,24 @@ export default function BeforeAfterSlider({ caseStudy = sampleCaseStudies[0] }: 
       </div>
 
       {/* Clinical Notes & Verification Footer */}
-      <div className="p-5 sm:p-6 bg-stone-50 border-t border-stone-200 text-xs">
+      <div className="p-5 sm:p-6 bg-slate-50 border-t border-slate-200 text-xs">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
           <div className="md:col-span-8 space-y-1">
-            <span className="text-[10px] uppercase font-bold text-stone-400 tracking-wider block">
+            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
               Dermatological Findings & Protocol Note
             </span>
-            <p className="text-stone-700 leading-relaxed font-normal">
+            <p className="text-slate-700 leading-relaxed font-normal">
               {caseStudy.clinicalNotes}
             </p>
           </div>
-          <div className="md:col-span-4 bg-white p-3 rounded-xl border border-stone-200 flex items-center space-x-3">
-            <div className="w-9 h-9 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700 shrink-0">
+          <div className="md:col-span-4 bg-white p-3 rounded-xl border border-slate-200 flex items-center space-x-3">
+            <div className="w-9 h-9 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 shrink-0">
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
-              <span className="text-[10px] text-stone-400 uppercase font-semibold block">Attending Physician</span>
+              <span className="text-[10px] text-slate-400 uppercase font-semibold block">Attending Physician</span>
               <span className="text-xs font-bold text-slate-900 block leading-tight">{caseStudy.doctor}</span>
-              <span className="text-[10px] text-emerald-700 font-medium">Verified In-Clinic Case</span>
+              <span className="text-[10px] text-emerald-600 font-medium">Verified In-Clinic Case</span>
             </div>
           </div>
         </div>

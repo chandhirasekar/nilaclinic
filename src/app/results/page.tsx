@@ -57,22 +57,22 @@ export default function ResultsPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#faf9f5] text-slate-800 font-sans selection:bg-emerald-800 selection:text-white flex flex-col">
+    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans selection:bg-emerald-600 selection:text-white flex flex-col">
       <Navbar />
 
       <main className="grow">
         {/* Page Hero */}
-        <section className="bg-radial from-emerald-50/70 via-[#faf9f5] to-[#f4f2ea] border-b border-stone-200/80 pt-12 pb-16 px-4 sm:px-8">
+        <section className="bg-gradient-to-b from-emerald-50/60 via-teal-50/30 to-white border-b border-slate-200 pt-12 pb-16 px-4 sm:px-8">
           <div className="max-w-7xl mx-auto">
             <div className="max-w-3xl space-y-4">
-              <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-emerald-900/10 border border-emerald-900/20 text-emerald-900 text-xs font-semibold">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-800" />
+              <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-emerald-100 border border-emerald-200 text-emerald-800 text-xs font-bold">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
                 <span>Ethical Medical Photography & Case Records</span>
               </div>
-              <h1 className="font-serif text-4xl sm:text-5xl font-bold text-slate-900 tracking-tight">
+              <h1 className="text-4xl sm:text-5xl font-black text-slate-900 tracking-tight">
                 Verified Clinical Case Studies
               </h1>
-              <p className="text-stone-600 text-base leading-relaxed">
+              <p className="text-slate-600 text-base leading-relaxed">
                 All photographs documented at Nila Clinic under standardized cross-polarized clinical illumination with informed patient medical consent. We do not use digital beauty filters, blurring tools, or misleading camera angles.
               </p>
             </div>
@@ -85,8 +85,8 @@ export default function ResultsPage() {
                   onClick={() => setActiveCategory(cat)}
                   className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                     activeCategory === cat
-                      ? 'bg-[#0c2a23] text-white shadow-2xs'
-                      : 'bg-white text-stone-700 hover:bg-stone-100 border border-stone-200'
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
                   }`}
                 >
                   {cat === 'All' ? 'All Clinical Outcomes' : `${cat} Protocols`}
@@ -105,7 +105,7 @@ export default function ResultsPage() {
                 <div className="text-right">
                   <Link
                     href={`/book?service=${encodeURIComponent(caseStudy.title)}`}
-                    className="inline-flex items-center space-x-1.5 text-xs font-bold uppercase tracking-wider text-emerald-900 hover:underline"
+                    className="inline-flex items-center space-x-1.5 text-xs font-bold uppercase tracking-wider text-emerald-600 hover:underline"
                   >
                     <span>Schedule consultation for this protocol ({caseStudy.category})</span>
                     <ArrowRight className="w-3.5 h-3.5" />
@@ -117,26 +117,26 @@ export default function ResultsPage() {
         </section>
 
         {/* Standardized Clinical Protocols Statement */}
-        <section className="py-16 px-4 sm:px-8 bg-white border-y border-stone-200">
+        <section className="py-16 px-4 sm:px-8 bg-white border-y border-slate-200">
           <div className="max-w-7xl mx-auto">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div className="p-6 rounded-2xl bg-[#faf9f5] border border-stone-200 space-y-2">
-                <h4 className="font-serif font-bold text-slate-900 text-lg">Standardized Lighting</h4>
-                <p className="text-xs text-stone-600 leading-relaxed">
+              <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+                <h4 className="font-bold text-slate-900 text-lg">Standardized Lighting</h4>
+                <p className="text-xs text-slate-600 leading-relaxed">
                   Baselines and post-procedure reviews are photographed in dedicated clinical booths at identical 5500K color temperatures and focal lengths to ensure scientific accuracy.
                 </p>
               </div>
 
-              <div className="p-6 rounded-2xl bg-[#faf9f5] border border-stone-200 space-y-2">
-                <h4 className="font-serif font-bold text-slate-900 text-lg">Objective Metrics</h4>
-                <p className="text-xs text-stone-600 leading-relaxed">
+              <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+                <h4 className="font-bold text-slate-900 text-lg">Objective Metrics</h4>
+                <p className="text-xs text-slate-600 leading-relaxed">
                   We verify outcomes using computerized trichoscopy counts (hairs/cm²), MASI pigmentation scores, and dermal ultrasound measurements rather than subjective impressions.
                 </p>
               </div>
 
-              <div className="p-6 rounded-2xl bg-[#faf9f5] border border-stone-200 space-y-2">
-                <h4 className="font-serif font-bold text-slate-900 text-lg">No Retouching Policy</h4>
-                <p className="text-xs text-stone-600 leading-relaxed">
+              <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+                <h4 className="font-bold text-slate-900 text-lg">No Retouching Policy</h4>
+                <p className="text-xs text-slate-600 leading-relaxed">
                   Strict policy against facial smoothing filters, artificial contrast adjustments, or altered angles. What you see is authentic dermal and follicular tissue transformation.
                 </p>
               </div>
@@ -145,16 +145,16 @@ export default function ResultsPage() {
         </section>
 
         {/* Patient Testimonials */}
-        <section className="py-20 px-4 sm:px-8 bg-[#faf9f5]">
+        <section className="py-20 px-4 sm:px-8 bg-slate-50">
           <div className="max-w-7xl mx-auto">
             <div className="text-center max-w-2xl mx-auto mb-12">
-              <span className="text-xs font-bold text-emerald-800 uppercase tracking-widest block mb-1">
+              <span className="text-xs font-bold text-emerald-600 uppercase tracking-widest block mb-1">
                 Patient Experiences
               </span>
-              <h2 className="text-3xl font-serif font-bold text-slate-900">
+              <h2 className="text-3xl font-extrabold text-slate-900">
                 Verified Patient Accounts
               </h2>
-              <p className="text-stone-600 text-sm mt-2">
+              <p className="text-slate-600 text-sm mt-2">
                 Real feedback from patients treated across our Theni, Madurai, Chennai, Coimbatore, and Trichy centers.
               </p>
             </div>
@@ -163,7 +163,7 @@ export default function ResultsPage() {
               {testimonials.map((t, i) => (
                 <div
                   key={i}
-                  className="bg-white p-6 rounded-2xl border border-stone-200 shadow-2xs flex flex-col justify-between space-y-4"
+                  className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs flex flex-col justify-between space-y-4"
                 >
                   <div className="space-y-3">
                     <div className="flex items-center space-x-1 text-amber-500 text-sm">
@@ -171,15 +171,15 @@ export default function ResultsPage() {
                         <span key={idx}>★</span>
                       ))}
                     </div>
-                    <p className="text-xs text-stone-700 leading-relaxed italic">
+                    <p className="text-xs text-slate-700 leading-relaxed italic">
                       &quot;{t.quote}&quot;
                     </p>
                   </div>
 
-                  <div className="pt-3 border-t border-stone-100">
+                  <div className="pt-3 border-t border-slate-100">
                     <span className="font-bold text-slate-900 text-xs block">{t.patientName}</span>
-                    <span className="text-[11px] text-stone-500 block">{t.ageCity}</span>
-                    <span className="text-[10px] text-emerald-800 font-semibold block mt-1">
+                    <span className="text-[11px] text-slate-500 block">{t.ageCity}</span>
+                    <span className="text-[10px] text-emerald-600 font-semibold block mt-1">
                       {t.treatment} · {t.doctor}
                     </span>
                   </div>
@@ -190,17 +190,17 @@ export default function ResultsPage() {
         </section>
 
         {/* Booking CTA Banner */}
-        <section className="py-14 px-4 sm:px-8 bg-[#0c2a23] text-white">
+        <section className="py-14 px-4 sm:px-8 bg-slate-900 text-white">
           <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="space-y-1 text-center md:text-left">
-              <h3 className="font-serif text-2xl font-bold">Ready for a medical assessment?</h3>
-              <p className="text-xs text-stone-300">
+              <h3 className="text-2xl font-bold">Ready for a medical assessment?</h3>
+              <p className="text-xs text-slate-300">
                 Schedule your one-on-one consultation with our senior dermatologists and trichologists.
               </p>
             </div>
             <Link
               href="/book"
-              className="px-6 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all shrink-0"
+              className="px-6 py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md shadow-emerald-600/20 transition-all shrink-0"
             >
               Book In-Person Diagnostic Session
             </Link>

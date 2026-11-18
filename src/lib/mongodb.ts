@@ -23,30 +23,33 @@ if (!cached) {
 
 /**
  * High-performance cached Mongoose connection singleton with connection pooling
- * configured specifically for serverless Next.js App Router.
+ * configured specifically for serverless Next.js App Router on Vercel.
+ *
+ * NOTE: In serverless environments, serverSelectionTimeoutMS must be short (1500ms)
+ * to avoid stalling lambdas for 5+ seconds if MongoDB Atlas IP whitelist drops packets.
  */
 export async function connectToDatabase(): Promise<typeof mongoose | null> {
   if (cached.conn && cached.conn.connection.readyState === 1) {
     return cached.conn;
   }
 
-  // Fast-fail circuit breaker: If connection failed recently (within 45s),
-  // avoid stalling serverless functions waiting on network timeouts.
+  // Fast-fail circuit breaker: If connection failed recently (within 60s),
+  // immediately serve from in-memory fallback in 0ms without waiting.
   const now = Date.now();
-  if (cached.lastFailedTime && now - cached.lastFailedTime < 45000) {
+  if (cached.lastFailedTime && now - cached.lastFailedTime < 60000) {
     return null;
   }
 
   if (!cached.promise) {
     const opts: mongoose.ConnectOptions = {
       bufferCommands: false,
-      maxPoolSize: 10, // Maintain up to 10 socket connections
-      minPoolSize: 1,  // Keep at least 1 warm socket alive
-      serverSelectionTimeoutMS: 5000, // 5s timeout to prevent cold-start stalls
-      connectTimeoutMS: 5000,
-      socketTimeoutMS: 10000,
+      maxPoolSize: 10,
+      minPoolSize: 0, // In serverless, minPoolSize must be 0 to prevent stale socket hangs
+      serverSelectionTimeoutMS: 1500, // Fast 1.5s timeout: working Atlas connects in <500ms
+      connectTimeoutMS: 1500,
+      socketTimeoutMS: 3000,
       dbName: 'Neelaclinic',
-      autoIndex: process.env.NODE_ENV !== 'production', // Disable in prod for speed
+      autoIndex: false, // Never build indexes during runtime in serverless
     };
 
     cached.promise = mongoose
@@ -56,7 +59,7 @@ export async function connectToDatabase(): Promise<typeof mongoose | null> {
         return m;
       })
       .catch((err) => {
-        console.warn('MongoDB connection unavailable. Fallback in-memory active:', err.message);
+        console.warn('MongoDB connection unavailable. Circuit breaker active (60s):', err.message);
         cached!.lastFailedTime = Date.now();
         cached!.promise = null;
         return null;
@@ -75,4 +78,3 @@ export async function connectToDatabase(): Promise<typeof mongoose | null> {
 }
 
 export default connectToDatabase;
-

@@ -155,27 +155,27 @@ export default function TreatmentQuiz() {
   };
 
   return (
-    <div className="bg-white rounded-3xl border border-stone-200/90 shadow-md p-6 sm:p-10 max-w-4xl mx-auto">
+    <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-10 max-w-4xl mx-auto">
       {/* Quiz Progress Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 mb-6 border-b border-stone-100 gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 mb-6 border-b border-slate-100 gap-3">
         <div>
-          <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-widest block">
+          <span className="text-[11px] font-bold text-emerald-600 uppercase tracking-widest block">
             Clinical Recommendation Engine
           </span>
-          <h3 className="text-xl sm:text-2xl font-serif font-bold text-slate-900 mt-0.5">
+          <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5">
             Find Your Individualized Protocol
           </h3>
         </div>
 
         {step < 4 && (
-          <div className="flex items-center space-x-2 text-xs font-semibold text-stone-500">
+          <div className="flex items-center space-x-2 text-xs font-semibold text-slate-500">
             <span>Step {step} of 3</span>
             <div className="flex space-x-1">
               {[1, 2, 3].map((s) => (
                 <div
                   key={s}
                   className={`w-6 h-1.5 rounded-full ${
-                    step >= s ? 'bg-emerald-700' : 'bg-stone-200'
+                    step >= s ? 'bg-emerald-600' : 'bg-slate-200'
                   }`}
                 />
               ))}
@@ -198,17 +198,17 @@ export default function TreatmentQuiz() {
                 onClick={() => setConcern(opt.id)}
                 className={`text-left p-4 rounded-2xl border transition-all cursor-pointer ${
                   concern === opt.id
-                    ? 'border-emerald-700 bg-emerald-50/60 shadow-xs'
-                    : 'border-stone-200 hover:border-emerald-300 hover:bg-stone-50/70'
+                    ? 'border-emerald-600 bg-emerald-50/70 shadow-xs ring-1 ring-emerald-600/20'
+                    : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                 }`}
               >
                 <div className="flex items-start justify-between">
                   <h4 className="font-semibold text-slate-900 text-sm">{opt.title}</h4>
                   {concern === opt.id && (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                   )}
                 </div>
-                <p className="text-xs text-stone-500 mt-1 leading-relaxed">{opt.desc}</p>
+                <p className="text-xs text-slate-500 mt-1 leading-relaxed">{opt.desc}</p>
               </button>
             ))}
           </div>
@@ -217,7 +217,7 @@ export default function TreatmentQuiz() {
             <button
               disabled={!concern}
               onClick={() => setStep(2)}
-              className="px-6 py-3 rounded-xl bg-[#0c2a23] disabled:opacity-40 hover:bg-[#123e34] text-white text-xs font-bold uppercase tracking-wider transition-all flex items-center space-x-2"
+              className="px-6 py-3 rounded-xl bg-emerald-600 disabled:opacity-40 hover:bg-emerald-700 text-white text-xs font-bold uppercase tracking-wider transition-all flex items-center space-x-2 cursor-pointer shadow-md shadow-emerald-600/20"
             >
               <span>Next: Duration & History</span>
               <ArrowRight className="w-4 h-4" />
@@ -240,17 +240,17 @@ export default function TreatmentQuiz() {
                 onClick={() => setDuration(opt.id)}
                 className={`w-full text-left p-4 rounded-2xl border transition-all cursor-pointer ${
                   duration === opt.id
-                    ? 'border-emerald-700 bg-emerald-50/60 shadow-xs'
-                    : 'border-stone-200 hover:border-emerald-300 hover:bg-stone-50/70'
+                    ? 'border-emerald-600 bg-emerald-50/70 shadow-xs ring-1 ring-emerald-600/20'
+                    : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                 }`}
               >
                 <div className="flex items-center justify-between">
                   <div>
                     <h4 className="font-semibold text-slate-900 text-sm">{opt.title}</h4>
-                    <p className="text-xs text-stone-500 mt-0.5">{opt.desc}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{opt.desc}</p>
                   </div>
                   {duration === opt.id && (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                   )}
                 </div>
               </button>
@@ -260,14 +260,14 @@ export default function TreatmentQuiz() {
           <div className="pt-4 flex items-center justify-between">
             <button
               onClick={() => setStep(1)}
-              className="text-xs font-semibold text-stone-600 hover:text-slate-900"
+              className="text-xs font-semibold text-slate-600 hover:text-slate-900 cursor-pointer"
             >
               ← Back
             </button>
             <button
               disabled={!duration}
               onClick={() => setStep(3)}
-              className="px-6 py-3 rounded-xl bg-[#0c2a23] disabled:opacity-40 hover:bg-[#123e34] text-white text-xs font-bold uppercase tracking-wider transition-all flex items-center space-x-2"
+              className="px-6 py-3 rounded-xl bg-emerald-600 disabled:opacity-40 hover:bg-emerald-700 text-white text-xs font-bold uppercase tracking-wider transition-all flex items-center space-x-2 cursor-pointer shadow-md shadow-emerald-600/20"
             >
               <span>Next: Skin Profile</span>
               <ArrowRight className="w-4 h-4" />
@@ -290,17 +290,17 @@ export default function TreatmentQuiz() {
                 onClick={() => setSkinType(opt.id)}
                 className={`w-full text-left p-4 rounded-2xl border transition-all cursor-pointer ${
                   skinType === opt.id
-                    ? 'border-emerald-700 bg-emerald-50/60 shadow-xs'
-                    : 'border-stone-200 hover:border-emerald-300 hover:bg-stone-50/70'
+                    ? 'border-emerald-600 bg-emerald-50/70 shadow-xs ring-1 ring-emerald-600/20'
+                    : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                 }`}
               >
                 <div className="flex items-center justify-between">
                   <div>
                     <h4 className="font-semibold text-slate-900 text-sm">{opt.title}</h4>
-                    <p className="text-xs text-stone-500 mt-0.5">{opt.desc}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{opt.desc}</p>
                   </div>
                   {skinType === opt.id && (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                   )}
                 </div>
               </button>
@@ -310,16 +310,16 @@ export default function TreatmentQuiz() {
           <div className="pt-4 flex items-center justify-between">
             <button
               onClick={() => setStep(2)}
-              className="text-xs font-semibold text-stone-600 hover:text-slate-900"
+              className="text-xs font-semibold text-slate-600 hover:text-slate-900 cursor-pointer"
             >
               ← Back
             </button>
             <button
               disabled={!skinType}
               onClick={() => calculateRecommendation(concern, duration, skinType)}
-              className="px-6 py-3 rounded-xl bg-[#0c2a23] disabled:opacity-40 hover:bg-[#123e34] text-white text-xs font-bold uppercase tracking-wider transition-all flex items-center space-x-2 shadow-sm"
+              className="px-6 py-3 rounded-xl bg-emerald-600 disabled:opacity-40 hover:bg-emerald-700 text-white text-xs font-bold uppercase tracking-wider transition-all flex items-center space-x-2 shadow-md shadow-emerald-600/20 cursor-pointer"
             >
-              <Sparkles className="w-4 h-4 text-emerald-300" />
+              <Sparkles className="w-4 h-4" />
               <span>Generate Clinical Recommendation</span>
             </button>
           </div>
@@ -329,13 +329,13 @@ export default function TreatmentQuiz() {
       {/* STEP 4: Results Recommendation Card */}
       {step === 4 && recommendation && (
         <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
-          <div className="p-6 sm:p-8 rounded-2xl bg-stone-50 border border-stone-200/90 space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-200 pb-4">
+          <div className="p-6 sm:p-8 rounded-2xl bg-slate-50 border border-slate-200 space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-4">
               <div>
-                <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider block">
+                <span className="text-[11px] font-bold text-emerald-600 uppercase tracking-wider block">
                   Recommended Clinical Protocol
                 </span>
-                <h4 className="text-xl sm:text-2xl font-serif font-bold text-slate-900 mt-0.5">
+                <h4 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5">
                   {recommendation.recommendedService}
                 </h4>
               </div>
@@ -345,55 +345,55 @@ export default function TreatmentQuiz() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-              <div className="bg-white p-3.5 rounded-xl border border-stone-200">
-                <span className="text-stone-400 block text-[10px] uppercase font-bold">Protocol Schedule</span>
+              <div className="bg-white p-3.5 rounded-xl border border-slate-200">
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">Protocol Schedule</span>
                 <span className="font-semibold text-slate-800 mt-0.5 block">{recommendation.sessions}</span>
               </div>
-              <div className="bg-white p-3.5 rounded-xl border border-stone-200">
-                <span className="text-stone-400 block text-[10px] uppercase font-bold">Downtime</span>
+              <div className="bg-white p-3.5 rounded-xl border border-slate-200">
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">Downtime</span>
                 <span className="font-semibold text-slate-800 mt-0.5 block">{recommendation.downtime}</span>
               </div>
-              <div className="bg-white p-3.5 rounded-xl border border-stone-200">
-                <span className="text-stone-400 block text-[10px] uppercase font-bold">Transparent Fee</span>
-                <span className="font-semibold text-emerald-800 mt-0.5 block">{recommendation.estimatedPrice}</span>
+              <div className="bg-white p-3.5 rounded-xl border border-slate-200">
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">Transparent Fee</span>
+                <span className="font-semibold text-emerald-700 mt-0.5 block">{recommendation.estimatedPrice}</span>
               </div>
             </div>
 
-            <div className="space-y-2 text-xs text-stone-700">
+            <div className="space-y-2 text-xs text-slate-700">
               <span className="font-bold text-slate-900 block uppercase text-[11px] tracking-wide">
                 Mechanism of Action & Clinical Rationale:
               </span>
-              <p className="leading-relaxed bg-white p-4 rounded-xl border border-stone-200/80">
+              <p className="leading-relaxed bg-white p-4 rounded-xl border border-slate-200">
                 {recommendation.rationale}
               </p>
             </div>
 
-            <div className="flex items-start space-x-2 text-[11px] text-stone-500 bg-amber-50/70 p-3 rounded-xl border border-amber-200/60">
+            <div className="flex items-start space-x-2 text-[11px] text-slate-600 bg-amber-50 p-3 rounded-xl border border-amber-200">
               <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
               <span>
                 <strong>Clinical Note:</strong> {recommendation.contraindications} A compulsory pre-procedure dermatological evaluation and 48-hour patch test is conducted prior to first session.
               </span>
             </div>
 
-            <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-stone-200">
-              <div className="flex items-center space-x-2 text-xs text-stone-600">
-                <Stethoscope className="w-4 h-4 text-emerald-700" />
+            <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-200">
+              <div className="flex items-center space-x-2 text-xs text-slate-600">
+                <Stethoscope className="w-4 h-4 text-emerald-600" />
                 <span>Assigned Consultant: <strong>{recommendation.suitableDoctor}</strong></span>
               </div>
 
               <div className="flex items-center space-x-3 w-full sm:w-auto">
                 <button
                   onClick={resetQuiz}
-                  className="px-4 py-2.5 rounded-xl text-stone-600 hover:text-slate-900 text-xs font-semibold flex items-center space-x-1.5"
+                  className="px-4 py-2.5 rounded-xl text-slate-600 hover:text-slate-900 text-xs font-semibold flex items-center space-x-1.5 cursor-pointer"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
                   <span>Retake</span>
                 </button>
                 <Link
                   href={`/book?service=${encodeURIComponent(recommendation.recommendedService)}`}
-                  className="px-6 py-2.5 rounded-xl bg-[#0c2a23] hover:bg-[#123e34] text-white text-xs font-bold uppercase tracking-wider flex items-center space-x-2 shadow-sm"
+                  className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold uppercase tracking-wider flex items-center space-x-2 shadow-md shadow-emerald-600/20"
                 >
-                  <Calendar className="w-3.5 h-3.5 text-emerald-300" />
+                  <Calendar className="w-3.5 h-3.5" />
                   <span>Book Consultation for this Protocol</span>
                 </Link>
               </div>

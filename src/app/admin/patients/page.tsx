@@ -85,22 +85,31 @@ export default function PatientEntryAndQueuePage() {
     loadData();
   }, [selectedStore, debouncedSearch]);
 
-  // Real-time duplicate phone check (FR-10)
-  const handlePhoneChange = async (phoneVal: string) => {
-    setRegForm({ ...regForm, phone: phoneVal });
-    if (phoneVal.trim().length >= 8) {
-      try {
-        const res = await fetch(`/api/patients?storeCode=${selectedStore}&checkPhone=${phoneVal}`);
-        const data = await res.json();
-        if (data.isDuplicate) {
-          setDuplicateWarning(`Alert: Patient "${data.duplicatePatient?.name}" with phone ${phoneVal} is already registered (${data.duplicatePatient?.patientId})!`);
-        } else {
-          setDuplicateWarning(null);
-        }
-      } catch (e) {}
+  // Real-time duplicate phone check (FR-10: Debounced by 400ms to prevent hammering serverless functions)
+  const debouncedPhone = useDebounce(regForm.phone, 400);
+
+  useEffect(() => {
+    const phoneVal = (debouncedPhone || '').trim();
+    if (phoneVal.length >= 10) {
+      fetch(`/api/patients?storeCode=${selectedStore}&checkPhone=${encodeURIComponent(phoneVal)}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.isDuplicate) {
+            setDuplicateWarning(
+              `Alert: Patient "${data.duplicatePatient?.name}" with phone ${phoneVal} is already registered (${data.duplicatePatient?.patientId})!`
+            );
+          } else {
+            setDuplicateWarning(null);
+          }
+        })
+        .catch(() => {});
     } else {
       setDuplicateWarning(null);
     }
+  }, [debouncedPhone, selectedStore]);
+
+  const handlePhoneChange = (phoneVal: string) => {
+    setRegForm({ ...regForm, phone: phoneVal });
   };
 
   const handleRegisterPatient = async (e: React.FormEvent) => {
