@@ -52,7 +52,7 @@ export async function POST(req: Request) {
             const role = (staffDoc.designation === 'Doctor' || staffDoc.loginRole === 'Doctor') ? 'doctor' : 'staff';
             user = {
               _id: staffDoc._id.toString(),
-              email: staffDoc.email || `${staffDoc.name.toLowerCase().replace(/\s+/g, '')}@nilaclinic.com`,
+              email: staffDoc.email || `${(staffDoc.name || 'staff').toLowerCase().replace(/\s+/g, '')}@nilaclinic.com`,
               name: staffDoc.name,
               role,
               phone: staffDoc.mobile,

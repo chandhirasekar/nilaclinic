@@ -17,20 +17,28 @@ export async function GET(req: Request) {
       const staffList = await clinicService.getStaff(storeCode);
       const docStaff = staffList.filter(s => s.designation === 'Doctor');
       for (const ds of docStaff) {
-        const alreadyExists = users.some(u => 
-          String(u._id) === String(ds._id) || 
-          (ds.email && u.email.toLowerCase() === ds.email.toLowerCase()) ||
-          u.name.toLowerCase() === ds.name.toLowerCase()
-        );
+        const dsName = (ds.name || '').trim();
+        const dsEmail = (ds.email || '').trim().toLowerCase();
+        const alreadyExists = users.some(u => {
+          const uEmail = (u.email || '').trim().toLowerCase();
+          const uName = (u.name || '').trim().toLowerCase();
+          return (
+            String(u._id) === String(ds._id) ||
+            (dsEmail && uEmail && uEmail === dsEmail) ||
+            (dsName && uName && uName === dsName.toLowerCase())
+          );
+        });
         if (!alreadyExists) {
+          const cleanSlug = dsName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'staff';
+          const safeEmail = ds.email || `doctor.${cleanSlug}@nilaclinic.com`;
           users.push({
             _id: String(ds._id),
-            name: ds.name,
-            email: ds.email || `doctor.${ds.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@nilaclinic.com`,
+            name: dsName || 'Doctor',
+            email: safeEmail,
             role: 'doctor',
-            phone: ds.mobile,
-            assignedStoreIds: ds.stores || (storeCode ? [storeCode] : ['NILA-TH']),
-            primaryStoreId: ds.stores?.[0] || storeCode || 'NILA-TH',
+            phone: ds.mobile || '',
+            assignedStoreIds: ds.stores || (storeCode && storeCode !== 'ALL' ? [storeCode] : ['NILA-TH']),
+            primaryStoreId: ds.stores?.[0] || (storeCode && storeCode !== 'ALL' ? storeCode : 'NILA-TH'),
             isActive: ds.isActive !== false,
             specialization: 'Consulting Doctor',
           } as any);
