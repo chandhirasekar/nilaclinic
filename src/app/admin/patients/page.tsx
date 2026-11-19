@@ -20,6 +20,7 @@ import { useClinic } from '@/context/ClinicContext';
 import { useDebounce } from '@/hooks/useDebounce';
 import { ButtonLoader } from '@/components/ui/ButtonLoader';
 import { TableSkeleton } from '@/components/ui/skeletons/TableSkeleton';
+import { canonicalStoreCode } from '@/lib/storeHelpers';
 
 export default function PatientEntryAndQueuePage() {
   const { selectedStore, user, stores } = useClinic();
@@ -409,7 +410,7 @@ export default function PatientEntryAndQueuePage() {
                     <td className="px-4 py-3">{p.gender} / {p.age || '-'} yrs</td>
                     <td className="px-4 py-3">
                       <span className="bg-slate-100 text-slate-700 text-[10px] font-bold px-2 py-0.5 rounded">
-                        {p.storeId || (p as any).firstStoreId || selectedStore}
+                        {canonicalStoreCode(p.storeId || (p as any).firstStoreId || selectedStore)}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-slate-400 max-w-xs truncate">{p.notes || '-'}</td>
