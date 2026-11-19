@@ -36,6 +36,7 @@ export async function POST(req: Request) {
     const patientPhone = body.patientPhone || body.phone || body.mobile || '';
     const storeId = (body.storeId || 'NILA-TH').toUpperCase();
     const doctorId = body.doctorId || body.doctor;
+    const requestedDoctorName = (body.doctorName || '').trim().toLowerCase();
 
     if (!patientId || !doctorId || !storeId) {
       return NextResponse.json({
@@ -50,7 +51,9 @@ export async function POST(req: Request) {
     let doctor = users.find(u => 
       (String(u._id).toLowerCase() === targetDocStr || 
        u.email?.toLowerCase().trim() === targetDocStr || 
-       u.name?.toLowerCase().trim() === targetDocStr) && 
+       u.name?.toLowerCase().trim() === targetDocStr ||
+       (requestedDoctorName && u.name?.toLowerCase().trim() === requestedDoctorName) ||
+       (targetDocStr.length > 3 && u.name?.toLowerCase().includes(targetDocStr))) && 
       u.role === 'doctor'
     );
 
@@ -60,7 +63,9 @@ export async function POST(req: Request) {
       const stDoctor = staffList.find(s => 
         (String(s._id).toLowerCase() === targetDocStr || 
          s.name?.toLowerCase().trim() === targetDocStr || 
-         s.email?.toLowerCase().trim() === targetDocStr) && 
+         s.email?.toLowerCase().trim() === targetDocStr ||
+         (requestedDoctorName && s.name?.toLowerCase().trim() === requestedDoctorName) ||
+         (targetDocStr.length > 3 && s.name?.toLowerCase().includes(targetDocStr))) && 
         s.designation === 'Doctor'
       );
       if (stDoctor) {
@@ -83,7 +88,8 @@ export async function POST(req: Request) {
       doctor = allUsers.find(u => 
         (String(u._id).toLowerCase() === targetDocStr || 
          u.email?.toLowerCase().trim() === targetDocStr || 
-         u.name?.toLowerCase().trim() === targetDocStr) && 
+         u.name?.toLowerCase().trim() === targetDocStr ||
+         (requestedDoctorName && u.name?.toLowerCase().trim() === requestedDoctorName)) && 
         u.role === 'doctor'
       );
     }
@@ -94,7 +100,8 @@ export async function POST(req: Request) {
       const stDoctor = allStaff.find(s => 
         (String(s._id).toLowerCase() === targetDocStr || 
          s.name?.toLowerCase().trim() === targetDocStr || 
-         s.email?.toLowerCase().trim() === targetDocStr) && 
+         s.email?.toLowerCase().trim() === targetDocStr ||
+         (requestedDoctorName && s.name?.toLowerCase().trim() === requestedDoctorName)) && 
         s.designation === 'Doctor'
       );
       if (stDoctor) {
@@ -111,10 +118,18 @@ export async function POST(req: Request) {
       }
     }
 
+    // Graceful fallback to first active doctor of the store if doctorId was stale or misaligned
+    if (!doctor) {
+      const activeStoreDoctor = users.find(u => u.role === 'doctor' && u.isActive !== false);
+      if (activeStoreDoctor) {
+        doctor = activeStoreDoctor;
+      }
+    }
+
     if (!doctor) {
       return NextResponse.json({
         success: false,
-        message: 'Doctor not found or does not belong to this clinic store'
+        message: `No active doctor found for store [${storeId}]. Please assign a doctor in Users & Roles.`
       }, { status: 400 });
     }
 

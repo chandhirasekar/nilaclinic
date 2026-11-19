@@ -28,6 +28,9 @@ import {
   ICustomerPackage,
 } from '@/types';
 
+import { getStoreAliases, canonicalStoreCode } from '@/lib/storeHelpers';
+export { getStoreAliases, canonicalStoreCode };
+
 class ClinicService {
   // In-memory initial seed state with 5 rich dummy data records for all entities
   private stores: IStore[] = [
@@ -1307,7 +1310,7 @@ class ClinicService {
       if (db) {
         const query: any = {};
         if (storeCode && storeCode !== 'ALL') {
-          query.stores = storeCode.toUpperCase();
+          query.stores = { $in: [storeCode.toUpperCase(), storeCode.replace('NILA-', '')] };
         }
         const docs = await (Staff as any).find(query).sort({ name: 1 }).lean();
         if (docs && docs.length > 0) {
@@ -1569,19 +1572,25 @@ class ClinicService {
       if (db) {
         const query: any = {};
         if (storeCode && storeCode !== 'ALL' && !search) {
-          query.firstStoreId = { $in: [storeCode.toUpperCase(), storeCode.replace('NILA-', '')] };
+          const aliases = getStoreAliases(storeCode);
+          query.$or = [
+            { firstStoreId: { $in: aliases } },
+            { storeId: { $in: aliases } },
+          ];
         }
         if (search) {
           const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
           query.$or = [
             { name: { $regex: escaped, $options: 'i' } },
             { mobile: { $regex: escaped, $options: 'i' } },
+            { phone: { $regex: escaped, $options: 'i' } },
             { customerId: { $regex: escaped, $options: 'i' } },
+            { patientId: { $regex: escaped, $options: 'i' } },
           ];
         }
         const docs = await (Customer as any)
           .find(query)
-          .select('customerId patientId name mobile phone gender dob email area address allergyNotes skinHairNotes notes firstStoreId storeId visits totalSpent createdAt')
+          .select('customerId patientId name mobile phone gender age dob email area address allergyNotes skinHairNotes notes firstStoreId storeId visits totalSpent createdAt')
           .sort({ createdAt: -1 })
           .skip(skip)
           .limit(limit)
@@ -1592,9 +1601,18 @@ class ClinicService {
             ...d,
             _id: d._id?.toString(),
             customerId: d.customerId || d.patientId || d._id?.toString(),
-            patientId: d.customerId || d.patientId || d._id?.toString(),
-            phone: d.mobile || d.phone || '',
+            patientId: d.patientId || d.customerId || d._id?.toString(),
+            phone: d.phone || d.mobile || '',
+            mobile: d.mobile || d.phone || '',
+            storeId: d.storeId || d.firstStoreId || 'NILA-TH',
+            firstStoreId: d.firstStoreId || d.storeId || 'NILA-TH',
           }));
+        }
+
+        // If docs is empty and DB has records, return empty array (do not leak in-memory fallback)
+        const total = await (Customer as any).countDocuments().catch(() => 0);
+        if (total > 0) {
+          return [];
         }
       }
     } catch (e) {
@@ -1603,17 +1621,28 @@ class ClinicService {
 
     let res = this.customers;
     if (storeCode && storeCode !== 'ALL' && !search) {
-      res = res.filter(c => (c.firstStoreId || '').toUpperCase() === storeCode.toUpperCase());
+      const aliases = getStoreAliases(storeCode).map(a => a.toUpperCase());
+      res = res.filter(c =>
+        aliases.includes((c.firstStoreId || '').toUpperCase()) ||
+        aliases.includes(((c as any).storeId || '').toUpperCase())
+      );
     }
     if (search) {
       const q = search.toLowerCase();
       res = res.filter(c =>
         c.name.toLowerCase().includes(q) ||
         (c.mobile || '').includes(q) ||
-        (c.customerId || '').toLowerCase().includes(q)
+        ((c as any).phone || '').includes(q) ||
+        (c.customerId || '').toLowerCase().includes(q) ||
+        ((c as any).patientId || '').toLowerCase().includes(q)
       );
     }
-    return res.slice(skip, skip + limit);
+    return res.slice(skip, skip + limit).map(c => ({
+      ...c,
+      patientId: c.customerId || (c as any).patientId || c._id,
+      phone: c.mobile || (c as any).phone || '',
+      storeId: c.firstStoreId || (c as any).storeId || 'NILA-TH',
+    }));
   }
 
   async searchCustomerByMobile(mobileNumber: string): Promise<ICustomer[]> {
@@ -1686,26 +1715,74 @@ class ClinicService {
     );
   }
 
+  async generateNextCustomerId(): Promise<string> {
+    let maxNum = 1000;
+
+    // Check in-memory customers
+    for (const c of this.customers) {
+      const id = c.customerId || (c as any).patientId || '';
+      const match = id.match(/^CID-(\d+)$/i);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (num > maxNum) maxNum = num;
+      }
+    }
+
+    // Query MongoDB for the highest existing customerId / patientId
+    try {
+      const db = await connectToDatabase();
+      if (db) {
+        const docs = await (Customer as any)
+          .find({
+            $or: [
+              { customerId: { $regex: '^CID-\\d+', $options: 'i' } },
+              { patientId: { $regex: '^CID-\\d+', $options: 'i' } },
+            ],
+          })
+          .select('customerId patientId')
+          .lean();
+
+        if (docs && docs.length > 0) {
+          for (const d of docs) {
+            const id = d.customerId || d.patientId || '';
+            const match = id.match(/^CID-(\d+)$/i);
+            if (match) {
+              const num = parseInt(match[1], 10);
+              if (num > maxNum) maxNum = num;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Error querying max customerId in MongoDB:', e);
+    }
+
+    return `CID-${maxNum + 1}`;
+  }
+
   async createCustomer(data: Partial<ICustomer>): Promise<ICustomer> {
-    const count = this.customers.length + 1001;
-    const cid = data.customerId || `CID-${count}`;
-    const mob = data.mobile || (data as any).phone || '';
+    const cid = data.customerId || (await this.generateNextCustomerId());
+    const mob = (data.mobile || (data as any).phone || '').trim();
+    const rawStore = data.firstStoreId || (data as any).storeId || 'NILA-TH';
+    const cleanStore = canonicalStoreCode(rawStore);
+
     const newCust: any = {
       customerId: cid,
       patientId: cid,
-      name: data.name || 'New Customer',
+      name: (data.name || 'New Customer').trim(),
       mobile: mob,
       phone: mob,
       gender: data.gender || 'Female',
+      age: data.age !== undefined && data.age !== null && !isNaN(Number(data.age)) ? Number(data.age) : undefined,
       dob: data.dob || '',
-      email: data.email || '',
-      area: data.area || (data as any).address || '',
-      address: data.area || (data as any).address || '',
-      allergyNotes: data.allergyNotes || '',
-      skinHairNotes: data.skinHairNotes || '',
-      notes: data.notes || data.skinHairNotes || '',
-      firstStoreId: (data.firstStoreId || (data as any).storeId || 'NILA-TH').toUpperCase(),
-      storeId: (data.firstStoreId || (data as any).storeId || 'NILA-TH').toUpperCase(),
+      email: (data.email || '').trim().toLowerCase(),
+      area: (data.area || (data as any).address || '').trim(),
+      address: (data.area || (data as any).address || '').trim(),
+      allergyNotes: (data.allergyNotes || '').trim(),
+      skinHairNotes: (data.skinHairNotes || '').trim(),
+      notes: (data.notes || data.skinHairNotes || '').trim(),
+      firstStoreId: cleanStore,
+      storeId: cleanStore,
       visits: data.visits || 0,
       totalSpent: data.totalSpent || 0,
       createdAt: new Date().toISOString(),
@@ -1714,14 +1791,38 @@ class ClinicService {
     try {
       const db = await connectToDatabase();
       if (db) {
-        const { _id, ...custData } = newCust;
-        const doc = await (Customer as any).create(custData);
-        const saved = doc.toObject();
-        saved._id = saved._id.toString();
-        saved.patientId = saved.customerId;
-        saved.phone = saved.mobile;
-        this.customers.unshift(saved);
-        return saved;
+        let doc: any = null;
+        let currentCid = cid;
+
+        // Try up to 5 times to avoid duplicate CID key collisions
+        for (let attempt = 0; attempt < 5; attempt++) {
+          try {
+            const { _id, ...custData } = {
+              ...newCust,
+              customerId: currentCid,
+              patientId: currentCid,
+            };
+            doc = await (Customer as any).create(custData);
+            break;
+          } catch (createErr: any) {
+            if (createErr.code === 11000 && (createErr.keyPattern?.customerId || createErr.message?.includes('customerId'))) {
+              const currentNum = parseInt(currentCid.replace(/^CID-/i, ''), 10) || 1000;
+              currentCid = `CID-${currentNum + 1}`;
+              continue;
+            }
+            throw createErr;
+          }
+        }
+
+        if (doc) {
+          const saved = doc.toObject();
+          saved._id = saved._id.toString();
+          saved.patientId = saved.customerId;
+          saved.phone = saved.mobile;
+          saved.storeId = saved.firstStoreId;
+          this.customers.unshift(saved);
+          return saved;
+        }
       }
     } catch (e) {
       console.error('Error creating customer in MongoDB:', e);
@@ -1755,6 +1856,9 @@ class ClinicService {
     return this.createCustomer({
       ...data,
       mobile: data.mobile || data.phone,
+      phone: data.phone || data.mobile,
+      firstStoreId: data.firstStoreId || data.storeId || 'NILA-TH',
+      storeId: data.firstStoreId || data.storeId || 'NILA-TH',
     });
   }
 
@@ -1811,11 +1915,16 @@ class ClinicService {
     try {
       const db = await connectToDatabase();
       if (db) {
-        const doc = await (PackageMaster as any).create(newPkg);
-        this.packages.push(newPkg);
-        return doc.toObject();
+        const { _id, ...pkgData } = newPkg;
+        const doc = await (PackageMaster as any).create(pkgData);
+        const saved = doc.toObject();
+        saved._id = saved._id.toString();
+        this.packages.push(saved);
+        return saved;
       }
-    } catch (e) {}
+    } catch (e) {
+      console.error('Failed to persist package in MongoDB:', e);
+    }
 
     this.packages.push(newPkg);
     return newPkg;
@@ -1891,11 +2000,16 @@ class ClinicService {
     try {
       const db = await connectToDatabase();
       if (db) {
-        const doc = await (CustomerPackage as any).create(newCustPkg);
-        this.customerPackages.unshift(newCustPkg);
-        return doc.toObject();
+        const { _id, ...custPkgData } = newCustPkg;
+        const doc = await (CustomerPackage as any).create(custPkgData);
+        const saved = doc.toObject();
+        saved._id = saved._id.toString();
+        this.customerPackages.unshift(saved);
+        return saved;
       }
-    } catch (e) {}
+    } catch (e) {
+      console.error('Failed to persist customer package in MongoDB:', e);
+    }
 
     this.customerPackages.unshift(newCustPkg);
     return newCustPkg;
@@ -2028,7 +2142,13 @@ class ClinicService {
           query.$or = [{ staffId }, { doctorId: staffId }, { staffName: staffId }, { stylistName: staffId }];
         }
         const docs = await (Appointment as any).find(query).sort({ startTime: 1, createdAt: -1 }).lean();
-        if (docs && docs.length > 0) return docs as any;
+        if (docs && docs.length > 0) {
+          return docs.map((d: any) => ({ ...d, _id: d._id?.toString() }));
+        }
+        const totalApptCount = await (Appointment as any).countDocuments();
+        if (totalApptCount > 0) {
+          return [];
+        }
       }
     } catch (e) {}
 
@@ -2100,10 +2220,10 @@ class ClinicService {
   }
 
   async createAppointment(data: Partial<IAppointment>): Promise<IAppointment> {
-    const count = this.appointments.length + 1001;
+    const apptUnique = data.appointmentId || `APP-${Date.now().toString().slice(-6)}`;
     const newAppt: IAppointment = {
       _id: `appt-${Date.now()}`,
-      appointmentId: `APP-${count}`,
+      appointmentId: apptUnique,
       customerId: data.customerId,
       customerName: data.customerName || 'Client',
       customerPhone: data.customerPhone || '',
@@ -2128,11 +2248,16 @@ class ClinicService {
     try {
       const db = await connectToDatabase();
       if (db) {
-        const doc = await (Appointment as any).create(newAppt);
-        this.appointments.unshift(newAppt);
-        return doc.toObject();
+        const { _id, ...apptData } = newAppt;
+        const doc = await (Appointment as any).create(apptData);
+        const saved = doc.toObject();
+        saved._id = saved._id.toString();
+        this.appointments.unshift(saved);
+        return saved;
       }
-    } catch (e) {}
+    } catch (e) {
+      console.error('Failed to persist appointment in MongoDB:', e);
+    }
 
     this.appointments.unshift(newAppt);
     return newAppt;
@@ -2194,9 +2319,17 @@ class ClinicService {
         if (doctorId) query.doctorId = doctorId;
         if (status) query.status = status;
         const docs = await (Visit as any).find(query).sort({ createdAt: -1 }).lean();
-        if (docs && docs.length > 0) return docs as any;
+        if (docs && docs.length > 0) {
+          return docs.map((d: any) => ({ ...d, _id: d._id?.toString() }));
+        }
+        const totalVisitsCount = await (Visit as any).countDocuments();
+        if (totalVisitsCount > 0) {
+          return [];
+        }
       }
-    } catch (e) {}
+    } catch (e) {
+      console.error('getVisits error:', e);
+    }
 
     let res = this.visits;
     if (storeCode && storeCode !== 'ALL') {
@@ -2216,10 +2349,10 @@ class ClinicService {
   }
 
   async createVisit(data: Partial<IVisit>): Promise<IVisit> {
-    const count = this.visits.length + 1001;
+    const visitUnique = data.visitId || `VIS-${Date.now().toString().slice(-6)}`;
     const newVisit: IVisit = {
       _id: `vis-${Date.now()}`,
-      visitId: `VIS-${count}`,
+      visitId: visitUnique,
       patientId: data.patientId || `CID-${Date.now()}`,
       patientName: data.patientName || 'Patient',
       patientPhone: data.patientPhone || '',
@@ -2237,11 +2370,16 @@ class ClinicService {
     try {
       const db = await connectToDatabase();
       if (db) {
-        const doc = await (Visit as any).create(newVisit);
-        this.visits.unshift(newVisit);
-        return doc.toObject();
+        const { _id, ...visitData } = newVisit;
+        const doc = await (Visit as any).create(visitData);
+        const saved = doc.toObject();
+        saved._id = saved._id.toString();
+        this.visits.unshift(saved);
+        return saved;
       }
-    } catch (e) {}
+    } catch (e) {
+      console.error('Failed to persist visit in MongoDB:', e);
+    }
 
     this.visits.unshift(newVisit);
     return newVisit;
@@ -2716,11 +2854,16 @@ class ClinicService {
     try {
       const db = await connectToDatabase();
       if (db) {
-        const doc = await (Invoice as any).create(newInv);
-        this.invoices.unshift(newInv);
-        return doc.toObject();
+        const { _id, ...invData } = newInv;
+        const doc = await (Invoice as any).create(invData);
+        const saved = doc.toObject();
+        saved._id = saved._id.toString();
+        this.invoices.unshift(saved);
+        return saved;
       }
-    } catch (e) {}
+    } catch (e) {
+      console.error('Failed to persist invoice in MongoDB:', e);
+    }
 
     this.invoices.unshift(newInv);
     return newInv;

@@ -22,7 +22,7 @@ import { ButtonLoader } from '@/components/ui/ButtonLoader';
 import { TableSkeleton } from '@/components/ui/skeletons/TableSkeleton';
 
 export default function PatientEntryAndQueuePage() {
-  const { selectedStore, user } = useClinic();
+  const { selectedStore, user, stores } = useClinic();
   const [patients, setPatients] = useState<IPatient[]>([]);
   const [visits, setVisits] = useState<IVisit[]>([]);
   const [doctors, setDoctors] = useState<IUser[]>([]);
@@ -34,6 +34,7 @@ export default function PatientEntryAndQueuePage() {
 
   // Registration Form State
   const [showRegModal, setShowRegModal] = useState(false);
+  const [regStore, setRegStore] = useState('');
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
   const [regForm, setRegForm] = useState({
     name: '',
@@ -68,10 +69,12 @@ export default function PatientEntryAndQueuePage() {
       if (visData.success) setVisits(visData.data);
       if (docData.success) {
         // Enforce BR-01: list only ACTIVE doctors of that store
-        const activeDoctors = docData.data.filter((d: IUser) => d.isActive !== false);
+        const activeDoctors = (docData.data || []).filter((d: IUser) => d.isActive !== false);
         setDoctors(activeDoctors);
         if (activeDoctors.length > 0) {
-          setSelectedDoctorId(activeDoctors[0]._id || activeDoctors[0].email);
+          setSelectedDoctorId(String(activeDoctors[0]._id || activeDoctors[0].email));
+        } else {
+          setSelectedDoctorId('');
         }
       }
     } catch (err) {
@@ -84,6 +87,18 @@ export default function PatientEntryAndQueuePage() {
   useEffect(() => {
     loadData();
   }, [selectedStore, debouncedSearch]);
+
+  // Keep selectedDoctorId in sync with current store's active doctors
+  useEffect(() => {
+    if (doctors.length > 0) {
+      const exists = doctors.some(d => String(d._id) === selectedDoctorId || d.email === selectedDoctorId);
+      if (!exists) {
+        setSelectedDoctorId(String(doctors[0]._id || doctors[0].email));
+      }
+    } else {
+      setSelectedDoctorId('');
+    }
+  }, [doctors, selectedStore]);
 
   // Real-time duplicate phone check (FR-10: Debounced by 400ms to prevent hammering serverless functions)
   const debouncedPhone = useDebounce(regForm.phone, 400);
@@ -115,13 +130,14 @@ export default function PatientEntryAndQueuePage() {
   const handleRegisterPatient = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmittingReg(true);
+    const targetStore = selectedStore === 'ALL' ? (regStore || stores[0]?.code || 'NILA-TH') : selectedStore;
     try {
       const res = await fetch('/api/patients', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...regForm,
-          storeId: selectedStore,
+          storeId: targetStore,
         }),
       });
       const data = await res.json();
@@ -133,6 +149,10 @@ export default function PatientEntryAndQueuePage() {
 
         // Prompt to assign doctor immediately
         setSelectedPatientForAssign(data.data);
+        if (doctors.length > 0) {
+          setSelectedDoctorId(String(doctors[0]._id || doctors[0].email));
+        }
+        setAssignError('');
         setShowAssignModal(true);
       } else {
         alert(data.message || 'Error creating patient');
@@ -148,9 +168,17 @@ export default function PatientEntryAndQueuePage() {
     e.preventDefault();
     setAssignError('');
 
-    const activeDocId = selectedDoctorId || (doctors.length > 0 ? String(doctors[0]._id || doctors[0].email) : '');
-    if (!selectedPatientForAssign || !activeDocId) {
-      setAssignError('Please select both patient and an active doctor.');
+    if (!selectedPatientForAssign) return;
+
+    const matchedDoctor = doctors.find(
+      (d) => String(d._id) === selectedDoctorId || d.email === selectedDoctorId
+    );
+    const chosenDoctor = matchedDoctor || (doctors.length > 0 ? doctors[0] : null);
+    const activeDocId = chosenDoctor ? String(chosenDoctor._id || chosenDoctor.email) : '';
+    const activeDocName = chosenDoctor ? chosenDoctor.name : '';
+
+    if (!activeDocId) {
+      setAssignError(`No active doctor available for store [${selectedStore}]. Please assign a doctor in Users & Roles.`);
       return;
     }
 
@@ -165,6 +193,7 @@ export default function PatientEntryAndQueuePage() {
 
     setIsSubmittingAssign(true);
     try {
+      const targetStoreCode = selectedStore === 'ALL' ? (chosenDoctor?.assignedStoreIds?.[0] || 'NILA-TH') : selectedStore;
       const res = await fetch('/api/visits', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -172,8 +201,9 @@ export default function PatientEntryAndQueuePage() {
           patientId: targetPatientId,
           patientName: selectedPatientForAssign.name,
           patientPhone: targetPhone,
-          storeId: selectedStore,
+          storeId: targetStoreCode,
           doctorId: activeDocId,
+          doctorName: activeDocName,
         }),
       });
       const data = await res.json();
@@ -391,6 +421,10 @@ export default function PatientEntryAndQueuePage() {
                             patientId: pid,
                             phone: contact,
                           });
+                          if (doctors.length > 0) {
+                            setSelectedDoctorId(String(doctors[0]._id || doctors[0].email));
+                          }
+                          setAssignError('');
                           setShowAssignModal(true);
                         }}
                         className="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg font-semibold text-xs shadow-2xs transition-all inline-flex items-center space-x-1"
@@ -412,7 +446,24 @@ export default function PatientEntryAndQueuePage() {
         <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-100 p-6 relative">
             <h3 className="font-bold text-slate-900 text-base mb-1">Patient Registration</h3>
-            <p className="text-xs text-slate-500 mb-3">Register new patient for clinic store [{selectedStore}].</p>
+            {selectedStore === 'ALL' ? (
+              <div className="mb-3">
+                <label className="block font-semibold text-slate-700 mb-1">Registration Branch *</label>
+                <select
+                  value={regStore || stores[0]?.code || 'NILA-TH'}
+                  onChange={(e) => setRegStore(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer"
+                >
+                  {stores.map((st) => (
+                    <option key={st.code} value={st.code}>
+                      [{st.code}] {(st.name || '').replace('Nila Clinic - ', '')}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <p className="text-xs text-slate-500 mb-3">Register new patient for clinic store [{selectedStore}].</p>
+            )}
 
             {duplicateWarning && (
               <div className="mb-4 p-3 bg-amber-50 border border-amber-300 text-amber-800 rounded-xl text-xs flex items-start space-x-2">
@@ -560,7 +611,7 @@ export default function PatientEntryAndQueuePage() {
                     className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-sky-500 outline-none cursor-pointer"
                   >
                     {doctors.map((doc) => (
-                      <option key={doc._id || doc.email} value={doc._id || doc.email}>
+                      <option key={String(doc._id || doc.email)} value={String(doc._id || doc.email)}>
                         {doc.name} {doc.specialization ? `(${doc.specialization})` : ''}
                       </option>
                     ))}
