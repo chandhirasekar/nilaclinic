@@ -98,8 +98,22 @@ export default function HomePage() {
             Your browser does not support the video tag.
           </video>
 
-          {/* Subtle Contrast Vignette */}
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 via-transparent to-slate-950/20 pointer-events-none" />
+          {/* Subtle Bottom Vignette for Crisp Contrast */}
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/25 to-transparent pointer-events-none" />
+
+          {/* Clean Tag, H1 & Responsive Content */}
+          <div className="absolute bottom-4 sm:bottom-6 md:bottom-8 left-4 sm:left-8 lg:left-12 z-20 max-w-lg pointer-events-none pr-4">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 sm:py-1 rounded-full bg-emerald-600/90 backdrop-blur-xs text-white text-[10px] sm:text-xs font-bold uppercase tracking-wider shadow-sm mb-1 sm:mb-1.5">
+              {/* <span className="w-1.5 h-1.5 rounded-full bg-emerald-200 animate-pulse" /> */}
+              Skin & Hair Clinic
+            </span>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-white tracking-tight leading-tight drop-shadow-md">
+              Nila Clinic
+            </h1>
+            <p className="text-[11px] sm:text-xs md:text-sm text-slate-200 mt-0.5 sm:mt-1 font-medium drop-shadow leading-snug">
+              Advanced medical treatments for skin & hair care.
+            </p>
+          </div>
         </section>
 
         {/* CLINICAL STANDARDS - CONCISE */}
@@ -173,11 +187,10 @@ export default function HomePage() {
                   <button
                     key={cat}
                     onClick={() => setActiveCategory(cat)}
-                    className={`px-4 py-2 rounded-xl font-semibold transition-all cursor-pointer ${
-                      activeCategory === cat
+                    className={`px-4 py-2 rounded-xl font-semibold transition-all cursor-pointer ${activeCategory === cat
                         ? 'bg-emerald-600 text-white shadow-xs'
                         : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
-                    }`}
+                      }`}
                   >
                     {cat}
                   </button>
@@ -225,11 +238,10 @@ export default function HomePage() {
                 <button
                   key={cs.id}
                   onClick={() => setActiveCaseIndex(idx)}
-                  className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                    activeCaseIndex === idx
+                  className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${activeCaseIndex === idx
                       ? 'bg-emerald-600 text-white shadow-xs'
                       : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
-                  }`}
+                    }`}
                 >
                   <span>{cs.title}</span>
                 </button>
