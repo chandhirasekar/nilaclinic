@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+@theme {
+  --radius-2xl: 8px;
+  --radius-3xl: 8px;
+  --radius-xl: 8px;
+}
+
 @layer base {
   :root {
     --primary: #0284c7;

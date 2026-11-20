@@ -32,6 +32,7 @@ export default function ClinicDashboardPage() {
   const [unpaidInvoices, setUnpaidInvoices] = useState<any[]>([]);
   const [todayAppointments, setTodayAppointments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [settlingInvoiceId, setSettlingInvoiceId] = useState<string | null>(null);
 
   const userRole = user?.role || 'admin';
 
@@ -61,6 +62,34 @@ export default function ClinicDashboardPage() {
   useEffect(() => {
     fetchDashboardData();
   }, [selectedStore, dateRange]);
+
+  const handleQuickCollectCash = async (inv: any) => {
+    const invId = inv.invoiceNo || inv._id;
+    setSettlingInvoiceId(invId);
+    try {
+      const res = await fetch('/api/invoices', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          invoiceId: invId,
+          status: 'Paid',
+          paymentMethod: 'Cash',
+          paidAmount: inv.payableAmount || inv.grandTotal,
+          staffName: user?.name || 'Reception Staff',
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        await fetchDashboardData();
+      } else {
+        alert(data.message || 'Failed to settle bill');
+      }
+    } catch (e) {
+      alert('Error settling bill');
+    } finally {
+      setSettlingInvoiceId(null);
+    }
+  };
 
   const kpi = reportData?.kpi || {
     totalPatientsCount: 0,
@@ -268,12 +297,22 @@ export default function ClinicDashboardPage() {
                     <span>Invoice: {inv.invoiceNo}</span>
                     <span>By: {inv.staffName}</span>
                   </div>
-                  <Link
-                    href={`/admin/pos?invoiceNo=${inv.invoiceNo}`}
-                    className="mt-2 block w-full py-1 text-center bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-lg text-xs"
-                  >
-                    Collect Payment & Print
-                  </Link>
+                  <div className="grid grid-cols-2 gap-2 pt-2">
+                    <button
+                      type="button"
+                      disabled={settlingInvoiceId === (inv.invoiceNo || inv._id)}
+                      onClick={() => handleQuickCollectCash(inv)}
+                      className="py-1 text-center bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-[11px] transition-all disabled:opacity-50"
+                    >
+                      {settlingInvoiceId === (inv.invoiceNo || inv._id) ? 'Saving...' : 'Quick Cash Pay'}
+                    </button>
+                    <Link
+                      href={`/admin/pos?invoiceNo=${inv.invoiceNo}`}
+                      className="py-1 text-center bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-lg text-[11px] transition-all"
+                    >
+                      POS & Print
+                    </Link>
+                  </div>
                 </div>
               ))}
             </div>

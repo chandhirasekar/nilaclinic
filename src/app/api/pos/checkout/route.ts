@@ -57,43 +57,116 @@ export async function POST(req: Request) {
     }
 
     // FR-46: Validate payments add up to payable amount
-    const totalPayments = (payments || []).reduce((acc: number, p: any) => acc + (Number(p.amount) || 0), 0);
     const targetPayable = Number(payableAmount) || Number(grandTotal) || 0;
+    let finalPayments = payments || [];
+    let finalPaidAmount = paidAmount || targetPayable;
+    let finalChangeAmount = changeAmount || 0;
 
-    // Allow margin of 0.05 for minor floating point rounding
-    if (payments && payments.length > 0 && Math.abs(totalPayments - targetPayable) > 0.5) {
-      return NextResponse.json({
-        success: false,
-        message: `Total payment modes sum (₹${totalPayments}) must equal the payable amount (₹${targetPayable}).`
-      }, { status: 400 });
+    // If single payment mode or no payments specified, auto-adjust to targetPayable
+    if (!finalPayments || finalPayments.length <= 1) {
+      const mode = finalPayments?.[0]?.mode || paymentMethod || 'Cash';
+      const origAmt = Number(finalPayments?.[0]?.amount) || targetPayable;
+      if (mode.toLowerCase() === 'cash' && origAmt > targetPayable) {
+        finalChangeAmount = origAmt - targetPayable;
+      }
+      finalPayments = [{
+        mode,
+        amount: targetPayable,
+        type: finalPayments?.[0]?.type || (mode.toLowerCase() === 'cash' ? 'cash' : 'non-cash'),
+      }];
+      finalPaidAmount = targetPayable;
+    } else {
+      const totalPayments = finalPayments.reduce((acc: number, p: any) => acc + (Number(p.amount) || 0), 0);
+      if (Math.abs(totalPayments - targetPayable) > 0.5) {
+        return NextResponse.json({
+          success: false,
+          message: `Total payment modes sum (₹${totalPayments}) must equal the payable amount (₹${targetPayable}).`
+        }, { status: 400 });
+      }
     }
 
-    const invoice = await clinicService.createQuickSaleInvoice({
-      storeId: (storeId || 'NILA-TH').toUpperCase(),
-      customerId,
-      customerName: customerName || 'Walk-in Client',
-      customerMobile: customerMobile || customerPhone || '+91 90000 00000',
-      date: date || todayStr,
-      items: items || [],
-      subtotal: subtotal || 0,
-      rowDiscountTotal: rowDiscountTotal || 0,
-      billDiscountType,
-      billDiscountValue,
-      discount: discount || 0,
-      tax: tax || 0,
-      grandTotal: grandTotal || 0,
-      tipAmount: tipAmount || 0,
-      tipStaffName: tipStaffName || '',
-      payableAmount: targetPayable,
-      payments: payments || [{ mode: paymentMethod || 'Cash', amount: targetPayable }],
-      paidAmount: paidAmount || targetPayable,
-      changeAmount: changeAmount || 0,
-      paymentMethod: paymentMethod || (payments?.[0]?.mode) || 'Cash',
-      remarks: remarks || '',
-      staffName: staffName || 'Staff',
-      status: status || 'Paid',
-      visitId,
-    });
+    const invoiceNo = body.invoiceNo;
+    let invoice = null;
+
+    if (invoiceNo) {
+      const existing = await clinicService.getInvoiceById(invoiceNo);
+      if (existing) {
+        invoice = await clinicService.updateInvoice(invoiceNo, {
+          storeId: (storeId || existing.storeId || 'NILA-TH').toUpperCase(),
+          customerId: customerId || existing.customerId,
+          customerName: customerName || existing.customerName,
+          customerMobile: customerMobile || customerPhone || existing.customerMobile,
+          date: date || todayStr,
+          items: items || existing.items,
+          subtotal: subtotal || 0,
+          rowDiscountTotal: rowDiscountTotal || 0,
+          billDiscountType,
+          billDiscountValue,
+          discount: discount || 0,
+          tax: tax || 0,
+          grandTotal: grandTotal || 0,
+          tipAmount: tipAmount || 0,
+          tipStaffName: tipStaffName || '',
+          payableAmount: targetPayable,
+          payments: finalPayments,
+          paidAmount: finalPaidAmount,
+          changeAmount: finalChangeAmount,
+          paymentMethod: paymentMethod || (finalPayments?.[0]?.mode) || 'Cash',
+          remarks: remarks || existing.remarks || '',
+          staffName: staffName || existing.staffName || 'Staff',
+          status: 'Paid',
+          paidAt: new Date().toISOString(),
+          visitId: visitId || existing.visitId,
+        });
+
+        // If package items were sold or redeemed, process them
+        if (customerId) {
+          for (const item of (items || [])) {
+            if (item.type === 'package' && item.itemId) {
+              await clinicService.sellCustomerPackage({
+                customerId,
+                packageId: item.itemId,
+                storeSold: storeId || existing.storeId,
+                invoiceNo: existing.invoiceNo,
+              });
+            }
+            if (item.isFromPackage && item.packageId) {
+              const rawServiceName = item.name.replace(/\(From Package:.*?\)/, '').trim();
+              await clinicService.redeemPackageSitting(item.packageId, rawServiceName, storeId || existing.storeId);
+            }
+          }
+        }
+      }
+    }
+
+    if (!invoice) {
+      invoice = await clinicService.createQuickSaleInvoice({
+        storeId: (storeId || 'NILA-TH').toUpperCase(),
+        customerId,
+        customerName: customerName || 'Walk-in Client',
+        customerMobile: customerMobile || customerPhone || '+91 90000 00000',
+        date: date || todayStr,
+        items: items || [],
+        subtotal: subtotal || 0,
+        rowDiscountTotal: rowDiscountTotal || 0,
+        billDiscountType,
+        billDiscountValue,
+        discount: discount || 0,
+        tax: tax || 0,
+        grandTotal: grandTotal || 0,
+        tipAmount: tipAmount || 0,
+        tipStaffName: tipStaffName || '',
+        payableAmount: targetPayable,
+        payments: finalPayments,
+        paidAmount: finalPaidAmount,
+        changeAmount: finalChangeAmount,
+        paymentMethod: paymentMethod || (finalPayments?.[0]?.mode) || 'Cash',
+        remarks: remarks || '',
+        staffName: staffName || 'Staff',
+        status: status || 'Paid',
+        visitId,
+      });
+    }
 
     return NextResponse.json({ success: true, data: invoice });
   } catch (err: any) {

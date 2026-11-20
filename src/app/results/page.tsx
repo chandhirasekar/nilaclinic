@@ -4,14 +4,9 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import {
   Sparkles,
-  Calendar,
   ShieldCheck,
   CheckCircle2,
-  Filter,
   ArrowRight,
-  Stethoscope,
-  Clock,
-  UserCheck,
 } from 'lucide-react';
 import Navbar from '@/components/public/Navbar';
 import Footer from '@/components/public/Footer';
@@ -20,38 +15,42 @@ import BeforeAfterSlider, { sampleCaseStudies, CaseStudyData } from '@/component
 export default function ResultsPage() {
   const [activeCategory, setActiveCategory] = useState<string>('All');
 
-  const categories = ['All', 'Scars', 'Hair', 'Skin', 'Laser'];
+  // Strictly Skin & Hair Treatments
+  const categories = ['All', 'Skin Treatments', 'Hair Treatments'];
 
-  const filteredCases = sampleCaseStudies.filter(
-    (c) => activeCategory === 'All' || c.category === activeCategory
-  );
+  const filteredCases = sampleCaseStudies.filter((c) => {
+    if (activeCategory === 'All') return true;
+    if (activeCategory === 'Skin Treatments') return c.category === 'Skin';
+    if (activeCategory === 'Hair Treatments') return c.category === 'Hair';
+    return true;
+  });
 
   const testimonials = [
     {
       patientName: 'Karthik S.',
       ageCity: '28 yrs, Madurai',
-      treatment: 'Autologous PRP Therapy (6 Sessions)',
-      doctor: 'Dr. Rajesh Varma',
+      treatment: 'Autologous PRP Hair Therapy (6 Sessions)',
+      doctor: 'Dr. Rajesh Varma (Trichologist)',
       quote:
-        'I had progressive crown thinning and had wasted money on over-the-counter hair gummies and commercial salon oils for 2 years. Dr. Rajesh conducted trichoscopy on day one, showed me my follicular miniaturization on screen, and placed me on a 6-session PRP protocol. By month 4, the bald spot on my vertex filled out significantly. No false promises, just medical facts.',
+        'I had progressive crown thinning for 2 years. Dr. Rajesh conducted trichoscopy on day one and placed me on a 6-session PRP protocol. By month 4, the bald spot on my crown filled out visibly. No false promises, just real results.',
       rating: 5,
     },
     {
       patientName: 'Divya M.',
       ageCity: '25 yrs, Theni',
       treatment: 'Subcision + RF Microneedling (4 Sessions)',
-      doctor: 'Dr. Anitha Ramachandran',
+      doctor: 'Dr. Anitha Ramachandran (Dermatologist)',
       quote:
-        'Having severe ice-pick and rolling acne scars made me self-conscious for years. Dr. Anitha explained that surface creams would never work because my scars were tethered down to the fat layer. The subcision released the tension, and the RF stimulated collagen. My skin texture is at least 70% flatter now. It gave me my confidence back.',
+        'Having deep acne scars made me self-conscious. Dr. Anitha explained how subcision releases the scar tension and RF rebuilds collagen. My skin texture is over 70% flatter now. It gave me my confidence back.',
       rating: 5,
     },
     {
       patientName: 'Meenakshi N.',
       ageCity: '39 yrs, Chennai',
-      treatment: 'Q-Switch Nd:YAG Laser Toning (5 Sessions)',
-      doctor: 'Dr. Priya Dharshini',
+      treatment: 'Q-Switch Laser Toning (5 Sessions)',
+      doctor: 'Dr. Priya Dharshini (Laser Specialist)',
       quote:
-        'I was terrified that lasers would burn or hyperpigment my dusky Indian skin. Dr. Priya performed a patch test behind my ear first and monitored it for 48 hours. The low-fluence 1064nm toning gradually dissolved my stubborn malar melasma without any peeling or redness. Exceptional medical expertise.',
+        'Dr. Priya performed a patch test first. The 1064nm toning gradually dissolved my stubborn cheek melasma without any peeling or redness. Very professional care.',
       rating: 5,
     },
   ];
@@ -61,19 +60,29 @@ export default function ResultsPage() {
       <Navbar />
 
       <main className="grow">
-        {/* Page Hero */}
-        <section className="bg-gradient-to-b from-emerald-50/60 via-teal-50/30 to-white border-b border-slate-200 pt-12 pb-16 px-4 sm:px-8">
-          <div className="max-w-7xl mx-auto">
-            <div className="max-w-3xl space-y-4">
-              <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-emerald-100 border border-emerald-200 text-emerald-800 text-xs font-bold">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Ethical Medical Photography & Case Records</span>
+        {/* Page Hero with Clinical Documentation Background Image */}
+        <section className="relative py-16 px-4 sm:px-8 border-b border-slate-800 overflow-hidden bg-slate-950 text-white">
+          <div className="absolute inset-0">
+            <img
+              src="/images/clinic/consultation.jpg"
+              alt="Clinical Skin and Hair Outcomes"
+              className="w-full h-full object-cover object-center"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-slate-950/95 via-slate-950/85 to-slate-900/75" />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-black/40" />
+          </div>
+
+          <div className="relative z-10 max-w-7xl mx-auto">
+            <div className="max-w-3xl space-y-3">
+              <div className="inline-flex items-center space-x-2 px-3.5 py-1 rounded-full bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-xs font-bold backdrop-blur-xs">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Verified Patient Case Records</span>
               </div>
-              <h1 className="text-4xl sm:text-5xl font-black text-slate-900 tracking-tight">
-                Verified Clinical Case Studies
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
+                Clinical Skin & Hair Results
               </h1>
-              <p className="text-slate-600 text-base leading-relaxed">
-                All photographs documented at Nila Clinic under standardized cross-polarized clinical illumination with informed patient medical consent. We do not use digital beauty filters, blurring tools, or misleading camera angles.
+              <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
+                Unretouched clinical photography documented under standardized clinical lighting with patient medical consent. Drag the slider to compare baseline presentation to post-protocol outcome.
               </p>
             </div>
 
@@ -85,11 +94,11 @@ export default function ResultsPage() {
                   onClick={() => setActiveCategory(cat)}
                   className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                     activeCategory === cat
-                      ? 'bg-emerald-600 text-white shadow-xs'
-                      : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+                      ? 'bg-emerald-600 text-white shadow-md'
+                      : 'bg-slate-900/80 text-slate-300 hover:text-white hover:bg-slate-800 border border-slate-700 backdrop-blur-xs'
                   }`}
                 >
-                  {cat === 'All' ? 'All Clinical Outcomes' : `${cat} Protocols`}
+                  {cat}
                 </button>
               ))}
             </div>
@@ -97,17 +106,17 @@ export default function ResultsPage() {
         </section>
 
         {/* Case Studies Interactive Showcase */}
-        <section className="py-16 px-4 sm:px-8">
-          <div className="max-w-7xl mx-auto space-y-16">
+        <section className="py-12 px-4 sm:px-8">
+          <div className="max-w-7xl mx-auto space-y-12">
             {filteredCases.map((caseStudy) => (
-              <div key={caseStudy.id} className="max-w-4xl mx-auto space-y-4">
+              <div key={caseStudy.id} className="max-w-4xl mx-auto space-y-3">
                 <BeforeAfterSlider caseStudy={caseStudy} />
                 <div className="text-right">
                   <Link
                     href={`/book?service=${encodeURIComponent(caseStudy.title)}`}
                     className="inline-flex items-center space-x-1.5 text-xs font-bold uppercase tracking-wider text-emerald-600 hover:underline"
                   >
-                    <span>Schedule consultation for this protocol ({caseStudy.category})</span>
+                    <span>Consult for {caseStudy.title} ({caseStudy.category === 'Hair' ? 'Hair' : 'Skin'})</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </Link>
                 </div>
@@ -116,94 +125,34 @@ export default function ResultsPage() {
           </div>
         </section>
 
-        {/* Standardized Clinical Protocols Statement */}
-        <section className="py-16 px-4 sm:px-8 bg-white border-y border-slate-200">
-          <div className="max-w-7xl mx-auto">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
-                <h4 className="font-bold text-slate-900 text-lg">Standardized Lighting</h4>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Baselines and post-procedure reviews are photographed in dedicated clinical booths at identical 5500K color temperatures and focal lengths to ensure scientific accuracy.
-                </p>
-              </div>
-
-              <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
-                <h4 className="font-bold text-slate-900 text-lg">Objective Metrics</h4>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  We verify outcomes using computerized trichoscopy counts (hairs/cm²), MASI pigmentation scores, and dermal ultrasound measurements rather than subjective impressions.
-                </p>
-              </div>
-
-              <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
-                <h4 className="font-bold text-slate-900 text-lg">No Retouching Policy</h4>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Strict policy against facial smoothing filters, artificial contrast adjustments, or altered angles. What you see is authentic dermal and follicular tissue transformation.
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-
         {/* Patient Testimonials */}
-        <section className="py-20 px-4 sm:px-8 bg-slate-50">
-          <div className="max-w-7xl mx-auto">
-            <div className="text-center max-w-2xl mx-auto mb-12">
+        <section className="py-16 px-4 sm:px-8 bg-white border-t border-slate-200">
+          <div className="max-w-7xl mx-auto space-y-10">
+            <div className="text-center max-w-2xl mx-auto">
               <span className="text-xs font-bold text-emerald-600 uppercase tracking-widest block mb-1">
                 Patient Experiences
               </span>
-              <h2 className="text-3xl font-extrabold text-slate-900">
-                Verified Patient Accounts
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                Verified Patient Reviews
               </h2>
-              <p className="text-slate-600 text-sm mt-2">
-                Real feedback from patients treated across our Theni, Madurai, Chennai, Coimbatore, and Trichy centers.
-              </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {testimonials.map((t, i) => (
-                <div
-                  key={i}
-                  className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs flex flex-col justify-between space-y-4"
-                >
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-1 text-amber-500 text-sm">
-                      {[...Array(t.rating)].map((_, idx) => (
-                        <span key={idx}>★</span>
-                      ))}
-                    </div>
-                    <p className="text-xs text-slate-700 leading-relaxed italic">
-                      &quot;{t.quote}&quot;
-                    </p>
-                  </div>
-
-                  <div className="pt-3 border-t border-slate-100">
+              {testimonials.map((t, idx) => (
+                <div key={idx} className="bg-slate-50 p-6 rounded-lg border border-slate-200 flex flex-col justify-between space-y-4">
+                  <p className="text-xs text-slate-600 leading-relaxed italic">
+                    "{t.quote}"
+                  </p>
+                  <div className="pt-3 border-t border-slate-200">
                     <span className="font-bold text-slate-900 text-xs block">{t.patientName}</span>
-                    <span className="text-[11px] text-slate-500 block">{t.ageCity}</span>
-                    <span className="text-[10px] text-emerald-600 font-semibold block mt-1">
-                      {t.treatment} · {t.doctor}
+                    <span className="text-[11px] text-slate-400 block">{t.ageCity}</span>
+                    <span className="text-[10px] text-emerald-600 font-semibold mt-1 block">
+                      {t.treatment}
                     </span>
                   </div>
                 </div>
               ))}
             </div>
-          </div>
-        </section>
-
-        {/* Booking CTA Banner */}
-        <section className="py-14 px-4 sm:px-8 bg-slate-900 text-white">
-          <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="space-y-1 text-center md:text-left">
-              <h3 className="text-2xl font-bold">Ready for a medical assessment?</h3>
-              <p className="text-xs text-slate-300">
-                Schedule your one-on-one consultation with our senior dermatologists and trichologists.
-              </p>
-            </div>
-            <Link
-              href="/book"
-              className="px-6 py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md shadow-emerald-600/20 transition-all shrink-0"
-            >
-              Book In-Person Diagnostic Session
-            </Link>
           </div>
         </section>
       </main>

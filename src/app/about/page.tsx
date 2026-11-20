@@ -4,17 +4,12 @@ import React from 'react';
 import Link from 'next/link';
 import {
   ShieldCheck,
-  Stethoscope,
-  Award,
-  CheckCircle2,
-  Calendar,
   Building2,
   Cpu,
-  HeartHandshake,
   FileCheck,
-  ArrowRight,
+  Calendar,
   MapPin,
-  Clock,
+  CheckCircle2,
 } from 'lucide-react';
 import Navbar from '@/components/public/Navbar';
 import Footer from '@/components/public/Footer';
@@ -23,158 +18,150 @@ export default function AboutPage() {
   const doctors = [
     {
       name: 'Dr. Anitha Ramachandran',
-      role: 'Chief Consultant Dermatologist & Medical Director',
+      role: 'Chief Dermatologist & Medical Director',
       qualification: 'MBBS, MD - Dermatology, Venereology & Leprosy (Madras Medical College)',
-      councilReg: 'Tamil Nadu Medical Council #89234',
+      councilReg: 'TNMC Reg #89234',
       experience: '12+ Years Clinical Practice',
-      location: 'Theni Main Branch & Visiting Consultant across branches',
-      bio: 'Dr. Anitha specializes in recalcitrant acne vulgaris, severe atrophic scar revision through blunt cannula subcision, and safe chemical resurfacing for South Asian phototypes. She has trained extensively in dermatopathology and laser surgery.',
-      focusAreas: ['Subcision for Rolling Scars', 'Pigmentary Disorders & Melasma', 'Pediatric Dermatology', 'Sequential Peels'],
+      location: 'Theni Main Branch',
+      bio: 'Specialist in acne scar subcision, hyperpigmentation, melasma protocols, and medical chemical peels for South Asian phototypes.',
+      focusAreas: ['Acne Scar Subcision', 'Melasma & Pigmentation', 'Sequential Peels', 'General Dermatology'],
+      image: '/images/doctors/dr-anitha.jpg',
     },
     {
       name: 'Dr. Rajesh Varma',
-      role: 'Consultant Trichologist & Scalp Specialist',
-      qualification: 'MBBS, Fellowship in Clinical Trichology & Hair Restoration (UK)',
-      councilReg: 'Tamil Nadu Medical Council #94112',
+      role: 'Consultant Trichologist & Hair Specialist',
+      qualification: 'MBBS, Fellowship in Clinical Trichology (UK)',
+      councilReg: 'TNMC Reg #94112',
       experience: '9+ Years Follicular Medicine',
       location: 'Madurai City Outlet',
-      bio: 'Dr. Rajesh dedicated his career to non-surgical follicular preservation and biological growth factor therapies. He spearheaded Nila Clinic’s autologous double-spin PRP protocol that yields 5x platelet concentration compared to standard laboratory tubes.',
-      focusAreas: ['Androgenetic Alopecia', 'Autologous High-Yield PRP', 'Computerized Trichoscopy', 'Scalp Mesotherapy'],
+      bio: 'Dedicated to follicular preservation and platelet biology. Spearheaded our high-yield 3200 RPM double-spin PRP protocol for pattern hair loss.',
+      focusAreas: ['Androgenetic Alopecia', 'Autologous PRP', 'Digital Trichoscopy', 'Scalp Peptides'],
+      image: '/images/doctors/dr-rajesh.jpg',
     },
     {
       name: 'Dr. Priya Dharshini',
-      role: 'Lead Laser Surgeon & Aesthetic Practitioner',
+      role: 'Head of Laser Surgery · Skin & Hair',
       qualification: 'MBBS, DVD, Fellowship in Aesthetic Lasers (ESCAD Europe)',
-      councilReg: 'Tamil Nadu Medical Council #103421',
-      experience: '8+ Years Laser Physics & Dermatology',
+      councilReg: 'TNMC Reg #103421',
+      experience: '8+ Years Laser Physics',
       location: 'Chennai Laser Hub',
-      bio: 'Dr. Priya specializes in optical laser interactions with high melanin-density skin. Her rigorous calibration standards ensure that our Class 4 Q-Switch and Diode lasers achieve optimal clearance without inducing post-inflammatory hyperpigmentation.',
-      focusAreas: ['Q-Switch Nd:YAG Laser Toning', 'Triple-Wavelength Diode Hair Reduction', 'Tattoo Clearance', 'Vascular Lesions'],
+      bio: 'Specialist in optical laser interactions with Indian skin. Calibrates our Class 4 Q-Switch and Diode lasers for safe clearance without burns.',
+      focusAreas: ['Q-Switch Laser Toning', 'Diode Laser Hair Reduction', 'Post-Acne Blemishes'],
+      image: '/images/doctors/dr-priya.jpg',
     },
   ];
 
-  const technologies = [
+  const clinicFacilities = [
     {
-      name: 'Top-Hat Q-Switch Nd:YAG (1064nm / 532nm)',
-      brand: 'Class 4 Medical Laser System',
-      description:
-        'Employs flat-top beam optics that distribute energy evenly across the entire spot size, eliminating hot-spots that cause micro-blistering and hyperpigmentation in Indian skin.',
+      title: 'NABH-Standard Reception & Lounge',
+      description: 'Sterile air handling, transparent electronic billing, and comfortable waiting lounges.',
+      image: '/images/clinic/reception.jpg',
+      tag: 'Main Reception',
     },
     {
-      name: 'Triple-Wavelength Diode Laser with Sapphire Cooling',
-      brand: 'Simultaneous 755nm + 808nm + 1064nm',
-      description:
-        'Continuous -5°C sapphire contact cooling maintains epidermal safety while simultaneous multi-wavelength emission treats both deep terminal follicles and fine hair.',
+      title: 'Class 4 Laser Surgery Suite',
+      description: 'Dedicated non-reflective laser bays with Class B autoclave sterilization and wavelength-specific patient eye shields.',
+      image: '/images/clinic/laser-suite.jpg',
+      tag: 'Laser Bay',
     },
     {
-      name: 'Fractional RF Microneedling Array',
-      brand: 'Gold-Plated Insulated Micro-Electrode System',
-      description:
-        'Insulated needle shafts ensure that radiofrequency thermal micro-coagulation is delivered solely at the target dermal depth (0.5mm to 3.5mm), bypassing epidermal melanin completely.',
-    },
-    {
-      name: 'Centrifuge PRP Separation System',
-      brand: 'Dual-Spin Double-Speed Laboratory Protocol',
-      description:
-        'Utilizes gel-barrier vacutainers with precision 3200 RPM centrifugation to isolate high-viability platelet buffy coats with minimal erythrocyte contamination.',
+      title: 'Diagnostic Trichoscopy & Skin Cabin',
+      description: 'Equipped with 60x polarized Wood’s lamp dermascopes and computerized hair video trichoscopy.',
+      image: '/images/clinic/consultation.jpg',
+      tag: 'Consultation Suite',
     },
   ];
 
   return (
-    <div className="min-h-screen bg-[#faf9f5] text-slate-800 font-sans selection:bg-emerald-800 selection:text-white flex flex-col">
+    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans selection:bg-emerald-600 selection:text-white flex flex-col">
       <Navbar />
 
       <main className="grow">
-        {/* About Hero */}
-        <section className="bg-radial from-emerald-50/70 via-[#faf9f5] to-[#f4f2ea] border-b border-stone-200/80 pt-12 pb-16 px-4 sm:px-8">
-          <div className="max-w-7xl mx-auto">
-            <div className="max-w-3xl space-y-4">
-              <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-emerald-900/10 border border-emerald-900/20 text-emerald-900 text-xs font-semibold">
-                <Building2 className="w-3.5 h-3.5 text-emerald-800" />
+        {/* About Hero with Real Clinic Background Image */}
+        <section className="relative py-16 px-4 sm:px-8 border-b border-slate-800 overflow-hidden bg-slate-950 text-white">
+          <div className="absolute inset-0">
+            <img
+              src="/images/clinic/reception.jpg"
+              alt="About Nila Clinic"
+              className="w-full h-full object-cover object-center"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-slate-950/95 via-slate-950/85 to-slate-900/75" />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-black/40" />
+          </div>
+
+          <div className="relative z-10 max-w-7xl mx-auto">
+            <div className="max-w-3xl space-y-3">
+              <div className="inline-flex items-center space-x-2 px-3.5 py-1 rounded-full bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-xs font-bold backdrop-blur-xs">
+                <Building2 className="w-3.5 h-3.5 text-emerald-400" />
                 <span>Established 2018 in Theni, Tamil Nadu</span>
               </div>
-              <h1 className="font-serif text-4xl sm:text-5xl font-bold text-slate-900 tracking-tight">
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
                 About Nila Clinic
               </h1>
-              <p className="text-stone-600 text-base sm:text-lg leading-relaxed">
-                Nila Clinic was founded to provide an uncompromising alternative to commercial cosmetic chains: an authentic clinical dermatology center grounded in scientific diagnostic protocols, board-certified medical doctors, and absolute price transparency.
+              <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
+                Dedicated exclusively to medical Skin & Hair treatments. Grounded in scientific diagnostic protocols, certified medical doctors, and transparent pricing across 5 centers in Tamil Nadu.
               </p>
             </div>
           </div>
         </section>
 
-        {/* CLINIC ORIGIN & PHILOSOPHY */}
-        <section className="py-16 px-4 sm:px-8 bg-white border-b border-stone-200">
-          <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-            <div className="lg:col-span-7 space-y-5">
-              <span className="text-xs font-bold text-emerald-800 uppercase tracking-widest block">
-                Our Story & Vision
+        {/* CLINIC STORY & CHARTER */}
+        <section className="py-16 px-4 sm:px-8 bg-white border-b border-slate-200">
+          <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
+            <div className="lg:col-span-7 space-y-4">
+              <span className="text-xs font-bold text-emerald-600 uppercase tracking-widest block">
+                Our Mission
               </span>
-              <h2 className="text-3xl font-serif font-bold text-slate-900 tracking-tight">
-                Bridging the Gap Between Hospital Medicine and Aesthetic Care
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                Specialized Skin & Hair Care Grounded in Medicine
               </h2>
-              <div className="space-y-4 text-xs sm:text-sm text-stone-600 leading-relaxed">
+              <div className="space-y-3 text-xs sm:text-sm text-slate-600 leading-relaxed">
                 <p>
-                  In 2018, Dr. Anitha Ramachandran noticed a critical void in Tamil Nadu’s healthcare landscape. Patients suffering from persistent skin and scalp conditions faced two extremes: sterile government or hospital OPDs where doctors lacked time for detailed aesthetic concerns, or unregulated commercial beauty parlors and salon chains making unsubstantiated claims with unqualified staff.
+                  Founded in 2018 by Dr. Anitha Ramachandran in Theni, Nila Clinic was created to bridge the gap between sterile hospital OPDs and unregulated commercial beauty salons.
                 </p>
                 <p>
-                  Nila Clinic was born in Theni to offer a third way: hospital-grade medical hygiene, US-FDA cleared machinery, and evidence-based treatments delivered in a warm, patient-centered clinic environment. Over the past 6 years, our commitment to zero overtreatment and genuine diagnostic care led to expansion into Madurai, Chennai, Coimbatore, and Trichy.
-                </p>
-                <p>
-                  Today, our network serves thousands of patients annually. We remain fiercely independent and physician-owned, refusing corporate sales targets that compromise patient safety.
+                  We focus exclusively on <strong>Dermatological Skin Care</strong> and <strong>Follicular Hair Restoration</strong>. Every consultation, diagnostic assessment, and laser pulse is governed by board-certified doctors who refuse corporate sales quotas.
                 </p>
               </div>
 
-              <div className="pt-2 grid grid-cols-3 gap-4 border-t border-stone-200 text-stone-800">
+              <div className="pt-2 grid grid-cols-3 gap-4 border-t border-slate-200 text-slate-800">
                 <div>
                   <span className="font-mono text-xl sm:text-2xl font-bold block text-slate-900">5</span>
-                  <span className="text-[11px] text-stone-500 font-medium">Full-Fledged Centers</span>
+                  <span className="text-[11px] text-slate-500 font-medium">Clinic Centers</span>
                 </div>
                 <div>
                   <span className="font-mono text-xl sm:text-2xl font-bold block text-slate-900">10,000+</span>
-                  <span className="text-[11px] text-stone-500 font-medium">Documented Patients</span>
+                  <span className="text-[11px] text-slate-500 font-medium">Treated Patients</span>
                 </div>
                 <div>
                   <span className="font-mono text-xl sm:text-2xl font-bold block text-slate-900">100%</span>
-                  <span className="text-[11px] text-stone-500 font-medium">Doctor Supervised</span>
+                  <span className="text-[11px] text-slate-500 font-medium">Doctor Supervised</span>
                 </div>
               </div>
             </div>
 
-            <div className="lg:col-span-5 bg-[#0c2a23] text-white p-8 rounded-3xl space-y-6 shadow-xl">
-              <div className="space-y-2">
-                <span className="text-[10px] uppercase font-bold text-emerald-300 tracking-wider">Our Core Pledge</span>
-                <h3 className="font-serif text-2xl font-bold">The Nila Clinical Charter</h3>
-              </div>
-
-              <ul className="space-y-4 text-xs text-stone-300">
-                <li className="flex items-start space-x-3">
-                  <div className="p-1 rounded-full bg-emerald-500/20 text-emerald-400 shrink-0 mt-0.5">
-                    <CheckCircle2 className="w-4 h-4" />
-                  </div>
+            <div className="lg:col-span-5 bg-slate-900 text-white p-7 rounded-lg space-y-4 shadow-xl border border-slate-800">
+              <h3 className="text-xl font-bold">The Nila Clinical Charter</h3>
+              <ul className="space-y-3 text-xs text-slate-300">
+                <li className="flex items-start space-x-2.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                   <div>
-                    <strong className="text-white block font-semibold">Diagnosis Precedes Treatment:</strong>
-                    No laser, peel, or scalp injection is administered without formal Wood’s lamp or trichoscopy evaluation.
+                    <strong className="text-white block font-semibold">Diagnosis First:</strong>
+                    Wood’s lamp or digital trichoscopy evaluation before initiating any treatment.
                   </div>
                 </li>
-
-                <li className="flex items-start space-x-3">
-                  <div className="p-1 rounded-full bg-emerald-500/20 text-emerald-400 shrink-0 mt-0.5">
-                    <CheckCircle2 className="w-4 h-4" />
-                  </div>
+                <li className="flex items-start space-x-2.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                   <div>
                     <strong className="text-white block font-semibold">Zero Commission Quotas:</strong>
-                    Our practitioners are salaried medical professionals, not salespeople. We never push unnecessary procedures.
+                    Salaried medical professionals who recommend only what you medically need.
                   </div>
                 </li>
-
-                <li className="flex items-start space-x-3">
-                  <div className="p-1 rounded-full bg-emerald-500/20 text-emerald-400 shrink-0 mt-0.5">
-                    <CheckCircle2 className="w-4 h-4" />
-                  </div>
+                <li className="flex items-start space-x-2.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                   <div>
-                    <strong className="text-white block font-semibold">Mandatory 48-Hour Patch Testing:</strong>
-                    Safety first on Indian phototypes. We test test spots before initiating any course of peeling or laser therapy.
+                    <strong className="text-white block font-semibold">Safety on Indian Skin:</strong>
+                    Mandatory 48-hour patch tests and calibrated Class 4 lasers for South Asian skin.
                   </div>
                 </li>
               </ul>
@@ -182,185 +169,93 @@ export default function AboutPage() {
           </div>
         </section>
 
-        {/* MEDICAL FACULTY & CREDENTIALS */}
-        <section id="doctors" className="py-20 px-4 sm:px-8 border-b border-stone-200 bg-[#faf9f5]">
-          <div className="max-w-7xl mx-auto space-y-12">
-            <div className="max-w-2xl">
-              <span className="text-xs font-bold text-emerald-800 uppercase tracking-widest block mb-1">
-                Medical Leadership
+        {/* CLINICAL FACILITIES */}
+        <section className="py-16 px-4 sm:px-8 border-b border-slate-200 bg-slate-50">
+          <div className="max-w-7xl mx-auto space-y-10">
+            <div>
+              <span className="text-xs font-bold text-emerald-600 uppercase tracking-widest block mb-1">
+                Sterile Environment
               </span>
-              <h2 className="text-3xl font-serif font-bold text-slate-900 tracking-tight">
-                Board-Certified Doctors & Specialists
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                Our Clinical Facilities
               </h2>
-              <p className="text-stone-600 text-sm mt-1">
-                Meet the medical professionals responsible for your clinical assessments, procedural calibrations, and post-treatment follow-up.
-              </p>
             </div>
 
-            <div className="space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {clinicFacilities.map((fac) => (
+                <div key={fac.title} className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-xs flex flex-col justify-between">
+                  <div className="relative h-52 w-full overflow-hidden bg-slate-200">
+                    <img src={fac.image} alt={fac.title} className="w-full h-full object-cover" />
+                    <div className="absolute top-3 left-3 bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full">
+                      {fac.tag}
+                    </div>
+                  </div>
+                  <div className="p-5 space-y-1.5 grow">
+                    <h3 className="font-bold text-slate-900 text-sm leading-snug">{fac.title}</h3>
+                    <p className="text-xs text-slate-600 leading-relaxed font-sans">{fac.description}</p>
+                  </div>
+                  <div className="px-5 pb-4 text-[11px] text-emerald-600 font-semibold border-t border-slate-100 pt-2">
+                    Standardized in all 5 centers
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* MEDICAL FACULTY */}
+        <section id="doctors" className="py-16 px-4 sm:px-8 border-b border-slate-200 bg-white">
+          <div className="max-w-7xl mx-auto space-y-10">
+            <div>
+              <span className="text-xs font-bold text-emerald-600 uppercase tracking-widest block mb-1">
+                Medical Leadership
+              </span>
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                Board-Certified Doctors
+              </h2>
+            </div>
+
+            <div className="space-y-6">
               {doctors.map((doc) => (
-                <div
-                  key={doc.name}
-                  className="bg-white rounded-3xl border border-stone-200 p-6 sm:p-8 shadow-xs flex flex-col lg:flex-row gap-8 items-start"
-                >
-                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-[#0c2a23] text-emerald-200 font-serif font-bold text-2xl sm:text-3xl flex items-center justify-center shrink-0">
-                    {doc.name.split(' ')[1][0]}
+                <div key={doc.name} className="bg-slate-50 rounded-lg border border-slate-200 p-6 sm:p-7 shadow-xs flex flex-col sm:flex-row gap-6 items-start">
+                  <div className="w-28 h-28 sm:w-36 sm:h-36 rounded-lg overflow-hidden border border-slate-200 shrink-0 bg-slate-200 shadow-xs">
+                    <img src={doc.image} alt={doc.name} className="w-full h-full object-cover object-top" />
                   </div>
 
-                  <div className="grow space-y-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-100 pb-3">
+                  <div className="grow space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-slate-200 pb-2">
                       <div>
-                        <h3 className="font-serif text-2xl font-bold text-slate-900">{doc.name}</h3>
-                        <span className="text-xs font-semibold text-emerald-800 block mt-0.5">{doc.role}</span>
+                        <h3 className="text-xl font-bold text-slate-900">{doc.name}</h3>
+                        <span className="text-xs font-semibold text-emerald-600">{doc.role}</span>
                       </div>
-                      <span className="px-3 py-1 rounded-full bg-stone-100 text-stone-700 text-xs font-mono font-medium self-start sm:self-center">
+                      <span className="px-2.5 py-0.5 rounded-full bg-white text-slate-700 text-xs font-mono font-medium border border-slate-200 self-start sm:self-center">
                         {doc.councilReg}
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                      <div>
-                        <span className="text-stone-400 block text-[10px] uppercase font-bold">Credentials</span>
-                        <span className="text-stone-800 font-medium">{doc.qualification}</span>
-                      </div>
-                      <div>
-                        <span className="text-stone-400 block text-[10px] uppercase font-bold">Base Clinic</span>
-                        <span className="text-stone-800 font-medium flex items-center">
-                          <MapPin className="w-3.5 h-3.5 text-emerald-700 mr-1" />
-                          {doc.location}
+                    <p className="text-xs text-slate-600 leading-relaxed">{doc.bio}</p>
+
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {doc.focusAreas.map((f) => (
+                        <span key={f} className="text-[11px] bg-white text-emerald-800 px-2.5 py-0.5 rounded-lg border border-slate-200 font-medium">
+                          {f}
                         </span>
-                      </div>
-                    </div>
-
-                    <p className="text-xs sm:text-sm text-stone-600 leading-relaxed font-sans">
-                      {doc.bio}
-                    </p>
-
-                    <div>
-                      <span className="text-[10px] uppercase font-bold text-stone-400 tracking-wider block mb-1.5">
-                        Specialized Clinical Focus:
-                      </span>
-                      <div className="flex flex-wrap gap-1.5">
-                        {doc.focusAreas.map((f) => (
-                          <span key={f} className="text-xs bg-emerald-50 text-emerald-900 px-2.5 py-1 rounded-lg border border-emerald-200/60 font-medium">
-                            {f}
-                          </span>
-                        ))}
-                      </div>
+                      ))}
                     </div>
 
                     <div className="pt-2">
                       <Link
                         href={`/book?doctor=${encodeURIComponent(doc.name)}`}
-                        className="inline-flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-[#0c2a23] hover:bg-[#123e34] text-white text-xs font-bold uppercase tracking-wider transition-all shadow-2xs"
+                        className="inline-flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold uppercase tracking-wider transition-all shadow-xs"
                       >
-                        <Calendar className="w-3.5 h-3.5 text-emerald-300" />
-                        <span>Book In-Person Consultation with {doc.name.split(' ')[1]}</span>
+                        <Calendar className="w-3.5 h-3.5" />
+                        <span>Book OPD with {doc.name.split(' ')[1]}</span>
                       </Link>
                     </div>
                   </div>
                 </div>
               ))}
             </div>
-          </div>
-        </section>
-
-        {/* STERILIZATION & SAFETY STANDARDS */}
-        <section id="safety" className="py-20 px-4 sm:px-8 bg-white border-b border-stone-200">
-          <div className="max-w-7xl mx-auto space-y-12">
-            <div className="max-w-2xl">
-              <span className="text-xs font-bold text-emerald-800 uppercase tracking-widest block mb-1">
-                Clinical Infection Control
-              </span>
-              <h2 className="text-3xl font-serif font-bold text-slate-900 tracking-tight">
-                Sterilization & Safety Standards
-              </h2>
-              <p className="text-stone-600 text-sm mt-1">
-                Hospital-grade protocols designed to eliminate cross-contamination and ensure patient safety across all branches.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="p-6 rounded-2xl bg-[#faf9f5] border border-stone-200 space-y-3">
-                <div className="p-2.5 rounded-xl bg-emerald-100 text-emerald-800 inline-block">
-                  <ShieldCheck className="w-6 h-6" />
-                </div>
-                <h4 className="font-serif font-bold text-slate-900 text-lg">Hospital-Grade Autoclaving</h4>
-                <p className="text-xs text-stone-600 leading-relaxed">
-                  All reusable stainless-steel surgical instruments undergo ultrasonic bath cleaning followed by Class B vacuum autoclaving at 134°C with biological spore indicator monitoring.
-                </p>
-              </div>
-
-              <div className="p-6 rounded-2xl bg-[#faf9f5] border border-stone-200 space-y-3">
-                <div className="p-2.5 rounded-xl bg-emerald-100 text-emerald-800 inline-block">
-                  <FileCheck className="w-6 h-6" />
-                </div>
-                <h4 className="font-serif font-bold text-slate-900 text-lg">100% Single-Use Disposables</h4>
-                <p className="text-xs text-stone-600 leading-relaxed">
-                  Blunt subcision needles, microneedling cartridge tips, PRP vacuum tubes, and laser eye shields are opened strictly in front of the patient and disposed of in medical sharps containers.
-                </p>
-              </div>
-
-              <div className="p-6 rounded-2xl bg-[#faf9f5] border border-stone-200 space-y-3">
-                <div className="p-2.5 rounded-xl bg-emerald-100 text-emerald-800 inline-block">
-                  <Cpu className="w-6 h-6" />
-                </div>
-                <h4 className="font-serif font-bold text-slate-900 text-lg">Laser Safety Enclosure</h4>
-                <p className="text-xs text-stone-600 leading-relaxed">
-                  Dedicated Class 4 laser procedure suites fitted with non-reflective walls, interlocked door warning signage, and certified OD 7+ wavelength-specific patient eye shields.
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ADVANCED TECHNOLOGY FLEET */}
-        <section className="py-20 px-4 sm:px-8 bg-[#faf9f5] border-b border-stone-200">
-          <div className="max-w-7xl mx-auto space-y-10">
-            <div className="max-w-2xl">
-              <span className="text-xs font-bold text-emerald-800 uppercase tracking-widest block mb-1">
-                Precision Hardware
-              </span>
-              <h2 className="text-3xl font-serif font-bold text-slate-900 tracking-tight">
-                Our Clinical Machinery Fleet
-              </h2>
-              <p className="text-stone-600 text-sm mt-1">
-                We invest in certified medical systems to deliver predictable outcomes with zero epidermal thermal trauma.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {technologies.map((tech) => (
-                <div
-                  key={tech.name}
-                  className="bg-white p-6 rounded-2xl border border-stone-200 shadow-2xs space-y-2"
-                >
-                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-800 block">
-                    {tech.brand}
-                  </span>
-                  <h3 className="font-serif font-bold text-slate-900 text-lg">{tech.name}</h3>
-                  <p className="text-xs text-stone-600 leading-relaxed">{tech.description}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* CTA BANNER */}
-        <section className="py-14 px-4 sm:px-8 bg-[#0c2a23] text-white">
-          <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="space-y-1 text-center md:text-left">
-              <h3 className="font-serif text-2xl font-bold">Experience the Nila Clinic Difference</h3>
-              <p className="text-xs text-stone-300">
-                Book your initial diagnostic assessment at your nearest branch in Theni, Madurai, Chennai, Coimbatore, or Trichy.
-              </p>
-            </div>
-            <Link
-              href="/book"
-              className="px-6 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all shrink-0"
-            >
-              Book In-Clinic Consultation
-            </Link>
           </div>
         </section>
       </main>

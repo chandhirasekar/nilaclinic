@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   CreditCard,
   Plus,
@@ -40,16 +41,24 @@ import { useMasterData } from '@/hooks/useMasterData';
 import { ButtonLoader } from '@/components/ui/ButtonLoader';
 import { PosGridSkeleton } from '@/components/ui/skeletons/PosGridSkeleton';
 
-export default function QuickSalePOSPage() {
+function QuickSalePOSContent() {
   const { user, selectedStore, stores, currentStoreObj } = useClinic();
+  const searchParams = useSearchParams();
+  const invoiceNoFromUrl = searchParams.get('invoiceNo');
+  const [activeInvoiceNo, setActiveInvoiceNo] = useState<string | null>(null);
 
-  // Masters
-  const [services, setServices] = useState<IService[]>([]);
-  const [products, setProducts] = useState<IProduct[]>([]);
-  const [packages, setPackages] = useState<IPackageMaster[]>([]);
-  const [staffList, setStaffList] = useState<IStaff[]>([]);
-  const [paymentModes, setPaymentModes] = useState<IPaymentMode[]>([]);
-  const [settings, setSettings] = useState<IClinicSettings | null>(null);
+  // Masters from optimized client-side SWR Cache
+  const {
+    services,
+    products,
+    packages,
+    staff: staffList,
+    paymentModes,
+    settings,
+    invoices: recentBills,
+    isLoading: isMasterLoading,
+    refreshInvoices,
+  } = useMasterData(selectedStore);
 
   // Active Customer Lookup (FR-20, FR-21, FR-22)
   const [searchMobile, setSearchMobile] = useState('');
@@ -90,7 +99,6 @@ export default function QuickSalePOSPage() {
 
   // Bill List Drawer (FR-53)
   const [showBillList, setShowBillList] = useState(false);
-  const [recentBills, setRecentBills] = useState<IInvoice[]>([]);
 
   // BR-03: Doctor restricted from seeing billing amounts or bills
   if (user && user.role === 'doctor') {
@@ -104,44 +112,38 @@ export default function QuickSalePOSPage() {
     );
   }
 
-  // Optimized Client-side SWR Cache for Master Data
-  const {
-    services: cachedServices,
-    products: cachedProducts,
-    packages: cachedPackages,
-    staff: cachedStaff,
-    paymentModes: cachedPaymentModes,
-    settings: cachedSettings,
-    invoices: cachedInvoices,
-    isLoading: isMasterLoading,
-    refreshInvoices,
-  } = useMasterData(selectedStore);
-
-  // Sync SWR cache into local component state
+  // If navigated with ?invoiceNo=..., pre-populate the unpaid consultation bill
   useEffect(() => {
-    if (cachedServices) setServices(cachedServices);
-    if (cachedProducts) setProducts(cachedProducts);
-    if (cachedPackages) setPackages(cachedPackages);
-    if (cachedStaff) setStaffList(cachedStaff);
-    if (cachedPaymentModes && cachedPaymentModes.length > 0) {
-      setPaymentModes(cachedPaymentModes);
-      const initialMap: Record<string, number> = {};
-      cachedPaymentModes.forEach((pm: IPaymentMode) => {
-        initialMap[pm.name] = 0;
-      });
-      setPayments(initialMap);
+    if (invoiceNoFromUrl) {
+      fetch(`/api/invoices?invoiceNo=${encodeURIComponent(invoiceNoFromUrl)}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && data.data) {
+            const inv = data.data;
+            setActiveInvoiceNo(inv.invoiceNo);
+            if (inv.items && inv.items.length > 0) {
+              setItems(inv.items);
+            }
+            if (inv.customerName || inv.customerMobile) {
+              setSelectedCustomer({
+                customerId: inv.customerId,
+                name: inv.customerName,
+                mobile: inv.customerMobile || inv.customerPhone,
+                gender: 'Female',
+              } as any);
+              setSearchMobile(inv.customerMobile || inv.customerPhone || '');
+            }
+            if (inv.remarks) setRemarks(inv.remarks);
+            const billTotal = inv.payableAmount || inv.grandTotal || 0;
+            if (billTotal > 0) {
+              setPayments({ Cash: billTotal });
+              setCashTendered(billTotal);
+            }
+          }
+        })
+        .catch(() => { });
     }
-    if (cachedSettings) setSettings(cachedSettings as any);
-    if (cachedInvoices) setRecentBills(cachedInvoices);
-  }, [
-    cachedServices,
-    cachedProducts,
-    cachedPackages,
-    cachedStaff,
-    cachedPaymentModes,
-    cachedSettings,
-    cachedInvoices,
-  ]);
+  }, [invoiceNoFromUrl]);
 
   // Load customer packages when selectedCustomer changes
   useEffect(() => {
@@ -177,7 +179,7 @@ export default function QuickSalePOSPage() {
             }
           }
         })
-        .catch(() => {});
+        .catch(() => { });
     } else {
       setMatchingCustomers([]);
     }
@@ -306,7 +308,7 @@ export default function QuickSalePOSPage() {
     setItems(items.filter((_, idx) => idx !== index));
   };
 
-  // Calculations (Section 10 Calculation Rules)
+  // calculations (Section 10 Calculation Rules)
   const subtotal = items.reduce((sum, it) => sum + (it.total || 0), 0);
 
   // Bill discount
@@ -329,6 +331,23 @@ export default function QuickSalePOSPage() {
   const totalPaidAcrossModes = Object.values(payments).reduce((acc, v) => acc + (Number(v) || 0), 0);
   const balanceRemaining = payableAmount - totalPaidAcrossModes;
 
+  // Auto-sync single payment mode when payableAmount changes (e.g. adding discount or line items)
+  useEffect(() => {
+    if (payableAmount <= 0) return;
+    setPayments((prev) => {
+      const activeEntries = Object.entries(prev).filter(([_, amt]) => Number(amt) > 0);
+      if (activeEntries.length <= 1) {
+        const activeMode = activeEntries[0]?.[0] || 'Cash';
+        return {
+          ...prev,
+          [activeMode]: payableAmount,
+        };
+      }
+      return prev;
+    });
+    setCashTendered((prev) => (prev < payableAmount ? payableAmount : prev));
+  }, [payableAmount]);
+
   // Change amount calculation (for cash only: FR-21)
   const cashAmountEntered = payments['Cash'] || 0;
   const changeAmount = cashTendered > cashAmountEntered ? cashTendered - cashAmountEntered : 0;
@@ -345,6 +364,16 @@ export default function QuickSalePOSPage() {
     }
   };
 
+  // 1-Click Auto-Balance helper for split payments
+  const handleAutoBalance = () => {
+    const activeEntries = Object.entries(payments).filter(([_, amt]) => Number(amt) > 0);
+    const primaryMode = activeEntries[0]?.[0] || 'Cash';
+    setPayments((prev) => ({
+      ...prev,
+      [primaryMode]: Math.max(0, (Number(prev[primaryMode]) || 0) + balanceRemaining),
+    }));
+  };
+
   // Save Bill (FR-50, FR-51)
   const handleSaveBill = async () => {
     if (items.length === 0) {
@@ -352,14 +381,28 @@ export default function QuickSalePOSPage() {
       return;
     }
 
-    if (Math.abs(balanceRemaining) > 0.5) {
+    let finalPayments = { ...payments };
+    const nonZeroModes = Object.entries(finalPayments).filter(([_, amt]) => Number(amt) > 0);
+
+    // If only one payment mode is used (or none), auto-balance to payableAmount to eliminate discrepancy
+    if (nonZeroModes.length <= 1) {
+      const mode = nonZeroModes[0]?.[0] || 'Cash';
+      const enteredAmt = Number(nonZeroModes[0]?.[1] || 0);
+      if (mode === 'Cash' && enteredAmt > payableAmount) {
+        setCashTendered(enteredAmt);
+      }
+      finalPayments = {
+        [mode]: payableAmount,
+      };
+      setPayments(finalPayments);
+    } else if (Math.abs(balanceRemaining) > 0.5) {
       alert(`Split payments total (₹${totalPaidAcrossModes}) must equal payable amount (₹${payableAmount}). Balance remaining: ₹${balanceRemaining}`);
       return;
     }
 
     setIsProcessing(true);
 
-    const paymentSplits: IPaymentSplit[] = Object.entries(payments)
+    const paymentSplits: IPaymentSplit[] = Object.entries(finalPayments)
       .filter(([_, amt]) => Number(amt) > 0)
       .map(([mode, amt]) => {
         const pmObj = paymentModes.find((p) => p.name === mode);
@@ -371,6 +414,7 @@ export default function QuickSalePOSPage() {
       });
 
     const payload = {
+      invoiceNo: activeInvoiceNo || undefined,
       storeId: selectedStore,
       customerId: selectedCustomer?.customerId,
       customerName: selectedCustomer ? selectedCustomer.name : 'Walk-in Client',
@@ -419,6 +463,7 @@ export default function QuickSalePOSPage() {
   };
 
   const handleReset = () => {
+    setActiveInvoiceNo(null);
     setItems([]);
     setSelectedCustomer(null);
     setSearchMobile('');
@@ -492,6 +537,25 @@ export default function QuickSalePOSPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* Left Column: Customer, Items Grid, Add Items, Discounts, Split Payment, Remarks */}
         <div className="lg:col-span-8 space-y-4">
+          {/* Collecting Payment for Doctor Consultation Bill Alert */}
+          {activeInvoiceNo && (
+            <div className="bg-amber-50 border border-amber-300 p-3.5 rounded-2xl flex items-center justify-between text-xs text-amber-900 shadow-2xs">
+              <div className="flex items-center space-x-2">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>
+                  Collecting payment for Doctor Consultation Bill <strong>#{activeInvoiceNo}</strong> ({selectedCustomer?.name || 'Client'})
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleReset}
+                className="text-amber-800 underline hover:text-amber-950 font-bold ml-2 text-xs"
+              >
+                Cancel / New Ticket
+              </button>
+            </div>
+          )}
+
           {/* 1. Customer Section (FR-20, FR-21, FR-22) */}
           <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
             <div className="text-xs font-bold text-slate-900 flex items-center justify-between">
@@ -533,14 +597,14 @@ export default function QuickSalePOSPage() {
                 </select>
               )}
 
-              {/* + Add Client inline button */}
+              {/* Add Client inline button */}
               <button
                 type="button"
                 onClick={() => setShowInlineAddClient(!showInlineAddClient)}
                 className="px-3 py-1.5 bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 font-bold rounded-xl text-xs flex items-center space-x-1 whitespace-nowrap"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>+ Add Client</span>
+                <span>Add Client</span>
               </button>
             </div>
 
@@ -609,7 +673,7 @@ export default function QuickSalePOSPage() {
 
             {items.length === 0 ? (
               <div className="py-8 text-center text-slate-400 text-xs">
-                No items added yet. Click <strong>+ Service</strong> or <strong>+ Product</strong> below to add.
+                No items added yet. Click <strong>Service</strong> or <strong>Product</strong> below to add.
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -696,7 +760,7 @@ export default function QuickSalePOSPage() {
                 className="px-3 py-1.5 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200 rounded-xl font-bold flex items-center space-x-1"
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>+ Service</span>
+                <span>Service</span>
               </button>
               <button
                 type="button"
@@ -704,7 +768,7 @@ export default function QuickSalePOSPage() {
                 className="px-3 py-1.5 bg-sky-50 text-sky-800 hover:bg-sky-100 border border-sky-200 rounded-xl font-bold flex items-center space-x-1"
               >
                 <Package className="w-3.5 h-3.5" />
-                <span>+ Product</span>
+                <span>Product</span>
               </button>
               <button
                 type="button"
@@ -712,7 +776,7 @@ export default function QuickSalePOSPage() {
                 className="px-3 py-1.5 bg-purple-50 text-purple-800 hover:bg-purple-100 border border-purple-200 rounded-xl font-bold flex items-center space-x-1"
               >
                 <Package className="w-3.5 h-3.5" />
-                <span>+ Package</span>
+                <span>Package</span>
               </button>
               <button
                 type="button"
@@ -744,18 +808,16 @@ export default function QuickSalePOSPage() {
                 <button
                   type="button"
                   onClick={() => setDiscountType('percent')}
-                  className={`px-2.5 py-1 rounded-lg font-bold ${
-                    discountType === 'percent' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700'
-                  }`}
+                  className={`px-2.5 py-1 rounded-lg font-bold ${discountType === 'percent' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700'
+                    }`}
                 >
                   By % (Percent)
                 </button>
                 <button
                   type="button"
                   onClick={() => setDiscountType('value')}
-                  className={`px-2.5 py-1 rounded-lg font-bold ${
-                    discountType === 'value' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700'
-                  }`}
+                  className={`px-2.5 py-1 rounded-lg font-bold ${discountType === 'value' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700'
+                    }`}
                 >
                   By ₹ (Value)
                 </button>
@@ -805,9 +867,20 @@ export default function QuickSalePOSPage() {
           <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
             <div className="flex items-center justify-between text-xs font-bold text-slate-900">
               <span>4. Mode of Payment (Split Allowed across modes)</span>
-              <span className={`text-[11px] font-bold ${balanceRemaining === 0 ? 'text-emerald-700' : 'text-amber-700'}`}>
-                {balanceRemaining === 0 ? '✓ Balanced' : `Balance Remaining: ₹${balanceRemaining}`}
-              </span>
+              <div className="flex items-center space-x-2">
+                <span className={`text-[11px] font-bold ${balanceRemaining === 0 ? 'text-emerald-700' : 'text-amber-700'}`}>
+                  {balanceRemaining === 0 ? '✓ Balanced' : `Balance Remaining: ₹${balanceRemaining}`}
+                </span>
+                {balanceRemaining !== 0 && (
+                  <button
+                    type="button"
+                    onClick={handleAutoBalance}
+                    className="px-2 py-0.5 bg-amber-600 hover:bg-amber-700 text-white rounded text-[10px] font-bold transition-colors shadow-xs"
+                  >
+                    Auto-Balance
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Quick 1-click full payment buttons */}
@@ -884,7 +957,7 @@ export default function QuickSalePOSPage() {
         </div>
 
         {/* Right Column: Live Totals & Action Buttons (Figure 3) */}
-        <div className="lg:col-span-4 bg-white rounded-2xl border border-slate-200/80 shadow-md p-5 flex flex-col justify-between space-y-4">
+        <div className="lg:col-span-4 sticky top-20 self-start bg-white rounded-2xl border border-slate-200/80 shadow-md p-5 flex flex-col justify-between space-y-4">
           <div className="space-y-3">
             <h3 className="font-black text-slate-900 text-sm border-b border-slate-100 pb-2">
               Billing Summary & Totals
@@ -1264,5 +1337,13 @@ export default function QuickSalePOSPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function QuickSalePOSPage() {
+  return (
+    <Suspense fallback={<PosGridSkeleton />}>
+      <QuickSalePOSContent />
+    </Suspense>
   );
 }

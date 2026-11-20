@@ -155,7 +155,7 @@ export default function TreatmentQuiz() {
   };
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-10 max-w-4xl mx-auto">
+    <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6 sm:p-10 max-w-4xl mx-auto">
       {/* Quiz Progress Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 mb-6 border-b border-slate-100 gap-3">
         <div>
@@ -196,7 +196,7 @@ export default function TreatmentQuiz() {
               <button
                 key={opt.id}
                 onClick={() => setConcern(opt.id)}
-                className={`text-left p-4 rounded-2xl border transition-all cursor-pointer ${
+                className={`text-left p-4 rounded-lg border transition-all cursor-pointer ${
                   concern === opt.id
                     ? 'border-emerald-600 bg-emerald-50/70 shadow-xs ring-1 ring-emerald-600/20'
                     : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
@@ -238,7 +238,7 @@ export default function TreatmentQuiz() {
               <button
                 key={opt.id}
                 onClick={() => setDuration(opt.id)}
-                className={`w-full text-left p-4 rounded-2xl border transition-all cursor-pointer ${
+                className={`w-full text-left p-4 rounded-lg border transition-all cursor-pointer ${
                   duration === opt.id
                     ? 'border-emerald-600 bg-emerald-50/70 shadow-xs ring-1 ring-emerald-600/20'
                     : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
@@ -288,7 +288,7 @@ export default function TreatmentQuiz() {
               <button
                 key={opt.id}
                 onClick={() => setSkinType(opt.id)}
-                className={`w-full text-left p-4 rounded-2xl border transition-all cursor-pointer ${
+                className={`w-full text-left p-4 rounded-lg border transition-all cursor-pointer ${
                   skinType === opt.id
                     ? 'border-emerald-600 bg-emerald-50/70 shadow-xs ring-1 ring-emerald-600/20'
                     : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
@@ -329,7 +329,7 @@ export default function TreatmentQuiz() {
       {/* STEP 4: Results Recommendation Card */}
       {step === 4 && recommendation && (
         <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
-          <div className="p-6 sm:p-8 rounded-2xl bg-slate-50 border border-slate-200 space-y-5">
+          <div className="p-6 sm:p-8 rounded-lg bg-slate-50 border border-slate-200 space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-4">
               <div>
                 <span className="text-[11px] font-bold text-emerald-600 uppercase tracking-wider block">

@@ -12,6 +12,7 @@ import {
   ArrowRight,
   HelpCircle,
   ChevronRight,
+  MapPin,
 } from 'lucide-react';
 import Navbar from '@/components/public/Navbar';
 import Footer from '@/components/public/Footer';
@@ -35,6 +36,14 @@ export default async function TreatmentDetailPage({ params }: PageProps) {
     notFound();
   }
 
+  // Doctor photo lookup
+  const getDoctorImage = (doctorName: string) => {
+    if (doctorName.includes('Anitha')) return '/images/doctors/dr-anitha.jpg';
+    if (doctorName.includes('Rajesh')) return '/images/doctors/dr-rajesh.jpg';
+    if (doctorName.includes('Priya')) return '/images/doctors/dr-priya.jpg';
+    return '/images/doctors/dr-anitha.jpg';
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans selection:bg-emerald-600 selection:text-white flex flex-col">
       <Navbar />
@@ -43,65 +52,76 @@ export default async function TreatmentDetailPage({ params }: PageProps) {
         {/* Breadcrumb Bar */}
         <div className="bg-slate-100 border-b border-slate-200 py-2.5 px-4 sm:px-8 text-xs text-slate-500">
           <div className="max-w-7xl mx-auto flex items-center space-x-2">
-            <Link href="/" className="hover:text-emerald-600 transition-colors">Home</Link>
+            <Link href="/" className="hover:text-emerald-600 transition-colors">
+              Home
+            </Link>
             <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-            <Link href="/treatments" className="hover:text-emerald-600 transition-colors">Treatments</Link>
+            <Link href="/treatments" className="hover:text-emerald-600 transition-colors">
+              Treatments
+            </Link>
             <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
             <span className="text-slate-900 font-semibold truncate">{treatment.title}</span>
           </div>
         </div>
 
-        {/* Treatment Hero Header */}
-        <section className="bg-gradient-to-b from-emerald-50/60 via-teal-50/30 to-white border-b border-slate-200 pt-10 pb-16 px-4 sm:px-8">
-          <div className="max-w-7xl mx-auto">
+        {/* Treatment Hero Header with Real Procedure Background Image */}
+        <section className="relative pt-12 pb-20 px-4 sm:px-8 border-b border-slate-800 overflow-hidden bg-slate-950 text-white">
+          <div className="absolute inset-0">
+            <img
+              src={treatment.image}
+              alt={treatment.title}
+              className="w-full h-full object-cover object-center"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-slate-950/95 via-slate-950/85 to-slate-900/75" />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-black/40" />
+          </div>
+
+          <div className="relative z-10 max-w-7xl mx-auto">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
-              
               {/* Left Column: Title & Overview */}
               <div className="lg:col-span-8 space-y-5">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 font-bold text-xs uppercase tracking-wider border border-emerald-200">
+                  <span className="px-3 py-1 rounded-full bg-emerald-950/80 text-emerald-300 font-bold text-xs uppercase tracking-wider border border-emerald-500/40 backdrop-blur-xs">
                     {treatment.category}
                   </span>
-                  <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-medium">
+                  <span className="px-3 py-1 rounded-full bg-slate-900/80 text-slate-300 text-xs font-medium border border-slate-700 backdrop-blur-xs">
                     {treatment.technology.split('with')[0]}
                   </span>
                 </div>
 
-                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight leading-tight">
+                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
                   {treatment.title}
                 </h1>
 
-                <p className="text-slate-600 text-base sm:text-lg leading-relaxed">
-                  {treatment.subtitle}
-                </p>
+                <p className="text-slate-300 text-base sm:text-lg leading-relaxed">{treatment.subtitle}</p>
 
                 {/* Key Metrics Strip */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3">
-                  <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-2xs">
+                  <div className="bg-slate-900/80 backdrop-blur-md p-3.5 rounded-2xl border border-slate-700 shadow-md">
                     <span className="text-slate-400 block text-[10px] uppercase font-bold">Duration</span>
-                    <span className="font-semibold text-slate-900 text-sm mt-0.5 block flex items-center">
-                      <Clock className="w-3.5 h-3.5 text-emerald-600 mr-1" />
+                    <span className="font-semibold text-white text-sm mt-0.5 block flex items-center">
+                      <Clock className="w-3.5 h-3.5 text-emerald-400 mr-1" />
                       {treatment.durationMinutes} Minutes
                     </span>
                   </div>
 
-                  <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-2xs">
+                  <div className="bg-slate-900/80 backdrop-blur-md p-3.5 rounded-2xl border border-slate-700 shadow-md">
                     <span className="text-slate-400 block text-[10px] uppercase font-bold">Downtime</span>
-                    <span className="font-semibold text-slate-900 text-sm mt-0.5 block truncate">
+                    <span className="font-semibold text-white text-sm mt-0.5 block truncate">
                       {treatment.downtime.split('(')[0]}
                     </span>
                   </div>
 
-                  <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-2xs">
+                  <div className="bg-slate-900/80 backdrop-blur-md p-3.5 rounded-2xl border border-slate-700 shadow-md">
                     <span className="text-slate-400 block text-[10px] uppercase font-bold">Course</span>
-                    <span className="font-semibold text-slate-900 text-sm mt-0.5 block truncate">
+                    <span className="font-semibold text-white text-sm mt-0.5 block truncate">
                       {treatment.recommendedSessions.split(';')[0]}
                     </span>
                   </div>
 
-                  <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-2xs">
+                  <div className="bg-slate-900/80 backdrop-blur-md p-3.5 rounded-2xl border border-slate-700 shadow-md">
                     <span className="text-slate-400 block text-[10px] uppercase font-bold">Physician</span>
-                    <span className="font-semibold text-emerald-700 text-sm mt-0.5 block truncate">
+                    <span className="font-semibold text-emerald-400 text-sm mt-0.5 block truncate">
                       {treatment.leadDoctor.split('(')[0]}
                     </span>
                   </div>
@@ -109,11 +129,11 @@ export default async function TreatmentDetailPage({ params }: PageProps) {
               </div>
 
               {/* Right Column: Pricing & Quick Booking Box */}
-              <div className="lg:col-span-4 bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-lg space-y-4">
+              <div className="lg:col-span-4 bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-2xl space-y-4 text-slate-800">
                 <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-600 block">
                   Transparent In-Clinic Fee
                 </span>
-                
+
                 <div className="border-b border-slate-100 pb-4">
                   <span className="text-xs text-slate-500 block">Single Session Investment</span>
                   <div className="flex items-baseline space-x-2 mt-0.5">
@@ -132,9 +152,7 @@ export default async function TreatmentDetailPage({ params }: PageProps) {
                         ₹{treatment.packagePriceINR.toLocaleString('en-IN')}
                       </span>
                     </div>
-                    <p className="text-[11px] text-emerald-800">
-                      {treatment.packageDescription}
-                    </p>
+                    <p className="text-[11px] text-emerald-800">{treatment.packageDescription}</p>
                   </div>
                 )}
 
@@ -166,7 +184,6 @@ export default async function TreatmentDetailPage({ params }: PageProps) {
                   </div>
                 </div>
               </div>
-
             </div>
           </div>
         </section>
@@ -174,29 +191,44 @@ export default async function TreatmentDetailPage({ params }: PageProps) {
         {/* Content Tabs & Deep Dive */}
         <section className="py-16 px-4 sm:px-8">
           <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12">
-            
             {/* Main Content Body */}
-            <div className="lg:col-span-8 space-y-12">
-              
+            <div className="lg:col-span-8 space-y-10">
+              {/* Treatment Hero Photography Banner */}
+              <div className="relative w-full h-80 sm:h-[420px] rounded-3xl overflow-hidden border border-slate-200 shadow-md bg-slate-900">
+                <img
+                  src={treatment.image}
+                  alt={treatment.title}
+                  className="w-full h-full object-cover object-center"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-transparent to-transparent pointer-events-none" />
+
+                <div className="absolute bottom-4 left-5 right-5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-white">
+                  <div>
+                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-600 font-bold text-[10px] uppercase tracking-wider inline-block mb-1">
+                      In-Clinic Clinical Procedure
+                    </span>
+                    <h3 className="font-bold text-lg text-white leading-snug">{treatment.title}</h3>
+                  </div>
+                  <div className="text-right text-xs text-slate-300 font-mono">
+                    <span className="block text-[11px] text-emerald-400 font-bold">Standardized Sterile Suite</span>
+                    <span>All 5 Clinical Hubs</span>
+                  </div>
+                </div>
+              </div>
+
               {/* 1. Clinical Overview & Cellular Mechanism */}
               <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-2xs space-y-4">
                 <span className="text-xs font-bold text-emerald-600 uppercase tracking-widest block">
                   Medical Mechanism of Action
                 </span>
-                <h2 className="text-2xl font-bold text-slate-900">
-                  How This Clinical Protocol Operates
-                </h2>
-                <p className="text-slate-700 text-sm leading-relaxed whitespace-pre-line">
-                  {treatment.overview}
-                </p>
+                <h2 className="text-2xl font-bold text-slate-900">How This Clinical Protocol Operates</h2>
+                <p className="text-slate-700 text-sm leading-relaxed whitespace-pre-line">{treatment.overview}</p>
 
                 <div className="mt-4 p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
                   <span className="text-xs font-bold text-slate-900 block uppercase tracking-wide">
                     Technology & Machinery Specification:
                   </span>
-                  <p className="text-xs text-slate-600 font-mono leading-relaxed">
-                    {treatment.technology}
-                  </p>
+                  <p className="text-xs text-slate-600 font-mono leading-relaxed">{treatment.technology}</p>
                 </div>
               </div>
 
@@ -270,12 +302,13 @@ export default async function TreatmentDetailPage({ params }: PageProps) {
                 <span className="text-xs font-bold text-emerald-600 uppercase tracking-widest block">
                   Physician Aftercare Protocol
                 </span>
-                <h3 className="text-xl font-bold text-slate-900">
-                  Mandatory Post-Procedure Care
-                </h3>
+                <h3 className="text-xl font-bold text-slate-900">Mandatory Post-Procedure Care</h3>
                 <div className="space-y-2.5">
                   {treatment.postCareInstructions.map((inst, i) => (
-                    <div key={i} className="flex items-start space-x-3 text-xs text-slate-700 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                    <div
+                      key={i}
+                      className="flex items-start space-x-3 text-xs text-slate-700 bg-slate-50 p-3 rounded-xl border border-slate-200"
+                    >
                       <span className="font-mono font-bold text-emerald-600 shrink-0">0{i + 1}.</span>
                       <span>{inst}</span>
                     </div>
@@ -289,9 +322,7 @@ export default async function TreatmentDetailPage({ params }: PageProps) {
                   <span className="text-xs font-bold text-emerald-600 uppercase tracking-widest block">
                     Patient Inquiries
                   </span>
-                  <h3 className="text-xl font-bold text-slate-900 mt-1">
-                    Frequently Asked Medical Questions
-                  </h3>
+                  <h3 className="text-xl font-bold text-slate-900 mt-1">Frequently Asked Medical Questions</h3>
                 </div>
 
                 <div className="space-y-4">
@@ -301,37 +332,40 @@ export default async function TreatmentDetailPage({ params }: PageProps) {
                         <HelpCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                         <span>{faq.question}</span>
                       </h4>
-                      <p className="text-xs text-slate-600 pl-6 leading-relaxed">
-                        {faq.answer}
-                      </p>
+                      <p className="text-xs text-slate-600 pl-6 leading-relaxed">{faq.answer}</p>
                     </div>
                   ))}
                 </div>
               </div>
-
             </div>
 
             {/* Sidebar Sticky Column */}
             <div className="lg:col-span-4 space-y-6">
-              
-              {/* Doctor In Charge Card */}
+              {/* Doctor In Charge Card with Real Photo */}
               <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
                   Lead Clinical Consultant
                 </span>
 
-                <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white font-bold text-lg flex items-center justify-center shrink-0 shadow-xs">
-                    Dr
+                <div className="flex items-center space-x-3.5">
+                  <div className="w-14 h-14 rounded-2xl overflow-hidden border border-slate-200 shrink-0 shadow-xs bg-slate-100">
+                    <img
+                      src={getDoctorImage(treatment.leadDoctor)}
+                      alt={treatment.leadDoctor}
+                      className="w-full h-full object-cover object-top"
+                    />
                   </div>
                   <div>
                     <h4 className="font-bold text-slate-900 text-base">{treatment.leadDoctor}</h4>
-                    <span className="text-[11px] text-emerald-600 font-semibold block">Registered Medical Specialist</span>
+                    <span className="text-[11px] text-emerald-600 font-semibold block">
+                      Registered Medical Specialist
+                    </span>
                   </div>
                 </div>
 
                 <p className="text-xs text-slate-500 leading-relaxed">
-                  Our doctors personally configure every laser pulse fluence, chemical peel percentage, and injection depth. Therapists never operate independently.
+                  Our doctors personally configure every laser pulse fluence, chemical peel percentage, and injection
+                  depth. Therapists never operate independently.
                 </p>
 
                 <div className="pt-2 border-t border-slate-100">
@@ -339,7 +373,7 @@ export default async function TreatmentDetailPage({ params }: PageProps) {
                     href={`/book?doctor=${encodeURIComponent(treatment.leadDoctor)}`}
                     className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold text-center block transition-colors"
                   >
-                    Consult Dr. In-Person
+                    Consult Doctor In-Person
                   </Link>
                 </div>
               </div>
@@ -376,21 +410,28 @@ export default async function TreatmentDetailPage({ params }: PageProps) {
                   Other Clinical Protocols
                 </span>
                 <div className="space-y-2">
-                  {TREATMENTS_DATA.filter((t) => t.slug !== treatment.slug).slice(0, 4).map((t) => (
-                    <Link
-                      key={t.slug}
-                      href={`/treatments/${t.slug}`}
-                      className="block p-2.5 rounded-xl hover:bg-slate-50 transition-colors text-xs border border-transparent hover:border-slate-200"
-                    >
-                      <span className="font-semibold text-slate-800 block truncate">{t.title}</span>
-                      <span className="text-[10px] text-slate-400">{t.category} · ₹{t.priceINR.toLocaleString('en-IN')}</span>
-                    </Link>
-                  ))}
+                  {TREATMENTS_DATA.filter((t) => t.slug !== treatment.slug)
+                    .slice(0, 4)
+                    .map((t) => (
+                      <Link
+                        key={t.slug}
+                        href={`/treatments/${t.slug}`}
+                        className="flex items-center space-x-3 p-2 rounded-xl hover:bg-slate-50 transition-colors text-xs border border-transparent hover:border-slate-200"
+                      >
+                        <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 bg-slate-100">
+                          <img src={t.image} alt={t.title} className="w-full h-full object-cover" />
+                        </div>
+                        <div className="truncate">
+                          <span className="font-semibold text-slate-800 block truncate">{t.title}</span>
+                          <span className="text-[10px] text-slate-400">
+                            {t.category} · ₹{t.priceINR.toLocaleString('en-IN')}
+                          </span>
+                        </div>
+                      </Link>
+                    ))}
                 </div>
               </div>
-
             </div>
-
           </div>
         </section>
       </main>

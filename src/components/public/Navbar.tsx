@@ -49,12 +49,12 @@ export default function Navbar({ currentBranch = 'Theni Main Branch', onBranchCh
   };
 
   const navLinks = [
-    { label: 'Treatments', href: '/treatments' },
-    { label: 'Clinical Results', href: '/results' },
-    { label: 'Specialists & Doctors', href: '/about#doctors' },
-    { label: 'Pricing & Packages', href: '/pricing' },
-    { label: 'About Us', href: '/about' },
-    { label: 'Branches & Contact', href: '/contact' },
+    { label: 'Skin & Hair Treatments', href: '/treatments' },
+    { label: 'Results', href: '/results' },
+    { label: 'Specialists', href: '/about#doctors' },
+    { label: 'Pricing', href: '/pricing' },
+    { label: 'About', href: '/about' },
+    { label: 'Branches', href: '/contact' },
   ];
 
   return (

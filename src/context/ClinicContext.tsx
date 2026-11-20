@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { IStore, IUser } from '@/types';
+import { getStoreAliases, canonicalStoreCode } from '@/lib/storeHelpers';
 
 interface ClinicContextType {
   user: IUser | null;
@@ -20,7 +21,7 @@ const ClinicContext = createContext<ClinicContextType | undefined>(undefined);
 
 export function ClinicProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<IUser | null>(null);
-  const [selectedStore, setSelectedStoreState] = useState<string>('THN');
+  const [selectedStore, setSelectedStoreState] = useState<string>('NILA-TH');
   const [stores, setStores] = useState<IStore[]>([]);
   const [unreadDoctorVisits, setUnreadDoctorVisits] = useState<number>(0);
 
@@ -56,8 +57,8 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
       try {
         const parsed = JSON.parse(saved);
         setUser(parsed);
-        const store = parsed.primaryStoreId || parsed.assignedStoreIds?.[0] || 'THN';
-        setSelectedStoreState(store);
+        const store = parsed.primaryStoreId || parsed.assignedStoreIds?.[0] || 'NILA-TH';
+        setSelectedStoreState(canonicalStoreCode(store));
       } catch (e) {}
     } else {
       // Default initial mock admin user for immediate seamless access
@@ -66,8 +67,8 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
         email: 'admin@nilaclinic.com',
         name: 'Mohan Raj (Admin)',
         role: 'admin',
-        assignedStoreIds: ['THN', 'MDU', 'CHN'],
-        primaryStoreId: 'THN',
+        assignedStoreIds: ['NILA-TH', 'NILA-MD', 'NILA-CH', 'NILA-CB', 'NILA-TR', 'NILA-PUD', 'THN', 'MDU', 'CHN'],
+        primaryStoreId: 'NILA-TH',
         isActive: true,
       };
       setUser(defaultUser);
@@ -87,7 +88,8 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
   const setSelectedStore = (code: string) => {
     // If not admin, restrict switching to assigned stores only (BR-04)
     if (user && user.role !== 'admin') {
-      if (!user.assignedStoreIds.map(s => s.toUpperCase()).includes(code.toUpperCase())) {
+      const allowed = (user.assignedStoreIds || []).flatMap(s => getStoreAliases(s).map(a => a.toUpperCase()));
+      if (!allowed.includes(code.toUpperCase())) {
         alert(`Access Restricted: You are only authorized to access your assigned clinic store.`);
         return;
       }

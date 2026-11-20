@@ -665,22 +665,22 @@ class ClinicService {
       totalSpent: 19500,
       createdAt: new Date(Date.now() - 86400000 * 30).toISOString(),
     },
-    {
-      _id: 'cust-1002',
-      customerId: 'CID-1002',
-      name: 'Deepa Lakshmi',
-      mobile: '+91 98765 88990',
-      gender: 'Female',
-      dob: '1990-11-22',
-      email: 'deepa.l@gmail.com',
-      area: 'Annanagar, Theni',
-      allergyNotes: 'Sensitive to fragrance and paraben',
-      skinHairNotes: 'Scalp dryness, diffuse hair thinning',
-      firstStoreId: 'NILA-TH',
-      visits: 2,
-      totalSpent: 4400,
-      createdAt: new Date(Date.now() - 86400000 * 20).toISOString(),
-    },
+    // {
+    //   _id: 'cust-1002',
+    //   customerId: 'CID-1002',
+    //   name: 'Deepa Lakshmi',
+    //   mobile: '+91 98765 88990',
+    //   gender: 'Female',
+    //   dob: '1990-11-22',
+    //   email: 'deepa.l@gmail.com',
+    //   area: 'Annanagar, Theni',
+    //   allergyNotes: 'Sensitive to fragrance and paraben',
+    //   skinHairNotes: 'Scalp dryness, diffuse hair thinning',
+    //   firstStoreId: 'NILA-TH',
+    //   visits: 2,
+    //   totalSpent: 4400,
+    //   createdAt: new Date(Date.now() - 86400000 * 20).toISOString(),
+    // },
     {
       _id: 'cust-1003',
       customerId: 'CID-1003',
@@ -1135,7 +1135,7 @@ class ClinicService {
           return docs.map((d: any) => ({ ...d, _id: d._id?.toString() }));
         }
       }
-    } catch (e) {}
+    } catch (e) { }
     return this.stores;
   }
 
@@ -1191,7 +1191,7 @@ class ClinicService {
           return doc as any;
         }
       }
-    } catch (e) {}
+    } catch (e) { }
 
     const idx = this.stores.findIndex(s => s.code.toUpperCase() === code.toUpperCase());
     if (idx !== -1) {
@@ -1230,7 +1230,7 @@ class ClinicService {
           return docs.map((d: any) => ({ ...d, _id: d._id?.toString() }));
         }
       }
-    } catch (e) {}
+    } catch (e) { }
 
     if (!storeCode || storeCode === 'ALL') return this.users;
     return this.users.filter(u =>
@@ -1245,7 +1245,7 @@ class ClinicService {
         const doc = await (User as any).findOne({ email: email.toLowerCase().trim() }).lean();
         if (doc) return { ...doc, _id: doc._id?.toString() } as any;
       }
-    } catch (e) {}
+    } catch (e) { }
 
     return this.users.find(u => u.email.toLowerCase() === email.toLowerCase().trim()) || null;
   }
@@ -1293,7 +1293,7 @@ class ClinicService {
           return doc as any;
         }
       }
-    } catch (e) {}
+    } catch (e) { }
 
     const idx = this.users.findIndex(u => u._id === id || u.email === id);
     if (idx !== -1) {
@@ -1317,7 +1317,7 @@ class ClinicService {
           return docs.map((d: any) => ({ ...d, _id: d._id?.toString() }));
         }
       }
-    } catch (e) {}
+    } catch (e) { }
 
     if (!storeCode || storeCode === 'ALL') return this.staff;
     return this.staff.filter(st => st.stores.map(s => s.toUpperCase()).includes(storeCode.toUpperCase()));
@@ -1368,7 +1368,7 @@ class ClinicService {
           return doc as any;
         }
       }
-    } catch (e) {}
+    } catch (e) { }
 
     const idx = this.staff.findIndex(s => s._id === id);
     if (idx !== -1) {
@@ -1396,7 +1396,7 @@ class ClinicService {
           );
         }
       }
-    } catch (e) {}
+    } catch (e) { }
 
     if (!storeCode || storeCode === 'ALL') return this.services;
     return this.services.filter(s =>
@@ -1452,7 +1452,7 @@ class ClinicService {
           );
         }
       }
-    } catch (e) {}
+    } catch (e) { }
 
     if (!storeCode || storeCode === 'ALL') return this.products;
     return this.products.filter(p =>
@@ -1498,7 +1498,7 @@ class ClinicService {
         const docs = await (PaymentMode as any).find({ isActive: true }).sort({ displayOrder: 1 }).lean();
         if (docs && docs.length > 0) return docs as any;
       }
-    } catch (e) {}
+    } catch (e) { }
     return this.paymentModes;
   }
 
@@ -1537,7 +1537,7 @@ class ClinicService {
         const doc = await (ClinicSetting as any).findOne().lean();
         if (doc) return doc as any;
       }
-    } catch (e) {}
+    } catch (e) { }
     return this.clinicSettings;
   }
 
@@ -1551,7 +1551,7 @@ class ClinicService {
           return doc as any;
         }
       }
-    } catch (e) {}
+    } catch (e) { }
 
     this.clinicSettings = { ...this.clinicSettings, ...updates };
     return this.clinicSettings;
@@ -1874,7 +1874,7 @@ class ClinicService {
         const docs = await (PackageMaster as any).find(query).sort({ price: 1 }).lean();
         if (docs && docs.length > 0) return docs as any;
       }
-    } catch (e) {}
+    } catch (e) { }
 
     if (!storeCode || storeCode === 'ALL') return this.packages.filter(p => p.isActive);
     return this.packages.filter(
@@ -1889,7 +1889,7 @@ class ClinicService {
         const doc = await (PackageMaster as any).findById(id).lean();
         if (doc) return doc as any;
       }
-    } catch (e) {}
+    } catch (e) { }
     return this.packages.find(p => p._id === id) || null;
   }
 
@@ -1941,7 +1941,7 @@ class ClinicService {
           return doc as any;
         }
       }
-    } catch (e) {}
+    } catch (e) { }
 
     const idx = this.packages.findIndex(p => p._id === id);
     if (idx !== -1) {
@@ -1959,7 +1959,7 @@ class ClinicService {
         const docs = await (CustomerPackage as any).find({ customerId }).sort({ createdAt: -1 }).lean();
         if (docs && docs.length > 0) return docs as any;
       }
-    } catch (e) {}
+    } catch (e) { }
 
     return this.customerPackages.filter(cp => cp.customerId === customerId);
   }
@@ -2029,7 +2029,7 @@ class ClinicService {
         const doc = await (CustomerPackage as any).findById(customerPackageId);
         if (doc) pkg = doc.toObject();
       }
-    } catch (e) {}
+    } catch (e) { }
 
     if (!pkg) {
       pkg = this.customerPackages.find(cp => cp._id === customerPackageId);
@@ -2078,7 +2078,7 @@ class ClinicService {
       if (db) {
         await (CustomerPackage as any).findByIdAndUpdate(customerPackageId, pkg);
       }
-    } catch (e) {}
+    } catch (e) { }
 
     const idx = this.customerPackages.findIndex(cp => cp._id === customerPackageId);
     if (idx !== -1) {
@@ -2123,7 +2123,7 @@ class ClinicService {
       if (db) {
         await (CustomerPackage as any).findByIdAndUpdate(customerPackageId, pkg);
       }
-    } catch (e) {}
+    } catch (e) { }
 
     return pkg;
   }
@@ -2150,7 +2150,7 @@ class ClinicService {
           return [];
         }
       }
-    } catch (e) {}
+    } catch (e) { }
 
     let res = this.appointments;
     if (storeCode && storeCode !== 'ALL') {
@@ -2274,7 +2274,7 @@ class ClinicService {
           return doc as any;
         }
       }
-    } catch (e) {}
+    } catch (e) { }
 
     const idx = this.appointments.findIndex(a => a._id === id || a.appointmentId === id);
     if (idx !== -1) {
@@ -2400,7 +2400,7 @@ class ClinicService {
           return doc as any;
         }
       }
-    } catch (e) {}
+    } catch (e) { }
 
     const idx = this.visits.findIndex(v => v._id === id || v.visitId === id);
     if (idx !== -1) {
@@ -2511,7 +2511,7 @@ class ClinicService {
           return docs.map((d: any) => ({ ...d, _id: d._id?.toString() }));
         }
       }
-    } catch (e) {}
+    } catch (e) { }
 
     let res = this.invoices;
     if (storeCode && storeCode !== 'ALL') {
@@ -2749,7 +2749,7 @@ class ClinicService {
         }).lean();
         if (doc) return doc as any;
       }
-    } catch (e) {}
+    } catch (e) { }
 
     return this.invoices.find(i => i.invoiceNo === invoiceNoOrId || i._id === invoiceNoOrId) || null;
   }
@@ -2769,7 +2769,7 @@ class ClinicService {
           return doc as any;
         }
       }
-    } catch (e) {}
+    } catch (e) { }
 
     const idx = this.invoices.findIndex(i => i._id === invoiceId || i.invoiceNo === invoiceId);
     if (idx !== -1) {
@@ -2880,7 +2880,7 @@ class ClinicService {
         ).lean();
         if (doc) return doc as any;
       }
-    } catch (e) {}
+    } catch (e) { }
 
     const idx = this.invoices.findIndex(i => i._id === id || i.invoiceNo === id);
     if (idx !== -1) {

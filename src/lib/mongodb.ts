@@ -33,10 +33,10 @@ export async function connectToDatabase(): Promise<typeof mongoose | null> {
     return cached.conn;
   }
 
-  // Fast-fail circuit breaker: If connection failed recently (within 60s),
-  // immediately serve from in-memory fallback in 0ms without waiting.
+  // Fast-fail circuit breaker: If connection failed recently (within 5s),
+  // retry promptly rather than locking out for a full minute.
   const now = Date.now();
-  if (cached.lastFailedTime && now - cached.lastFailedTime < 60000) {
+  if (cached.lastFailedTime && now - cached.lastFailedTime < 5000) {
     return null;
   }
 
@@ -45,9 +45,9 @@ export async function connectToDatabase(): Promise<typeof mongoose | null> {
       bufferCommands: false,
       maxPoolSize: 10,
       minPoolSize: 0, // In serverless, minPoolSize must be 0 to prevent stale socket hangs
-      serverSelectionTimeoutMS: 1500, // Fast 1.5s timeout: working Atlas connects in <500ms
-      connectTimeoutMS: 1500,
-      socketTimeoutMS: 3000,
+      serverSelectionTimeoutMS: 8000, // 8s timeout to accommodate Atlas replica set TLS handshakes
+      connectTimeoutMS: 8000,
+      socketTimeoutMS: 10000,
       dbName: 'Neelaclinic',
       autoIndex: false, // Never build indexes during runtime in serverless
     };
@@ -59,7 +59,7 @@ export async function connectToDatabase(): Promise<typeof mongoose | null> {
         return m;
       })
       .catch((err) => {
-        console.warn('MongoDB connection unavailable. Circuit breaker active (60s):', err.message);
+        console.warn('MongoDB connection unavailable. Circuit breaker active (5s):', err.message);
         cached!.lastFailedTime = Date.now();
         cached!.promise = null;
         return null;

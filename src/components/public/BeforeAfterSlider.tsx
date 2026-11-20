@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useState, useRef, useCallback } from 'react';
-import { Sparkles, Calendar, CheckCircle2, ShieldCheck, ArrowLeftRight } from 'lucide-react';
+import { Calendar, CheckCircle2, ArrowLeftRight, ShieldCheck } from 'lucide-react';
 
 export interface CaseStudyData {
   id: string;
   title: string;
-  category: 'Skin' | 'Hair' | 'Laser' | 'Scars';
+  category: 'Skin' | 'Hair';
   patientProfile: string;
   condition: string;
   protocol: string;
@@ -15,75 +15,79 @@ export interface CaseStudyData {
   doctor: string;
   beforeLabel?: string;
   afterLabel?: string;
-  beforeBg: string;
-  afterBg: string;
+  beforeImage: string;
+  afterImage: string;
   clinicalNotes: string;
 }
 
 export const sampleCaseStudies: CaseStudyData[] = [
   {
     id: 'acne-scar-rf',
-    title: 'Severe Grade 3 Atrophic Scars & Erythema',
-    category: 'Scars',
-    patientProfile: 'Male, 26 yrs · Fitzpatrick Skin Type IV',
-    condition: 'Deep rolling and ice-pick acne scars with persistent post-inflammatory erythema',
-    protocol: 'Subcision with Blunt Cannula + 4 Sessions Monopolar RF Microneedling & Hyaluronic Matrix',
-    sessions: '4 In-Clinic Sessions',
-    duration: '16 Weeks Follow-up',
+    title: 'Acne Scars & Texture Smoothing',
+    category: 'Skin',
+    patientProfile: 'Male, 26 yrs · Deep Atrophic Acne Scars',
+    condition: 'Deep rolling and ice-pick acne scars on cheeks',
+    protocol: 'RF Microneedling & Cannula Subcision',
+    sessions: '4 Sessions',
+    duration: '16 Weeks',
     doctor: 'Dr. Anitha Ramachandran (MD DVL)',
     beforeLabel: 'Baseline (Day 0)',
-    afterLabel: 'Post Session 4 (Week 16)',
-    beforeBg: 'from-amber-900/30 via-stone-800 to-stone-900',
-    afterBg: 'from-emerald-950/40 via-stone-800 to-stone-900',
-    clinicalNotes: 'Significant dermal collagen remodeling achieved; over 75% elevation of rolling scar floor and resolution of macular erythema without post-inflammatory hyperpigmentation.',
+    afterLabel: 'Post Session 4',
+    beforeImage: '/images/results/acne-before.jpg',
+    afterImage: '/images/results/acne-after.jpg',
+    clinicalNotes:
+      'Substantial collagen remodeling achieved with over 75% elevation of scar floors and smooth, even skin texture.',
   },
   {
     id: 'hair-prp-regrowth',
-    title: 'Androgenetic Alopecia (Norwood Scale Grade 3)',
+    title: 'Hair Thinning & Scalp Density',
     category: 'Hair',
-    patientProfile: 'Male, 31 yrs · Vertex & Frontal Recession',
-    condition: 'Progressive hair thinning, follicular miniaturization along the crown and anterior hairline',
-    protocol: 'Autologous High-Yield PRP (3200 RPM double spin) + Scalp Microneedling with Copper Tripeptide-1',
-    sessions: '6 Sessions (Monthly Interval)',
-    duration: '24 Weeks Evaluation',
-    doctor: 'Dr. Rajesh Varma (Trichology Fellow)',
+    patientProfile: 'Male, 31 yrs · Crown & Hairline Thinning',
+    condition: 'Early-stage hair thinning and excessive daily hair fall',
+    protocol: 'High-Yield Autologous PRP + Scalp Peptides',
+    sessions: '6 Sessions',
+    duration: '24 Weeks',
+    doctor: 'Dr. Rajesh Varma (Trichologist)',
     beforeLabel: 'Baseline Presentation',
-    afterLabel: 'Post 6 Months Protocol',
-    beforeBg: 'from-orange-950/30 via-stone-800 to-stone-900',
-    afterBg: 'from-teal-950/40 via-stone-800 to-stone-900',
-    clinicalNotes: 'Trichoscopy revealed terminal hair density increase from 112 hairs/cm² to 164 hairs/cm² with marked reduction in follicular miniaturization ratio.',
+    afterLabel: 'Post 6 Months',
+    beforeImage: '/images/results/hair-before.jpg',
+    afterImage: '/images/results/hair-after.jpg',
+    clinicalNotes:
+      'Visible reversal of hair thinning with significant increase in terminal hair density and follicle strength.',
   },
   {
     id: 'melasma-qswitch',
-    title: 'Dermal & Epidermal Mixed Melasma',
+    title: 'Melasma & Pigmentation Clearance',
     category: 'Skin',
-    patientProfile: 'Female, 38 yrs · Fitzpatrick Skin Type IV',
-    condition: 'Refractory bilateral malar hyperpigmentation resistant to topical hydroquinone',
-    protocol: 'Low-Fluence Q-Switch Nd:YAG (1064nm) Laser Toning combined with Tranexamic Acid Topical Infusion',
-    sessions: '5 Sessions (2-week interval)',
-    duration: '12 Weeks Review',
+    patientProfile: 'Female, 38 yrs · Cheek Melasma',
+    condition: 'Stubborn dark melasma patches on cheekbones',
+    protocol: 'Q-Switch Nd:YAG Laser Toning',
+    sessions: '5 Sessions',
+    duration: '12 Weeks',
     doctor: 'Dr. Priya Dharshini (Laser Specialist)',
-    beforeLabel: 'Pre-Treatment Malar Pigment',
-    afterLabel: 'Post 5 Sessions Toning',
-    beforeBg: 'from-rose-950/30 via-stone-800 to-stone-900',
-    afterBg: 'from-emerald-950/30 via-stone-800 to-stone-900',
-    clinicalNotes: 'Over 80% reduction in MASI (Melasma Area and Severity Index) score without hypopigmentation or rebound darkening.',
+    beforeLabel: 'Pre-Treatment',
+    afterLabel: 'Post 5 Sessions',
+    beforeImage: '/images/treatments/chemical-peel.jpg',
+    afterImage: '/images/treatments/q-switch-laser.jpg',
+    clinicalNotes:
+      'Over 80% clearance of deep pigmentation without any rebound darkening or skin irritation.',
   },
   {
     id: 'laser-hair-reduction',
-    title: 'Excessive Terminal Facial Hirsutism',
-    category: 'Laser',
-    patientProfile: 'Female, 27 yrs · Hormonal (PCOS-associated)',
-    condition: 'Coarse terminal hair growth over chin, submental area, and jawline',
-    protocol: 'Triple Wavelength (755nm + 808nm + 1064nm) Diode Laser with Sapphire Contact Cooling (-5°C)',
+    title: 'Facial Hair Reduction',
+    category: 'Skin',
+    patientProfile: 'Female, 27 yrs · Chin & Jawline Hair',
+    condition: 'Thick, coarse hormonal facial hair',
+    protocol: 'Triple Wavelength Diode Laser with Sapphire Cooling',
     sessions: '6 Sessions',
-    duration: '20 Weeks Progress',
+    duration: '20 Weeks',
     doctor: 'Dr. Priya Dharshini (Laser Specialist)',
     beforeLabel: 'Pre-Laser Baseline',
-    afterLabel: 'Post 6th Session',
-    beforeBg: 'from-stone-900 via-stone-800 to-stone-900',
-    afterBg: 'from-emerald-950/40 via-stone-800 to-stone-900',
-    clinicalNotes: 'Hair reduction exceeding 90% in targeted mandibular and mental zones, remaining fine vellus hair comfortably maintained with maintenance touch-up.',
+    afterLabel: 'Post 6 Sessions',
+    beforeImage: '/images/treatments/rf-microneedling.jpg',
+    afterImage: '/images/treatments/diode-hair-reduction.jpg',
+    clinicalNotes:
+      'Over 90% permanent hair reduction with smooth, razor-bump-free skin.',
   },
 ];
 
@@ -111,27 +115,27 @@ export default function BeforeAfterSlider({ caseStudy = sampleCaseStudies[0] }: 
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+    <div className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-xs">
       {/* Case Header */}
-      <div className="p-5 sm:p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-50/70">
+      <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-50">
         <div>
           <div className="flex items-center space-x-2 mb-1">
             <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200">
-              {caseStudy.category} Case Study
+              {caseStudy.category === 'Hair' ? 'Hair Treatment' : 'Skin Treatment'}
             </span>
             <span className="text-xs text-slate-500 font-medium">{caseStudy.patientProfile}</span>
           </div>
-          <h3 className="text-lg sm:text-xl font-bold text-slate-900">{caseStudy.title}</h3>
+          <h3 className="text-base sm:text-lg font-bold text-slate-900">{caseStudy.title}</h3>
         </div>
 
-        <div className="flex items-center space-x-3 text-xs text-slate-600">
-          <div className="bg-white px-3 py-1.5 rounded-lg border border-slate-200 font-medium">
-            <span className="text-slate-400 block text-[10px] uppercase">Protocol</span>
-            <span className="font-semibold text-slate-800">{caseStudy.sessions}</span>
+        <div className="flex items-center space-x-2 text-xs text-slate-600">
+          <div className="bg-white px-3 py-1 rounded-lg border border-slate-200 font-medium">
+            <span className="text-slate-400 block text-[9px] uppercase font-bold">Protocol</span>
+            <span className="font-semibold text-slate-800 text-xs">{caseStudy.sessions}</span>
           </div>
-          <div className="bg-white px-3 py-1.5 rounded-lg border border-slate-200 font-medium">
-            <span className="text-slate-400 block text-[10px] uppercase">Timeline</span>
-            <span className="font-semibold text-slate-800">{caseStudy.duration}</span>
+          <div className="bg-white px-3 py-1 rounded-lg border border-slate-200 font-medium">
+            <span className="text-slate-400 block text-[9px] uppercase font-bold">Duration</span>
+            <span className="font-semibold text-slate-800 text-xs">{caseStudy.duration}</span>
           </div>
         </div>
       </div>
@@ -144,54 +148,48 @@ export default function BeforeAfterSlider({ caseStudy = sampleCaseStudies[0] }: 
         onMouseLeave={() => setIsDragging(false)}
         onMouseMove={handleMouseMove}
         onTouchMove={handleTouchMove}
-        className="relative w-full h-80 sm:h-96 select-none cursor-ew-resize overflow-hidden bg-stone-900"
+        className="relative w-full h-72 sm:h-88 md:h-96 select-none cursor-ew-resize overflow-hidden bg-slate-950"
       >
-        {/* AFTER Container (Full background) */}
-        <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center p-6 text-center bg-radial from-emerald-950/70 via-slate-900 to-stone-950 text-white">
-          <div className="space-y-3 max-w-md">
-            <div className="w-14 h-14 mx-auto rounded-full bg-emerald-900/60 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
-              <CheckCircle2 className="w-7 h-7" />
-            </div>
-            <span className="inline-block px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 font-mono text-xs font-semibold uppercase tracking-wider border border-emerald-500/30">
-              {caseStudy.afterLabel || 'Post-Treatment Result'}
-            </span>
-            <p className="text-xs text-emerald-100/90 leading-relaxed font-sans">
-              Clinical post-treatment evaluation demonstrating tissue remodeling, follicular revival, and dermal re-epithelialization following complete session adherence.
-            </p>
-            <div className="pt-2 text-[11px] text-emerald-300/80 font-mono">
-              Signed by: {caseStudy.doctor}
-            </div>
-          </div>
-          
-          <div className="absolute top-4 right-4 bg-emerald-900/80 backdrop-blur-xs text-white text-[11px] font-bold px-3 py-1 rounded-full border border-emerald-500/50 uppercase tracking-wider">
-            After Treatment
+        {/* AFTER Container (Full background image) */}
+        <div className="absolute inset-0 w-full h-full">
+          <img
+            src={caseStudy.afterImage}
+            alt={`${caseStudy.title} - After treatment`}
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent pointer-events-none" />
+
+          {/* After Badge */}
+          <div className="absolute top-3 right-3 bg-emerald-600/90 backdrop-blur-xs text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-md uppercase tracking-wider border border-emerald-400/30 flex items-center space-x-1">
+            <CheckCircle2 className="w-3 h-3 text-white" />
+            <span>After: {caseStudy.afterLabel || 'Result'}</span>
           </div>
         </div>
 
         {/* BEFORE Container (Clipped to sliderPosition) */}
         <div
           style={{ width: `${sliderPosition}%` }}
-          className="absolute inset-y-0 left-0 overflow-hidden border-r-2 border-white shadow-2xl bg-radial from-amber-950/60 via-stone-900 to-black text-white"
+          className="absolute inset-y-0 left-0 overflow-hidden border-r-2 border-white shadow-2xl z-10"
         >
-          {/* Inner div set to 100vw or fixed width container to prevent squash during clip */}
-          <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center p-6 text-center">
-            <div className="space-y-3 max-w-md">
-              <div className="w-14 h-14 mx-auto rounded-full bg-stone-800/80 border border-stone-600 flex items-center justify-center text-stone-300">
-                <Calendar className="w-6 h-6" />
-              </div>
-              <span className="inline-block px-3 py-1 rounded-full bg-stone-800/80 text-stone-300 font-mono text-xs font-semibold uppercase tracking-wider border border-stone-600">
-                {caseStudy.beforeLabel || 'Baseline (Day 0)'}
-              </span>
-              <p className="text-xs text-stone-300 leading-relaxed font-sans">
-                {caseStudy.condition}
-              </p>
-              <div className="pt-2 text-[11px] text-stone-400 font-mono">
-                Assessed at Initial Consultation
-              </div>
-            </div>
+          {/* Inner image container with fixed width matching parent */}
+          <div
+            className="relative h-full"
+            style={{
+              width: containerRef.current ? `${containerRef.current.offsetWidth}px` : '100%',
+              minWidth: '320px',
+            }}
+          >
+            <img
+              src={caseStudy.beforeImage}
+              alt={`${caseStudy.title} - Before treatment`}
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent pointer-events-none" />
 
-            <div className="absolute top-4 left-4 bg-stone-900/80 backdrop-blur-xs text-stone-300 text-[11px] font-bold px-3 py-1 rounded-full border border-stone-700 uppercase tracking-wider">
-              Before (Baseline)
+            {/* Before Badge */}
+            <div className="absolute top-3 left-3 bg-slate-900/90 backdrop-blur-xs text-slate-200 text-[10px] font-bold px-2.5 py-1 rounded-full shadow-md uppercase tracking-wider border border-slate-600/50 flex items-center space-x-1">
+              <Calendar className="w-3 h-3 text-amber-400" />
+              <span>Before: {caseStudy.beforeLabel || 'Baseline'}</span>
             </div>
           </div>
         </div>
@@ -199,43 +197,30 @@ export default function BeforeAfterSlider({ caseStudy = sampleCaseStudies[0] }: 
         {/* Draggable Divider Handle */}
         <div
           style={{ left: `${sliderPosition}%` }}
-          className="absolute top-0 bottom-0 -ml-4 w-8 flex items-center justify-center pointer-events-none"
+          className="absolute inset-y-0 -ml-4 w-8 flex items-center justify-center pointer-events-none z-20"
         >
-          <div className="w-8 h-8 rounded-full bg-white shadow-xl border-2 border-emerald-700 flex items-center justify-center text-emerald-800">
-            <ArrowLeftRight className="w-4 h-4" />
+          <div className="w-7 h-7 rounded-full bg-white text-emerald-700 shadow-xl border-2 border-emerald-600 flex items-center justify-center cursor-ew-resize">
+            <ArrowLeftRight className="w-3.5 h-3.5" />
           </div>
         </div>
 
-        {/* User Hint */}
-        <div className="absolute bottom-3 inset-x-0 flex justify-center pointer-events-none">
-          <span className="px-3 py-1 bg-black/60 backdrop-blur-xs text-white/90 text-[10px] uppercase font-bold tracking-wider rounded-full border border-white/20">
-            Drag Slider or Touch to Compare
-          </span>
+        {/* Bottom Drag Hint */}
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-slate-950/80 backdrop-blur-xs text-white text-[10px] font-mono px-3 py-1 rounded-full border border-slate-700 shadow-xs pointer-events-none z-10 flex items-center space-x-1.5">
+          <ArrowLeftRight className="w-3 h-3 text-emerald-400" />
+          <span>DRAG SLIDER TO COMPARE</span>
         </div>
       </div>
 
-      {/* Clinical Notes & Verification Footer */}
-      <div className="p-5 sm:p-6 bg-slate-50 border-t border-slate-200 text-xs">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
-          <div className="md:col-span-8 space-y-1">
-            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
-              Dermatological Findings & Protocol Note
-            </span>
-            <p className="text-slate-700 leading-relaxed font-normal">
-              {caseStudy.clinicalNotes}
-            </p>
-          </div>
-          <div className="md:col-span-4 bg-white p-3 rounded-xl border border-slate-200 flex items-center space-x-3">
-            <div className="w-9 h-9 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 shrink-0">
-              <ShieldCheck className="w-5 h-5" />
-            </div>
-            <div>
-              <span className="text-[10px] text-slate-400 uppercase font-semibold block">Attending Physician</span>
-              <span className="text-xs font-bold text-slate-900 block leading-tight">{caseStudy.doctor}</span>
-              <span className="text-[10px] text-emerald-600 font-medium">Verified In-Clinic Case</span>
-            </div>
-          </div>
+      {/* Case Footer */}
+      <div className="p-4 bg-slate-50 border-t border-slate-200 text-xs text-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div className="flex items-center space-x-2">
+          <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span className="font-semibold text-slate-900">Physician:</span>
+          <span className="text-slate-700">{caseStudy.doctor}</span>
         </div>
+        <p className="text-[11px] text-slate-600 leading-snug">
+          {caseStudy.clinicalNotes}
+        </p>
       </div>
     </div>
   );

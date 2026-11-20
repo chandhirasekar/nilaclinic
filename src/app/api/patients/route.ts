@@ -22,9 +22,10 @@ export async function GET(req: Request) {
     const customers = await clinicService.getCustomers(storeCode, search, { limit, page });
     const patients = customers.map(c => ({
       ...c,
-      patientId: c.customerId || (c as any).patientId || c._id,
-      phone: c.mobile || (c as any).phone || '',
-      storeId: c.firstStoreId || (c as any).storeId || 'NILA-TH',
+      patientId: c.patientId || c.customerId || c._id,
+      phone: c.phone || c.mobile || '',
+      mobile: c.mobile || c.phone || '',
+      storeId: c.storeId || c.firstStoreId || 'NILA-TH',
     }));
 
     return NextResponse.json({
@@ -52,7 +53,7 @@ export async function POST(req: Request) {
     const newPatient = await clinicService.createPatient({
       name,
       phone,
-      storeId: storeId || 'THN',
+      storeId: storeId || 'NILA-TH',
       gender: gender || 'Female',
       age: age ? Number(age) : undefined,
       email,

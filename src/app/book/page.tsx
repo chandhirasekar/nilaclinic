@@ -50,10 +50,10 @@ function BookingContent() {
   ];
 
   const doctorsList = [
-    { name: 'Dr. Anitha Ramachandran', role: 'Chief Consultant Dermatologist (MD DVL)', store: 'NILA-TH' },
-    { name: 'Dr. Rajesh Varma', role: 'Trichologist & Hair Restoration Specialist', store: 'NILA-MD' },
-    { name: 'Dr. Priya Dharshini', role: 'Laser Specialist & Cosmetologist', store: 'NILA-CH' },
-    { name: 'First Available Specialist', role: 'Senior Duty Dermatologist', store: 'ALL' },
+    { name: 'Dr. Anitha Ramachandran', role: 'Chief Dermatologist · Skin Specialist', store: 'NILA-TH' },
+    { name: 'Dr. Rajesh Varma', role: 'Lead Trichologist · Hair Specialist', store: 'NILA-MD' },
+    { name: 'Dr. Priya Dharshini', role: 'Laser Specialist · Skin & Hair', store: 'NILA-CH' },
+    { name: 'First Available Specialist', role: 'Duty Specialist (Skin/Hair)', store: 'ALL' },
   ];
 
   const timeSlots = [
@@ -77,7 +77,6 @@ function BookingContent() {
   const [selectedDoctorName, setSelectedDoctorName] = useState(preSelectedDoctor || doctorsList[0].name);
   const [selectedDate, setSelectedDate] = useState(() => {
     const today = new Date();
-    // Default to tomorrow or today
     return today.toISOString().split('T')[0];
   });
   const [selectedTime, setSelectedTime] = useState('11:00 AM');
@@ -139,7 +138,7 @@ function BookingContent() {
       amount: activeService.price,
       notes: patientNotes.trim() || 'Online Consultation Booking via Website',
       status: 'Confirmed',
-      force: true, // ensure slot registration
+      force: true,
     };
 
     try {
@@ -157,7 +156,6 @@ function BookingContent() {
           details: payload,
         });
       } else {
-        // Fallback simulated success if API returned error
         setBookingResult({
           success: true,
           appointmentId: `NILA-APPT-${Math.floor(100000 + Math.random() * 900000)}`,
@@ -165,7 +163,6 @@ function BookingContent() {
         });
       }
     } catch (err) {
-      // Graceful offline fallback
       setBookingResult({
         success: true,
         appointmentId: `NILA-APPT-${Math.floor(100000 + Math.random() * 900000)}`,
@@ -185,78 +182,94 @@ function BookingContent() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-8 py-10">
-      {/* Header */}
-      <div className="max-w-3xl mb-10 space-y-3">
-        <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-emerald-900/10 border border-emerald-900/20 text-emerald-900 text-xs font-semibold">
-          <Calendar className="w-3.5 h-3.5 text-emerald-800" />
-          <span>Real-Time Clinical Schedule Booking</span>
+    <div>
+      {/* Booking Hero with Real Consultation Suite Background Image */}
+      <section className="relative py-16 px-4 sm:px-8 border-b border-slate-800 overflow-hidden bg-slate-950 text-white">
+        <div className="absolute inset-0">
+          <img
+            src="/images/clinic/consultation.jpg"
+            alt="Doctor Consultation & Appointment Scheduling"
+            className="w-full h-full object-cover object-center"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-slate-950/95 via-slate-950/85 to-slate-900/75" />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-black/40" />
         </div>
-        <h1 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-900 tracking-tight">
-          Reserve Your In-Clinic Consultation
-        </h1>
-        <p className="text-stone-600 text-sm sm:text-base leading-relaxed">
-          Select your nearest branch, preferred specialist, and clinical service. We guarantee immediate slot reservation with WhatsApp confirmation and zero waiting times.
-        </p>
-      </div>
+
+        <div className="relative z-10 max-w-7xl mx-auto">
+          <div className="max-w-3xl space-y-4">
+            <div className="inline-flex items-center space-x-2 px-3.5 py-1 rounded-full bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-xs font-bold backdrop-blur-xs">
+              <Calendar className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Real-Time Clinical Schedule Booking</span>
+            </div>
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight leading-tight">
+              Reserve Your In-Clinic Appointment
+            </h1>
+            <p className="text-slate-300 text-base leading-relaxed">
+              Select your nearest branch, preferred specialist, and clinical service. We guarantee immediate slot reservation with WhatsApp confirmation and zero waiting times.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-8 py-10">
 
       {bookingResult?.success ? (
         /* SUCCESS CONFIRMATION VIEW */
-        <div className="max-w-3xl mx-auto bg-white rounded-3xl border border-stone-200/90 shadow-xl p-8 sm:p-12 text-center space-y-6 animate-in fade-in zoom-in-95 duration-200">
-          <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center mx-auto border border-emerald-200">
+        <div className="max-w-3xl mx-auto bg-white rounded-lg border border-slate-200 shadow-xl p-8 sm:p-12 text-center space-y-6 animate-in fade-in zoom-in-95 duration-200">
+          <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto border border-emerald-200">
             <Check className="w-8 h-8" />
           </div>
 
           <div className="space-y-2">
-            <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-widest block">
+            <span className="text-[11px] font-bold text-emerald-600 uppercase tracking-widest block">
               Appointment Successfully Confirmed
             </span>
-            <h2 className="text-2xl sm:text-3xl font-serif font-bold text-slate-900">
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900">
               We look forward to welcoming you, {patientName}!
             </h2>
-            <p className="text-xs sm:text-sm text-stone-600 max-w-lg mx-auto">
+            <p className="text-xs sm:text-sm text-slate-600 max-w-lg mx-auto">
               Your appointment has been registered in the Nila Clinic hospital management system. A confirmation SMS and WhatsApp message have been sent to <strong>{patientPhone}</strong>.
             </p>
           </div>
 
           {/* Appointment Ticket Card */}
-          <div className="bg-[#faf9f5] rounded-2xl border border-stone-200 p-6 text-left space-y-4 max-w-xl mx-auto">
-            <div className="flex items-center justify-between border-b border-stone-200 pb-3">
+          <div className="bg-slate-50 rounded-lg border border-slate-200 p-6 text-left space-y-4 max-w-xl mx-auto">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <div>
-                <span className="text-[10px] text-stone-400 uppercase font-bold block">Appointment Ref</span>
+                <span className="text-[10px] text-slate-400 uppercase font-bold block">Appointment Ref</span>
                 <span className="font-mono font-bold text-slate-900 text-sm">
                   {bookingResult.appointmentId}
                 </span>
               </div>
-              <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-900 text-xs font-bold border border-emerald-200">
+              <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-200">
                 Confirmed Slot
               </span>
             </div>
 
             <div className="grid grid-cols-2 gap-4 text-xs">
               <div>
-                <span className="text-stone-400 block text-[10px] uppercase font-bold">Clinic Branch</span>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">Clinic Branch</span>
                 <span className="font-semibold text-slate-900 block">{activeBranch.name}</span>
-                <span className="text-stone-500 text-[11px]">{activeBranch.address}</span>
+                <span className="text-slate-500 text-[11px]">{activeBranch.address}</span>
               </div>
               <div>
-                <span className="text-stone-400 block text-[10px] uppercase font-bold">Date & Time</span>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">Date & Time</span>
                 <span className="font-semibold text-slate-900 block">{selectedDate}</span>
-                <span className="text-emerald-800 font-mono font-bold text-[11px]">{selectedTime}</span>
+                <span className="text-emerald-600 font-mono font-bold text-[11px]">{selectedTime}</span>
               </div>
               <div>
-                <span className="text-stone-400 block text-[10px] uppercase font-bold">Procedure / Service</span>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">Procedure / Service</span>
                 <span className="font-semibold text-slate-900 block">{activeService.name}</span>
-                <span className="text-stone-500 text-[11px]">{activeService.duration} Minutes</span>
+                <span className="text-slate-500 text-[11px]">{activeService.duration} Minutes</span>
               </div>
               <div>
-                <span className="text-stone-400 block text-[10px] uppercase font-bold">Attending Doctor</span>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">Attending Doctor</span>
                 <span className="font-semibold text-slate-900 block">{selectedDoctorName}</span>
-                <span className="text-stone-500 text-[11px]">Fee: ₹{activeService.price.toLocaleString('en-IN')}</span>
+                <span className="text-slate-500 text-[11px]">Fee: ₹{activeService.price.toLocaleString('en-IN')}</span>
               </div>
             </div>
 
-            <div className="pt-3 border-t border-stone-200 text-[11px] text-stone-500 space-y-1">
+            <div className="pt-3 border-t border-slate-200 text-[11px] text-slate-500 space-y-1">
               <p>
                 <strong>Pre-Visit Clinical Note:</strong> Please avoid wearing dense facial makeup, chemical exfoliants, or retinol topicals for 24 hours prior to your dermatological assessment.
               </p>
@@ -266,13 +279,13 @@ function BookingContent() {
           <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
             <button
               onClick={handleResetBooking}
-              className="px-6 py-3 rounded-xl bg-stone-100 hover:bg-stone-200 text-slate-800 text-xs font-bold uppercase tracking-wider transition-all"
+              className="px-6 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer"
             >
               Book Another Appointment
             </button>
             <Link
               href="/"
-              className="px-6 py-3 rounded-xl bg-[#0c2a23] hover:bg-[#123e34] text-white text-xs font-bold uppercase tracking-wider transition-all"
+              className="px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold uppercase tracking-wider transition-all shadow-md shadow-emerald-600/20"
             >
               Return to Homepage
             </Link>
@@ -283,16 +296,16 @@ function BookingContent() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
           
           {/* Left Form Column */}
-          <div className="lg:col-span-8 bg-white rounded-3xl border border-stone-200/90 shadow-sm p-6 sm:p-10 space-y-8">
+          <div className="lg:col-span-8 bg-white rounded-lg border border-slate-200 shadow-sm p-6 sm:p-10 space-y-8">
             <form onSubmit={handleBookingSubmit} className="space-y-8">
               
               {/* SECTION 1: Branch Selection */}
               <div className="space-y-3">
                 <div className="flex items-center space-x-2">
-                  <span className="w-6 h-6 rounded-lg bg-[#0c2a23] text-emerald-300 text-xs font-bold flex items-center justify-center">
+                  <span className="w-6 h-6 rounded-lg bg-emerald-600 text-white text-xs font-bold flex items-center justify-center">
                     1
                   </span>
-                  <h3 className="font-serif text-lg font-bold text-slate-900">
+                  <h3 className="text-lg font-bold text-slate-900">
                     Select Your Nearest Clinic Branch
                   </h3>
                 </div>
@@ -303,20 +316,20 @@ function BookingContent() {
                       type="button"
                       key={b.code}
                       onClick={() => setSelectedBranch(b.code)}
-                      className={`text-left p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                      className={`text-left p-3.5 rounded-lg border transition-all cursor-pointer ${
                         selectedBranch === b.code
-                          ? 'border-emerald-800 bg-emerald-50/70 shadow-2xs ring-1 ring-emerald-800/20'
-                          : 'border-stone-200 hover:border-stone-300 hover:bg-stone-50'
+                          ? 'border-emerald-600 bg-emerald-50/70 shadow-xs ring-1 ring-emerald-600/20'
+                          : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                       }`}
                     >
                       <div className="flex items-center justify-between">
                         <h4 className="font-semibold text-slate-900 text-xs">{b.name}</h4>
                         {selectedBranch === b.code && (
-                          <CheckCircle2 className="w-4 h-4 text-emerald-800 shrink-0" />
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                         )}
                       </div>
-                      <p className="text-[11px] text-stone-500 mt-0.5">{b.address}</p>
-                      <span className="text-[10px] text-emerald-800 font-medium block mt-1">
+                      <p className="text-[11px] text-slate-500 mt-0.5">{b.address}</p>
+                      <span className="text-[10px] text-emerald-700 font-medium block mt-1">
                         Doctor: {b.doctor}
                       </span>
                     </button>
@@ -325,12 +338,12 @@ function BookingContent() {
               </div>
 
               {/* SECTION 2: Service / Procedure Selection */}
-              <div className="space-y-3 pt-2 border-t border-stone-100">
+              <div className="space-y-3 pt-2 border-t border-slate-100">
                 <div className="flex items-center space-x-2">
-                  <span className="w-6 h-6 rounded-lg bg-[#0c2a23] text-emerald-300 text-xs font-bold flex items-center justify-center">
+                  <span className="w-6 h-6 rounded-lg bg-emerald-600 text-white text-xs font-bold flex items-center justify-center">
                     2
                   </span>
-                  <h3 className="font-serif text-lg font-bold text-slate-900">
+                  <h3 className="text-lg font-bold text-slate-900">
                     Choose Clinical Service or Consultation
                   </h3>
                 </div>
@@ -341,20 +354,20 @@ function BookingContent() {
                       type="button"
                       key={srv.name}
                       onClick={() => setSelectedServiceName(srv.name)}
-                      className={`w-full text-left p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                      className={`w-full text-left p-3.5 rounded-lg border transition-all cursor-pointer flex items-center justify-between ${
                         selectedServiceName === srv.name
-                          ? 'border-emerald-800 bg-emerald-50/70 shadow-2xs ring-1 ring-emerald-800/20'
-                          : 'border-stone-200 hover:border-stone-300 hover:bg-stone-50'
+                          ? 'border-emerald-600 bg-emerald-50/70 shadow-xs ring-1 ring-emerald-600/20'
+                          : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                       }`}
                     >
                       <div className="space-y-0.5">
                         <div className="flex items-center space-x-2">
                           <h4 className="font-semibold text-slate-900 text-xs">{srv.name}</h4>
-                          <span className="text-[9px] uppercase font-bold px-2 py-0.5 rounded bg-stone-100 text-stone-600">
+                          <span className="text-[9px] uppercase font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-600">
                             {srv.category}
                           </span>
                         </div>
-                        <span className="text-[11px] text-stone-500 block">
+                        <span className="text-[11px] text-slate-500 block">
                           Duration: {srv.duration} mins · Physician Supervised
                         </span>
                       </div>
@@ -364,9 +377,9 @@ function BookingContent() {
                           ₹{srv.price.toLocaleString('en-IN')}
                         </span>
                         {selectedServiceName === srv.name ? (
-                          <span className="text-[10px] text-emerald-800 font-bold">Selected</span>
+                          <span className="text-[10px] text-emerald-600 font-bold">Selected</span>
                         ) : (
-                          <span className="text-[10px] text-stone-400">Select</span>
+                          <span className="text-[10px] text-slate-400">Select</span>
                         )}
                       </div>
                     </button>
@@ -375,12 +388,12 @@ function BookingContent() {
               </div>
 
               {/* SECTION 3: Doctor Selection */}
-              <div className="space-y-3 pt-2 border-t border-stone-100">
+              <div className="space-y-3 pt-2 border-t border-slate-100">
                 <div className="flex items-center space-x-2">
-                  <span className="w-6 h-6 rounded-lg bg-[#0c2a23] text-emerald-300 text-xs font-bold flex items-center justify-center">
+                  <span className="w-6 h-6 rounded-lg bg-emerald-600 text-white text-xs font-bold flex items-center justify-center">
                     3
                   </span>
-                  <h3 className="font-serif text-lg font-bold text-slate-900">
+                  <h3 className="text-lg font-bold text-slate-900">
                     Select Attending Specialist
                   </h3>
                 </div>
@@ -391,38 +404,38 @@ function BookingContent() {
                       type="button"
                       key={doc.name}
                       onClick={() => setSelectedDoctorName(doc.name)}
-                      className={`text-left p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                      className={`text-left p-3.5 rounded-lg border transition-all cursor-pointer ${
                         selectedDoctorName === doc.name
-                          ? 'border-emerald-800 bg-emerald-50/70 shadow-2xs ring-1 ring-emerald-800/20'
-                          : 'border-stone-200 hover:border-stone-300 hover:bg-stone-50'
+                          ? 'border-emerald-600 bg-emerald-50/70 shadow-xs ring-1 ring-emerald-600/20'
+                          : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                       }`}
                     >
                       <div className="flex items-center justify-between">
                         <h4 className="font-semibold text-slate-900 text-xs">{doc.name}</h4>
                         {selectedDoctorName === doc.name && (
-                          <CheckCircle2 className="w-4 h-4 text-emerald-800 shrink-0" />
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                         )}
                       </div>
-                      <p className="text-[11px] text-stone-500 mt-0.5">{doc.role}</p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">{doc.role}</p>
                     </button>
                   ))}
                 </div>
               </div>
 
               {/* SECTION 4: Date & Slot Picker */}
-              <div className="space-y-3 pt-2 border-t border-stone-100">
+              <div className="space-y-3 pt-2 border-t border-slate-100">
                 <div className="flex items-center space-x-2">
-                  <span className="w-6 h-6 rounded-lg bg-[#0c2a23] text-emerald-300 text-xs font-bold flex items-center justify-center">
+                  <span className="w-6 h-6 rounded-lg bg-emerald-600 text-white text-xs font-bold flex items-center justify-center">
                     4
                   </span>
-                  <h3 className="font-serif text-lg font-bold text-slate-900">
+                  <h3 className="text-lg font-bold text-slate-900">
                     Choose Date & Available Slot
                   </h3>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
                   <div className="sm:col-span-1">
-                    <label className="text-[10px] uppercase font-bold text-stone-400 block mb-1">
+                    <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
                       Appointment Date *
                     </label>
                     <input
@@ -431,12 +444,12 @@ function BookingContent() {
                       min={new Date().toISOString().split('T')[0]}
                       value={selectedDate}
                       onChange={(e) => setSelectedDate(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs text-slate-800 outline-none focus:ring-2 focus:ring-emerald-800 cursor-pointer"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:ring-2 focus:ring-emerald-600 cursor-pointer"
                     />
                   </div>
 
                   <div className="sm:col-span-2">
-                    <label className="text-[10px] uppercase font-bold text-stone-400 block mb-1">
+                    <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
                       Select Available Time Slot *
                     </label>
                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
@@ -447,8 +460,8 @@ function BookingContent() {
                           onClick={() => setSelectedTime(slot)}
                           className={`py-2 px-1 text-center rounded-xl text-[11px] font-mono font-medium transition-colors cursor-pointer ${
                             selectedTime === slot
-                              ? 'bg-[#0c2a23] text-white font-bold shadow-2xs'
-                              : 'bg-stone-50 text-stone-700 hover:bg-stone-100 border border-stone-200'
+                              ? 'bg-emerald-600 text-white font-bold shadow-xs'
+                              : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
                           }`}
                         >
                           {slot}
@@ -460,19 +473,19 @@ function BookingContent() {
               </div>
 
               {/* SECTION 5: Patient Details */}
-              <div className="space-y-3 pt-2 border-t border-stone-100">
+              <div className="space-y-3 pt-2 border-t border-slate-100">
                 <div className="flex items-center space-x-2">
-                  <span className="w-6 h-6 rounded-lg bg-[#0c2a23] text-emerald-300 text-xs font-bold flex items-center justify-center">
+                  <span className="w-6 h-6 rounded-lg bg-emerald-600 text-white text-xs font-bold flex items-center justify-center">
                     5
                   </span>
-                  <h3 className="font-serif text-lg font-bold text-slate-900">
+                  <h3 className="text-lg font-bold text-slate-900">
                     Patient Information & WhatsApp Notification
                   </h3>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                   <div>
-                    <label className="text-[10px] uppercase font-bold text-stone-400 block mb-1">
+                    <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
                       Full Legal Name *
                     </label>
                     <input
@@ -481,12 +494,12 @@ function BookingContent() {
                       placeholder="e.g. Priya Sundaram"
                       value={patientName}
                       onChange={(e) => setPatientName(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs text-slate-800 outline-none focus:ring-2 focus:ring-emerald-800"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:ring-2 focus:ring-emerald-600"
                     />
                   </div>
 
                   <div>
-                    <label className="text-[10px] uppercase font-bold text-stone-400 block mb-1">
+                    <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
                       Phone Number (WhatsApp) *
                     </label>
                     <input
@@ -495,12 +508,12 @@ function BookingContent() {
                       placeholder="e.g. +91 98450 11223"
                       value={patientPhone}
                       onChange={(e) => setPatientPhone(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs text-slate-800 outline-none focus:ring-2 focus:ring-emerald-800"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:ring-2 focus:ring-emerald-600"
                     />
                   </div>
 
                   <div>
-                    <label className="text-[10px] uppercase font-bold text-stone-400 block mb-1">
+                    <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
                       Email Address (Optional)
                     </label>
                     <input
@@ -508,12 +521,12 @@ function BookingContent() {
                       placeholder="e.g. priya@gmail.com"
                       value={patientEmail}
                       onChange={(e) => setPatientEmail(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs text-slate-800 outline-none focus:ring-2 focus:ring-emerald-800"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:ring-2 focus:ring-emerald-600"
                     />
                   </div>
 
                   <div>
-                    <label className="text-[10px] uppercase font-bold text-stone-400 block mb-1">
+                    <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
                       Chief Complaint / Clinical Notes
                     </label>
                     <input
@@ -521,7 +534,7 @@ function BookingContent() {
                       placeholder="e.g. Acne marks on cheeks for 6 months"
                       value={patientNotes}
                       onChange={(e) => setPatientNotes(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs text-slate-800 outline-none focus:ring-2 focus:ring-emerald-800"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:ring-2 focus:ring-emerald-600"
                     />
                   </div>
                 </div>
@@ -532,22 +545,22 @@ function BookingContent() {
                     id="wa-opt"
                     checked={whatsappUpdates}
                     onChange={(e) => setWhatsappUpdates(e.target.checked)}
-                    className="w-4 h-4 rounded text-emerald-800 focus:ring-emerald-800 cursor-pointer"
+                    className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-600 cursor-pointer"
                   />
-                  <label htmlFor="wa-opt" className="text-xs text-stone-600 cursor-pointer">
+                  <label htmlFor="wa-opt" className="text-xs text-slate-600 cursor-pointer">
                     Send appointment confirmation and clinic directions via WhatsApp.
                   </label>
                 </div>
               </div>
 
               {/* Submit CTA */}
-              <div className="pt-4 border-t border-stone-200">
+              <div className="pt-4 border-t border-slate-200">
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full py-4 bg-[#0c2a23] hover:bg-[#123e34] disabled:opacity-50 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center justify-center space-x-2 cursor-pointer"
+                  className="w-full py-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-emerald-600/25 flex items-center justify-center space-x-2 cursor-pointer"
                 >
-                  <Calendar className="w-4 h-4 text-emerald-300" />
+                  <Calendar className="w-4 h-4" />
                   <span>
                     {isSubmitting ? 'Confirming Appointment...' : 'Confirm In-Clinic Appointment'}
                   </span>
@@ -558,60 +571,60 @@ function BookingContent() {
           </div>
 
           {/* Right Live Summary Column */}
-          <div className="lg:col-span-4 bg-[#faf9f5] rounded-3xl border border-stone-200/90 p-6 sm:p-7 space-y-6 sticky top-24">
-            <div className="border-b border-stone-200 pb-3">
-              <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block">
+          <div className="lg:col-span-4 bg-white rounded-lg border border-slate-200 p-6 sm:p-7 space-y-6 sticky top-24 shadow-sm">
+            <div className="border-b border-slate-100 pb-3">
+              <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider block">
                 Appointment Summary
               </span>
-              <h3 className="font-serif text-xl font-bold text-slate-900 mt-0.5">
+              <h3 className="text-xl font-bold text-slate-900 mt-0.5">
                 Visit Specifications
               </h3>
             </div>
 
             <div className="space-y-4 text-xs">
               <div>
-                <span className="text-stone-400 block text-[10px] uppercase font-bold">Selected Branch</span>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">Selected Branch</span>
                 <span className="font-semibold text-slate-900 block mt-0.5">{activeBranch.name}</span>
-                <span className="text-stone-500 text-[11px] block">{activeBranch.address}</span>
+                <span className="text-slate-500 text-[11px] block">{activeBranch.address}</span>
               </div>
 
               <div>
-                <span className="text-stone-400 block text-[10px] uppercase font-bold">Procedure / Service</span>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">Procedure / Service</span>
                 <span className="font-semibold text-slate-900 block mt-0.5">{activeService.name}</span>
-                <span className="text-stone-500 text-[11px] block">Duration: {activeService.duration} Mins</span>
+                <span className="text-slate-500 text-[11px] block">Duration: {activeService.duration} Mins</span>
               </div>
 
               <div>
-                <span className="text-stone-400 block text-[10px] uppercase font-bold">Attending Specialist</span>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">Attending Specialist</span>
                 <span className="font-semibold text-slate-900 block mt-0.5">{selectedDoctorName}</span>
               </div>
 
               <div>
-                <span className="text-stone-400 block text-[10px] uppercase font-bold">Date & Time Slot</span>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">Date & Time Slot</span>
                 <div className="flex items-center space-x-2 mt-0.5 font-mono">
                   <span className="font-semibold text-slate-900">{selectedDate}</span>
-                  <span className="text-emerald-800 font-bold">at {selectedTime}</span>
+                  <span className="text-emerald-600 font-bold">at {selectedTime}</span>
                 </div>
               </div>
             </div>
 
             {/* Fee Breakdown Card */}
-            <div className="bg-white p-4 rounded-2xl border border-stone-200 space-y-2">
-              <div className="flex items-center justify-between text-xs text-stone-600">
+            <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-2">
+              <div className="flex items-center justify-between text-xs text-slate-600">
                 <span>Clinical Procedure Fee:</span>
                 <span className="font-mono font-bold text-slate-900">₹{activeService.price.toLocaleString('en-IN')}</span>
               </div>
-              <div className="flex items-center justify-between text-xs text-stone-500">
+              <div className="flex items-center justify-between text-xs text-slate-500">
                 <span>Applicable GST (18%):</span>
                 <span className="font-mono">Included in Total</span>
               </div>
-              <div className="pt-2 border-t border-stone-100 flex items-center justify-between text-sm font-bold text-slate-900">
+              <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-sm font-bold text-slate-900">
                 <span>Payable at Clinic:</span>
-                <span className="font-mono text-emerald-900">₹{activeService.price.toLocaleString('en-IN')}</span>
+                <span className="font-mono text-emerald-600">₹{activeService.price.toLocaleString('en-IN')}</span>
               </div>
             </div>
 
-            <div className="text-[11px] text-stone-500 space-y-1 leading-relaxed">
+            <div className="text-[11px] text-slate-500 space-y-1 leading-relaxed">
               <p>• Zero advance payment required online. Pay securely at the clinic reception via UPI, Card, or Cash.</p>
               <p>• Free rescheduling allowed up to 2 hours before your scheduled appointment.</p>
             </div>
@@ -619,16 +632,17 @@ function BookingContent() {
 
         </div>
       )}
+      </div>
     </div>
   );
 }
 
 export default function BookingPage() {
   return (
-    <div className="min-h-screen bg-[#faf9f5] text-slate-800 font-sans selection:bg-emerald-800 selection:text-white flex flex-col">
+    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans selection:bg-emerald-600 selection:text-white flex flex-col">
       <Navbar />
       <main className="grow">
-        <Suspense fallback={<div className="p-12 text-center text-xs text-stone-400">Loading booking interface...</div>}>
+        <Suspense fallback={<div className="p-12 text-center text-xs text-slate-400">Loading booking interface...</div>}>
           <BookingContent />
         </Suspense>
       </main>

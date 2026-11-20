@@ -20,6 +20,14 @@ const swrConfig = {
   keepPreviousData: true,
 };
 
+// Stable references to prevent unnecessary re-renders when data is empty/loading
+const EMPTY_SERVICES: IService[] = [];
+const EMPTY_PRODUCTS: IProduct[] = [];
+const EMPTY_PACKAGES: IPackageMaster[] = [];
+const EMPTY_STAFF: IStaff[] = [];
+const EMPTY_PAYMENT_MODES: IPaymentMode[] = [];
+const EMPTY_INVOICES: IInvoice[] = [];
+
 export function useMasterData(storeCode?: string) {
   const storeParam = storeCode ? `?storeCode=${storeCode}` : '';
 
@@ -78,13 +86,13 @@ export function useMasterData(storeCode?: string) {
     loadingSettings;
 
   return {
-    services: services || [],
-    products: products || [],
-    packages: packages || [],
-    staff: staff || [],
-    paymentModes: paymentModes || [],
+    services: services || EMPTY_SERVICES,
+    products: products || EMPTY_PRODUCTS,
+    packages: packages || EMPTY_PACKAGES,
+    staff: staff || EMPTY_STAFF,
+    paymentModes: paymentModes || EMPTY_PAYMENT_MODES,
     settings: settings || null,
-    invoices: invoices || [],
+    invoices: invoices || EMPTY_INVOICES,
     isLoading,
     refreshInvoices: mutateInvoices,
     refreshAll: () => {

@@ -3,402 +3,262 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import {
-  Sparkles,
-  Check,
-  ShieldCheck,
-  Calendar,
   CreditCard,
-  ArrowRight,
-  Info,
+  Check,
+  Calendar,
   Clock,
-  HelpCircle,
+  ArrowRight,
 } from 'lucide-react';
 import Navbar from '@/components/public/Navbar';
 import Footer from '@/components/public/Footer';
 import { TREATMENTS_DATA } from '@/data/treatmentsData';
 
 export default function PricingPage() {
-  const [activeTab, setActiveTab] = useState<'individual' | 'packages'>('packages');
+  const [activeTab, setActiveTab] = useState<'packages' | 'individual'>('packages');
 
   const packages = [
     {
       id: 'hair-regrowth-6',
-      name: 'Complete Hair Regrowth & Density Intensive',
-      category: 'Hair & Scalp',
-      sessions: '6 Sessions (Monthly Interval)',
+      name: 'Hair Regrowth & Density Course',
+      category: 'Hair Treatments',
+      sessions: '6 Sessions (Monthly)',
       singleTotal: '₹19,200',
       packagePrice: '₹14,999',
       savings: 'Save ₹4,201 (22% off)',
       popular: true,
-      description:
-        'Comprehensive 6-month trichological protocol combining autologous double-spin PRP with scalp peptide microneedling and computerized digital follicle density tracking.',
+      description: 'Comprehensive 6-month PRP protocol combining autologous double-spin PRP with scalp peptide microneedling.',
       features: [
-        '6 Autologous High-Yield PRP Sessions (3200 RPM double spin)',
-        'Baseline 60x trichoscopy + 6-month follicle density count',
-        'Copper Tripeptide-1 microneedle dermal delivery',
-        'Direct doctor follow-up after every 2 sessions',
-        'Valid across all 5 Nila Clinic branches',
+        '6 Autologous High-Yield PRP Sessions (3200 RPM)',
+        'Baseline 60x trichoscopy follicle tracking',
+        'Copper Tripeptide-1 microneedle infusion',
+        'Direct doctor review after every 2 sessions',
       ],
-      suitableFor: 'Grade 1-3 Androgenetic Alopecia & Chronic Telogen Effluvium',
     },
     {
-      id: 'bridal-glow-4',
-      name: 'Bridal Radiance & Skin Clarification Protocol',
-      category: 'Skin Care',
+      id: 'skin-glow-4',
+      name: 'Skin Radiance & Clarification Course',
+      category: 'Skin Treatments',
       sessions: '4 Sessions (Every 3 Weeks)',
       singleTotal: '₹10,500',
       packagePrice: '₹7,999',
       savings: 'Save ₹2,501 (24% off)',
       popular: false,
-      description:
-        'Engineered for brides, grooms, and milestone events: alternating Hydra Facial vortex infusions with gentle antioxidant chemical peels for pore reduction and luminous glass skin.',
+      description: 'Alternating Hydra Facial vortex infusions with gentle antioxidant peeling for pore reduction and glow.',
       features: [
-        '2 Full Medical Hydra Facials with vortex comedone extraction',
-        '2 Mild Glycolic-Lactic Brightening Peels',
-        'Photobiomodulation LED soothing therapy after each session',
-        'Custom pre-event barrier repair recovery serum kit',
-        'Zero downtime guarantee before your main events',
+        '2 Full Medical Hydra Facials with pore extraction',
+        '2 Mild Brightening Chemical Peels',
+        'Calming LED red/blue light therapy after each session',
+        'Zero downtime guarantee',
       ],
-      suitableFor: 'Pre-wedding skin preparation, photo shoots, and dull textured skin',
     },
     {
       id: 'scar-eraser-3',
-      name: 'Acne Scar Subcision & RF Dermal Remodeling',
-      category: 'Scars & Texture',
+      name: 'Acne Scar Subcision & RF Remodeling',
+      category: 'Skin Treatments',
       sessions: '3 Sessions (6-Week Interval)',
       singleTotal: '₹13,500',
       packagePrice: '₹9,999',
       savings: 'Save ₹3,501 (26% off)',
       popular: false,
-      description:
-        'Targeted clinical scar reconstruction: blunt cannula subcision releases deep fibrotic scar tethers, followed by fractionated bipolar RF micro-needling to rebuild missing dermal collagen.',
+      description: 'Targeted scar revision: cannula subcision releases deep scar bands, followed by RF microneedling to build collagen.',
       features: [
-        '3 Fractional RF Microneedling Sessions with gold-plated needles',
+        '3 Fractional RF Microneedling Sessions',
         'Blunt cannula subcision included for rolling scars',
-        'Topical medical compound anesthesia included (zero pain)',
-        'Centrifuged growth factor or sterile hyaluronic flood mask',
-        'Includes post-procedure medical calming barrier cream',
+        'Medical topical numbing included (zero pain)',
+        'Chilled hyaluronic calming matrix mask',
       ],
-      suitableFor: 'Ice-pick, boxcar, and rolling post-acne scars',
     },
     {
       id: 'laser-hair-6',
-      name: 'Full Face Laser Hair Reduction Annual Course',
-      category: 'Laser Aesthetics',
+      name: 'Diode Laser Hair Reduction Course',
+      category: 'Skin Treatments',
       sessions: '6 Sessions (Every 4-6 Weeks)',
       singleTotal: '₹17,994',
       packagePrice: '₹11,999',
       savings: 'Save ₹5,995 (33% off)',
       popular: false,
-      description:
-        'Triple-wavelength diode laser with -5°C sapphire chill-tip safely treats chin, upper lip, jawline, and sideburns without the risk of hyperpigmentation on South Asian phototypes.',
+      description: 'Triple-wavelength diode laser with -5°C sapphire chill-tip safely reduces facial and body hair without burns.',
       features: [
-        '6 Full Face In-Motion Diode Laser Sessions (755+808+1064nm)',
-        'Mandatory patch test and skin tolerance check before session 1',
-        'Includes touch-up review session at 9 months',
-        '100% painless sapphire contact cooling technology',
-        'Medical hormonal hirsutism consultation with doctor',
+        '6 Full Face In-Motion Diode Laser Sessions',
+        'Mandatory test patch before session 1',
+        'Painless -5°C sapphire contact cooling',
+        'Touch-up review session included',
       ],
-      suitableFor: 'Facial hirsutism, PCOS-induced chin hair, and coarse facial follicles',
-    },
-  ];
-
-  const pricingFaqs = [
-    {
-      q: 'Are there any hidden costs for disposables or doctor examination?',
-      a: 'Absolutely none. All published fees include doctor assessment, procedural equipment, single-use sterile consumables (cannula, vacutainers, needles), and post-procedure calming masks. GST (18%) is transparently stated on your computerized invoice.',
-    },
-    {
-      q: 'How does the ₹500 consultation fee adjustment work?',
-      a: 'When you book an initial OPD diagnostic consultation, the fee is ₹500. If you proceed with any procedural treatment or package within 14 days, the entire ₹500 is deducted from your treatment bill.',
-    },
-    {
-      q: 'What if I relocate or travel between clinic branches?',
-      a: 'All Nila Clinic packages are 100% interchangeable across our 5 branches in Theni, Madurai, Chennai, Coimbatore, and Trichy. Your treatment history is shared digitally on our internal clinical portal.',
-    },
-    {
-      q: 'Do you offer 0% interest EMI options?',
-      a: 'Yes. For treatment packages of ₹10,000 and above, we provide 3-month and 6-month 0% interest credit card EMI options with all major Indian banks.',
-    },
-    {
-      q: 'Can I transfer unused package sessions to a family member?',
-      a: 'Yes. If a medical reason or life circumstance prevents you from completing your package, unused sessions can be transferred to a first-degree family member (spouse, child, sibling, or parent) with written consent.',
     },
   ];
 
   return (
-    <div className="min-h-screen bg-[#faf9f5] text-slate-800 font-sans selection:bg-emerald-800 selection:text-white flex flex-col">
+    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans selection:bg-emerald-600 selection:text-white flex flex-col">
       <Navbar />
 
       <main className="grow">
-        {/* Pricing Hero */}
-        <section className="bg-radial from-emerald-50/70 via-[#faf9f5] to-[#f4f2ea] border-b border-stone-200/80 pt-12 pb-16 px-4 sm:px-8">
-          <div className="max-w-7xl mx-auto">
-            <div className="max-w-3xl space-y-4">
-              <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-emerald-900/10 border border-emerald-900/20 text-emerald-900 text-xs font-semibold">
-                <CreditCard className="w-3.5 h-3.5 text-emerald-800" />
+        {/* Pricing Hero with Clinic Reception Background Image */}
+        <section className="relative py-16 px-4 sm:px-8 border-b border-slate-800 overflow-hidden bg-slate-950 text-white">
+          <div className="absolute inset-0">
+            <img
+              src="/images/clinic/reception.jpg"
+              alt="Transparent Medical Billing Desk"
+              className="w-full h-full object-cover object-center"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-slate-950/95 via-slate-950/85 to-slate-900/75" />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-black/40" />
+          </div>
+
+          <div className="relative z-10 max-w-7xl mx-auto">
+            <div className="max-w-3xl space-y-3">
+              <div className="inline-flex items-center space-x-2 px-3.5 py-1 rounded-full bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-xs font-bold backdrop-blur-xs">
+                <CreditCard className="w-3.5 h-3.5 text-emerald-400" />
                 <span>Zero Hidden Fees Guarantee</span>
               </div>
-              <h1 className="font-serif text-4xl sm:text-5xl font-bold text-slate-900 tracking-tight">
-                Transparent Clinical Pricing
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
+                Skin & Hair Treatment Pricing
               </h1>
-              <p className="text-stone-600 text-base leading-relaxed">
-                We believe in medical honesty. Every price is published openly with no sales commission markups, no unexpected charges for sterile consumables, and 100% credit of your ₹500 consultation fee toward your treatment.
+              <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
+                All prices are published transparently with no hidden consumables charges. Your ₹500 consultation fee is 100% credited toward your treatment.
               </p>
             </div>
 
             {/* Tab Switcher */}
-            <div className="mt-8 inline-flex p-1.5 bg-stone-200/80 rounded-2xl border border-stone-300/80 text-xs font-semibold">
+            <div className="mt-8 inline-flex p-1.5 bg-slate-900/80 backdrop-blur-md rounded-lg border border-slate-700 text-xs font-semibold">
               <button
                 onClick={() => setActiveTab('packages')}
                 className={`px-5 py-2.5 rounded-xl transition-all cursor-pointer ${
                   activeTab === 'packages'
-                    ? 'bg-[#0c2a23] text-white shadow-xs'
-                    : 'text-stone-700 hover:text-slate-900'
+                    ? 'bg-emerald-600 text-white shadow-md'
+                    : 'text-slate-300 hover:text-white'
                 }`}
               >
-                Curated Treatment Packages (Save up to 33%)
+                Skin & Hair Packages (Save up to 33%)
               </button>
               <button
                 onClick={() => setActiveTab('individual')}
                 className={`px-5 py-2.5 rounded-xl transition-all cursor-pointer ${
                   activeTab === 'individual'
-                    ? 'bg-[#0c2a23] text-white shadow-xs'
-                    : 'text-stone-700 hover:text-slate-900'
+                    ? 'bg-emerald-600 text-white shadow-md'
+                    : 'text-slate-300 hover:text-white'
                 }`}
               >
-                Individual Single-Session Menu
+                Single Session Menu
               </button>
             </div>
           </div>
         </section>
 
         {/* Pricing Content */}
-        <section className="py-16 px-4 sm:px-8">
+        <section className="py-12 px-4 sm:px-8">
           <div className="max-w-7xl mx-auto">
-            
             {/* VIEW A: TREATMENT PACKAGES */}
             {activeTab === 'packages' && (
-              <div className="space-y-12">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  {packages.map((pkg) => (
-                    <div
-                      key={pkg.id}
-                      className={`rounded-3xl border p-6 sm:p-8 flex flex-col justify-between space-y-6 relative ${
-                        pkg.popular
-                          ? 'bg-white border-emerald-800/80 shadow-md ring-1 ring-emerald-800/20'
-                          : 'bg-white border-stone-200/90 shadow-2xs'
-                      }`}
-                    >
-                      {pkg.popular && (
-                        <div className="absolute -top-3.5 right-6 px-3 py-1 rounded-full bg-[#0c2a23] text-white text-[10px] font-bold uppercase tracking-wider border border-emerald-950">
-                          Most Prescribed Course
-                        </div>
-                      )}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {packages.map((pkg) => (
+                  <div
+                    key={pkg.id}
+                    className={`rounded-lg border p-6 sm:p-7 flex flex-col justify-between space-y-5 bg-white relative ${
+                      pkg.popular ? 'border-emerald-500 shadow-md ring-1 ring-emerald-500/20' : 'border-slate-200 shadow-2xs'
+                    }`}
+                  >
+                    {pkg.popular && (
+                      <div className="absolute -top-3 right-6 px-3 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-bold uppercase tracking-wider">
+                        Most Popular
+                      </div>
+                    )}
 
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-900 border border-emerald-200">
-                            {pkg.category}
-                          </span>
-                          <span className="text-xs font-mono text-stone-500 font-medium">
-                            {pkg.sessions}
-                          </span>
-                        </div>
-
-                        <div>
-                          <h3 className="font-serif text-2xl font-bold text-slate-900 leading-snug">
-                            {pkg.name}
-                          </h3>
-                          <p className="text-xs text-stone-500 mt-1 leading-relaxed">
-                            {pkg.description}
-                          </p>
-                        </div>
-
-                        {/* Price Box */}
-                        <div className="p-4 rounded-2xl bg-stone-50 border border-stone-200 flex items-baseline justify-between">
-                          <div>
-                            <span className="text-[10px] uppercase font-bold text-stone-400 block tracking-wider">
-                              Package Course Total
-                            </span>
-                            <div className="flex items-baseline space-x-2">
-                              <span className="font-mono text-3xl font-bold text-slate-900">
-                                {pkg.packagePrice}
-                              </span>
-                              <span className="text-xs text-stone-400 line-through">
-                                {pkg.singleTotal}
-                              </span>
-                            </div>
-                          </div>
-                          <span className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-900 text-xs font-bold border border-emerald-200">
-                            {pkg.savings}
-                          </span>
-                        </div>
-
-                        {/* Features Checklist */}
-                        <div className="space-y-2.5 pt-2">
-                          <span className="text-[10px] uppercase font-bold text-stone-400 tracking-wider block">
-                            Included in this Protocol:
-                          </span>
-                          <ul className="space-y-2 text-xs text-stone-700">
-                            {pkg.features.map((feat, i) => (
-                              <li key={i} className="flex items-start space-x-2">
-                                <Check className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
-                                <span>{feat}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-800 border border-emerald-200">
+                          {pkg.category}
+                        </span>
+                        <span className="text-xs font-mono text-slate-500 font-medium">{pkg.sessions}</span>
                       </div>
 
-                      <div className="pt-4 border-t border-stone-100 space-y-2">
-                        <Link
-                          href={`/book?service=${encodeURIComponent(pkg.name)}`}
-                          className="w-full py-3.5 bg-[#0c2a23] hover:bg-[#123e34] text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all flex items-center justify-center space-x-2 shadow-xs"
-                        >
-                          <Calendar className="w-4 h-4 text-emerald-300" />
-                          <span>Reserve Course Package</span>
-                        </Link>
-                        <span className="text-[11px] text-center text-stone-400 block">
-                          Ideal for: {pkg.suitableFor}
+                      <div>
+                        <h3 className="text-xl font-bold text-slate-900 leading-snug">{pkg.name}</h3>
+                        <p className="text-xs text-slate-500 mt-1 leading-relaxed">{pkg.description}</p>
+                      </div>
+
+                      {/* Price Box */}
+                      <div className="p-3.5 rounded-lg bg-slate-50 border border-slate-200 flex items-baseline justify-between">
+                        <div>
+                          <span className="text-[9px] uppercase font-bold text-slate-400 block tracking-wider">
+                            Package Course Total
+                          </span>
+                          <div className="flex items-baseline space-x-2">
+                            <span className="font-mono text-2xl font-bold text-slate-900">{pkg.packagePrice}</span>
+                            <span className="text-xs text-slate-400 line-through">{pkg.singleTotal}</span>
+                          </div>
+                        </div>
+                        <span className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-200">
+                          {pkg.savings}
                         </span>
+                      </div>
+
+                      {/* Features */}
+                      <ul className="space-y-1.5 text-xs text-slate-700 pt-1">
+                        {pkg.features.map((feat, i) => (
+                          <li key={i} className="flex items-start space-x-2">
+                            <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                            <span>{feat}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div className="pt-3 border-t border-slate-100">
+                      <Link
+                        href={`/book?service=${encodeURIComponent(pkg.name)}`}
+                        className="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all flex items-center justify-center space-x-2 shadow-md shadow-emerald-600/20"
+                      >
+                        <Calendar className="w-4 h-4" />
+                        <span>Book Package</span>
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* VIEW B: INDIVIDUAL MENU */}
+            {activeTab === 'individual' && (
+              <div className="bg-white rounded-lg border border-slate-200 shadow-xs overflow-hidden">
+                <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+                  <h3 className="font-bold text-slate-900 text-base">Skin & Hair Single-Session Price List</h3>
+                  <span className="text-xs text-slate-400">*All prices include 18% GST</span>
+                </div>
+
+                <div className="divide-y divide-slate-100">
+                  {TREATMENTS_DATA.map((t) => (
+                    <div key={t.id} className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50 transition-colors">
+                      <div className="space-y-1 max-w-xl">
+                        <div className="flex items-center space-x-2">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-800 border border-emerald-200">
+                            {t.category}
+                          </span>
+                          <span className="text-xs font-mono text-slate-400 flex items-center">
+                            <Clock className="w-3 h-3 mr-1 text-emerald-600" />
+                            {t.durationMinutes} Mins
+                          </span>
+                        </div>
+                        <h4 className="font-bold text-slate-900 text-sm">{t.title}</h4>
+                        <p className="text-xs text-slate-500 leading-snug">{t.subtitle}</p>
+                      </div>
+
+                      <div className="flex items-center justify-between sm:justify-end space-x-4 shrink-0">
+                        <div className="text-right">
+                          <span className="font-mono text-lg font-bold text-slate-900">₹{t.priceINR.toLocaleString('en-IN')}</span>
+                          <span className="text-[10px] text-slate-400 block">+18% GST</span>
+                        </div>
+                        <Link
+                          href={`/book?service=${encodeURIComponent(t.title)}`}
+                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-xs"
+                        >
+                          Book Slot
+                        </Link>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
             )}
-
-            {/* VIEW B: INDIVIDUAL SINGLE SESSION MENU */}
-            {activeTab === 'individual' && (
-              <div className="bg-white rounded-3xl border border-stone-200 shadow-2xs overflow-hidden">
-                <div className="p-6 sm:p-8 border-b border-stone-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div>
-                    <h3 className="font-serif text-2xl font-bold text-slate-900">Individual Session Menu</h3>
-                    <p className="text-xs text-stone-500 mt-0.5">Pay-as-you-go pricing for single clinical procedures.</p>
-                  </div>
-                  <span className="text-xs font-medium text-stone-500">
-                    *All single sessions include consultation review & patch testing.
-                  </span>
-                </div>
-
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-[#faf9f5] border-b border-stone-200 text-[11px] font-bold uppercase tracking-wider text-stone-500">
-                      <tr>
-                        <th className="py-3.5 px-6">Treatment</th>
-                        <th className="py-3.5 px-6">Category</th>
-                        <th className="py-3.5 px-6">Duration</th>
-                        <th className="py-3.5 px-6">Single Session Fee</th>
-                        <th className="py-3.5 px-6">Course Package</th>
-                        <th className="py-3.5 px-6 text-right">Book</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-stone-100">
-                      {TREATMENTS_DATA.map((t) => (
-                        <tr key={t.id} className="hover:bg-stone-50/70 transition-colors">
-                          <td className="py-4 px-6 font-semibold text-slate-900">
-                            <Link href={`/treatments/${t.slug}`} className="hover:text-emerald-800 hover:underline">
-                              {t.title}
-                            </Link>
-                            <span className="text-[11px] text-stone-400 block font-normal">{t.technology.split('with')[0]}</span>
-                          </td>
-                          <td className="py-4 px-6">
-                            <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-stone-100 text-stone-700">
-                              {t.category}
-                            </span>
-                          </td>
-                          <td className="py-4 px-6 font-mono text-stone-600">{t.durationMinutes} Mins</td>
-                          <td className="py-4 px-6 font-mono font-bold text-slate-900 text-sm">
-                            ₹{t.priceINR.toLocaleString('en-IN')}
-                            <span className="text-[10px] text-stone-400 block font-normal">+18% GST</span>
-                          </td>
-                          <td className="py-4 px-6 font-mono font-semibold text-emerald-900">
-                            {t.packagePriceINR ? `₹${t.packagePriceINR.toLocaleString('en-IN')}` : '—'}
-                          </td>
-                          <td className="py-4 px-6 text-right">
-                            <Link
-                              href={`/book?service=${encodeURIComponent(t.title)}`}
-                              className="px-3.5 py-1.5 rounded-lg bg-[#0c2a23] hover:bg-[#123e34] text-white text-[11px] font-bold uppercase tracking-wider inline-flex items-center space-x-1"
-                            >
-                              <span>Book</span>
-                            </Link>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {/* TRUST MARKERS BANNER */}
-            <div className="mt-16 grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="p-5 rounded-2xl bg-white border border-stone-200/90 text-center space-y-1.5">
-                <span className="font-mono text-xl font-bold text-slate-900 block">₹500 OPD Credit</span>
-                <p className="text-xs text-stone-500">100% credited against your treatment if booked within 14 days.</p>
-              </div>
-
-              <div className="p-5 rounded-2xl bg-white border border-stone-200/90 text-center space-y-1.5">
-                <span className="font-mono text-xl font-bold text-slate-900 block">0% Interest EMI</span>
-                <p className="text-xs text-stone-500">Available on packages over ₹10,000 with major bank cards.</p>
-              </div>
-
-              <div className="p-5 rounded-2xl bg-white border border-stone-200/90 text-center space-y-1.5">
-                <span className="font-mono text-xl font-bold text-slate-900 block">5 Branch Roaming</span>
-                <p className="text-xs text-stone-500">Attend sessions seamlessly across Theni, Madurai, Chennai, etc.</p>
-              </div>
-
-              <div className="p-5 rounded-2xl bg-white border border-stone-200/90 text-center space-y-1.5">
-                <span className="font-mono text-xl font-bold text-slate-900 block">Family Transferable</span>
-                <p className="text-xs text-stone-500">Transfer unused sessions to direct family members anytime.</p>
-              </div>
-            </div>
-
-            {/* PRICING FAQS */}
-            <div className="mt-20 max-w-4xl mx-auto space-y-6">
-              <div className="text-center space-y-1">
-                <span className="text-xs font-bold text-emerald-800 uppercase tracking-widest block">
-                  Transparency First
-                </span>
-                <h3 className="font-serif text-2xl sm:text-3xl font-bold text-slate-900">
-                  Billing & Consultation FAQs
-                </h3>
-              </div>
-
-              <div className="space-y-4 pt-4">
-                {pricingFaqs.map((faq, idx) => (
-                  <div key={idx} className="p-5 rounded-2xl bg-white border border-stone-200 space-y-2">
-                    <h4 className="font-bold text-slate-900 text-sm flex items-start space-x-2">
-                      <HelpCircle className="w-4 h-4 text-emerald-800 shrink-0 mt-0.5" />
-                      <span>{faq.q}</span>
-                    </h4>
-                    <p className="text-xs text-stone-600 pl-6 leading-relaxed">
-                      {faq.a}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-          </div>
-        </section>
-
-        {/* BOTTOM CTA */}
-        <section className="py-14 px-4 sm:px-8 bg-[#0c2a23] text-white">
-          <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="space-y-1 text-center md:text-left">
-              <h3 className="font-serif text-2xl font-bold">Have questions about payment or packages?</h3>
-              <p className="text-xs text-stone-300">
-                Call our central desk directly at +91 98450 11223 or speak with a front desk counselor.
-              </p>
-            </div>
-            <Link
-              href="/book"
-              className="px-6 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all shrink-0"
-            >
-              Book In-Clinic Consultation
-            </Link>
           </div>
         </section>
       </main>
