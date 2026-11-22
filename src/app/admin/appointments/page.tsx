@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   Calendar as CalendarIcon,
   Plus,
@@ -18,16 +19,28 @@ import {
   Filter,
   UserCheck,
   Sparkles,
+  LayoutGrid,
+  List,
+  CalendarDays,
+  Package,
 } from 'lucide-react';
-import { IAppointment, IService, IStaff, ICustomer } from '@/types';
+import { IAppointment, IService, IStaff, ICustomer, ICustomerPackage } from '@/types';
 import { useClinic } from '@/context/ClinicContext';
 import Link from 'next/link';
+import AppointmentDetailModal, { calculateEndTime } from '@/components/admin/AppointmentDetailModal';
 
-export default function AppointmentsCalendarPage() {
+function AppointmentsCalendarContent() {
   const { user, selectedStore, stores } = useClinic();
+  const searchParams = useSearchParams();
 
-  // Calendar View: 'cards' (Schedule Cards) | 'list' (Table View) - Fixes Bug 3
-  const [currentView, setCurrentView] = useState<'cards' | 'list'>('cards');
+  const customerIdParam = searchParams.get('customerId');
+  const customerNameParam = searchParams.get('customerName');
+  const customerPhoneParam = searchParams.get('customerPhone');
+  const serviceNameParam = searchParams.get('serviceName');
+  const packageNameParam = searchParams.get('packageName');
+
+  // Calendar View: 'grid' (MioSalon Staff Day Grid) | 'cards' (Schedule Cards) | 'list' (Table View)
+  const [currentView, setCurrentView] = useState<'grid' | 'cards' | 'list'>('grid');
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
 
   // Masters
@@ -44,9 +57,8 @@ export default function AppointmentsCalendarPage() {
   const [clientSearchMobile, setClientSearchMobile] = useState('');
   const [clientMatches, setClientMatches] = useState<ICustomer[]>([]);
   const [selectedClient, setSelectedClient] = useState<ICustomer | null>(null);
-  const [isInlineClient, setIsInlineClient] = useState(false);
+  const [clientPackages, setClientPackages] = useState<ICustomerPackage[]>([]);
   const [inlineName, setInlineName] = useState('');
-  const [inlineGender, setInlineGender] = useState<'Female' | 'Male' | 'Other'>('Female');
 
   // Booking Form State
   const [bookingService, setBookingService] = useState<string>('');
@@ -62,15 +74,48 @@ export default function AppointmentsCalendarPage() {
   const [cancellingAppt, setCancellingAppt] = useState<IAppointment | null>(null);
   const [cancelReason, setCancelReason] = useState<string>('');
 
-  // Generate 15-minute slot intervals between 09:00 AM and 08:00 PM (FR-56)
-  const timeSlots: string[] = [];
+  // MioSalon Appointment Detail Modal Popup
+  const [selectedApptForDetails, setSelectedApptForDetails] = useState<IAppointment | null>(null);
+
+  // Time Slot Interval: 15 Mins (Default matching MioSalon) or 30 Mins
+  const [gridInterval, setGridInterval] = useState<15 | 30>(15);
+  const [showColorCodeLegend, setShowColorCodeLegend] = useState(false);
+
+  // Helper to parse time string (e.g. "10:15 AM") into minutes from midnight
+  const parseTimeToMins = (timeStr: string): number => {
+    if (!timeStr) return -1;
+    const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+    if (!match) return -1;
+    let hours = parseInt(match[1], 10);
+    const minutes = parseInt(match[2], 10);
+    const ampm = match[3] ? match[3].toUpperCase() : null;
+    if (ampm === 'PM' && hours < 12) hours += 12;
+    if (ampm === 'AM' && hours === 12) hours = 0;
+    return hours * 60 + minutes;
+  };
+
+  // Generate slot intervals between 09:00 AM and 08:00 PM (15m default matching MioSalon)
+  const gridTimeSlots: string[] = [];
+  const slotMinutes = gridInterval === 15 ? [0, 15, 30, 45] : [0, 30];
+  for (let hour = 9; hour <= 20; hour++) {
+    for (let minute of slotMinutes) {
+      if (hour === 20 && minute > 0) break;
+      const h12 = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      const slotStr = `${h12.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')} ${ampm}`;
+      gridTimeSlots.push(slotStr);
+    }
+  }
+
+  // 15-minute slot options for custom booking dropdown
+  const bookingTimeSlots: string[] = [];
   for (let hour = 9; hour <= 20; hour++) {
     for (let minute of [0, 15, 30, 45]) {
       if (hour === 20 && minute > 0) break;
       const h12 = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
       const ampm = hour >= 12 ? 'PM' : 'AM';
       const slotStr = `${h12.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')} ${ampm}`;
-      timeSlots.push(slotStr);
+      bookingTimeSlots.push(slotStr);
     }
   }
 
@@ -113,11 +158,47 @@ export default function AppointmentsCalendarPage() {
     loadAppointmentsAndMasters();
   }, [selectedStore, selectedDate]);
 
-  // Mobile search for booking client
+  // If navigated from Packages or POS with query parameters, pre-populate and open modal
+  useEffect(() => {
+    if (customerIdParam && customerNameParam) {
+      setSelectedClient({
+        customerId: customerIdParam,
+        name: customerNameParam,
+        mobile: customerPhoneParam || '',
+        gender: 'Female',
+      } as any);
+      setClientSearchMobile(customerPhoneParam || '');
+      if (serviceNameParam) setBookingService(serviceNameParam);
+      if (packageNameParam) {
+        setBookingNotes(`[Package: ${packageNameParam}] Remaining Sitting Booking`);
+      }
+      setShowBookingModal(true);
+    }
+  }, [customerIdParam, customerNameParam, customerPhoneParam, serviceNameParam, packageNameParam]);
+
+  // Load active customer packages when selectedClient is chosen
+  useEffect(() => {
+    const cId = selectedClient?.customerId || (selectedClient as any)?._id;
+    if (cId) {
+      fetch(`/api/packages/customer?customerId=${encodeURIComponent(cId)}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success) {
+            setClientPackages(data.data || []);
+          } else {
+            setClientPackages([]);
+          }
+        })
+        .catch(() => setClientPackages([]));
+    } else {
+      setClientPackages([]);
+    }
+  }, [selectedClient]);
+
+  // Handle mobile search for client lookup
   const handleClientMobileSearch = async (val: string) => {
     setClientSearchMobile(val);
     setSelectedClient(null);
-    setIsInlineClient(false);
     if (val.trim().length >= 4) {
       try {
         const res = await fetch(`/api/customers?mobile=${encodeURIComponent(val.trim())}`);
@@ -147,7 +228,7 @@ export default function AppointmentsCalendarPage() {
     const assignedStaffObj = staffMembers.find((s) => s.name === bookingStaff);
 
     const payload = {
-      customerId: selectedClient?.customerId || selectedClient?._id,
+      customerId: selectedClient?.customerId || (selectedClient as any)?._id,
       customerName: clientName,
       customerPhone: clientPhone,
       serviceName: bookingService,
@@ -172,7 +253,6 @@ export default function AppointmentsCalendarPage() {
       const data = await res.json();
 
       if (res.status === 409 && data.warning) {
-        // Double booking warning (FR-61)
         setConflictWarning(data.message);
         return;
       }
@@ -206,7 +286,6 @@ export default function AppointmentsCalendarPage() {
       });
       const data = await res.json();
       if (data.success) {
-        alert('Client checked in successfully. Doctor consultation queue updated!');
         loadAppointmentsAndMasters();
       } else {
         alert(data.message || 'Check-in failed');
@@ -256,7 +335,7 @@ export default function AppointmentsCalendarPage() {
       case 'Arrived':
         return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">Arrived</span>;
       case 'In consultation':
-        return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">In Consultation</span>;
+        return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">In Service</span>;
       case 'Completed':
         return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Completed</span>;
       case 'Cancelled':
@@ -284,23 +363,30 @@ export default function AppointmentsCalendarPage() {
     return matchesStaff && matchesStatus && matchesQuery;
   });
 
+  // Filtered staff columns for MioSalon Grid view
+  const visibleStaffMembers = staffMembers.filter(
+    (st) => selectedStaffFilter === 'ALL' || st.name === selectedStaffFilter
+  );
+
   return (
-    <div className="space-y-6">
-      {/* Top Header Bar */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+    <div className="space-y-4">
+      {/* Top Header Bar (MioSalon Style) */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
         <div>
           <div className="flex items-center space-x-2">
-            <div className="p-2 bg-sky-50 text-sky-600 rounded-xl">
-              <CalendarIcon className="w-5 h-5" />
+            <div className="p-2 bg-emerald-50 text-emerald-700 rounded-xl">
+              <CalendarDays className="w-5 h-5" />
             </div>
-            <h1 className="text-xl font-bold text-slate-800 tracking-tight">Appointment Calendar & Check-in</h1>
+            <div>
+              <h1 className="text-xl font-black text-slate-900 tracking-tight">Appointment Calendar</h1>
+              <span className="text-[11px] font-semibold text-slate-500">
+                MioSalon-Style Multi-Specialist Day Grid & Check-in • [{selectedStore}]
+              </span>
+            </div>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
-            Module 6: Multi-specialist time grid, 15-minute slot intervals, double-booking warnings, and check-in to doctor queue.
-          </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           {/* Date Selector */}
           <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs">
             <button
@@ -310,6 +396,7 @@ export default function AppointmentsCalendarPage() {
                 setSelectedDate(d.toISOString().split('T')[0]);
               }}
               className="p-1 hover:bg-slate-200 rounded text-slate-600"
+              title="Previous Day"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
@@ -317,7 +404,7 @@ export default function AppointmentsCalendarPage() {
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="bg-transparent font-semibold text-slate-800 px-2 outline-none cursor-pointer"
+              className="bg-transparent font-bold text-slate-800 px-2 outline-none cursor-pointer text-xs"
             />
             <button
               onClick={() => {
@@ -326,29 +413,103 @@ export default function AppointmentsCalendarPage() {
                 setSelectedDate(d.toISOString().split('T')[0]);
               }}
               className="p-1 hover:bg-slate-200 rounded text-slate-600"
+              title="Next Day"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
 
-          {/* View Switcher (Cards / List - Replaces empty 15-min slot grid: Bug 3) */}
-          <div className="flex bg-slate-100 p-1 rounded-xl text-xs font-semibold">
+          <button
+            onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])}
+            className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold"
+          >
+            Today
+          </button>
+
+          {/* View Switcher: Staff Day Grid (MioSalon) | Schedule Cards | Table View */}
+          <div className="flex bg-slate-100 p-1 rounded-xl text-sm font-bold">
             <button
-              onClick={() => setCurrentView('cards')}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
-                currentView === 'cards' ? 'bg-white text-sky-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+              onClick={() => setCurrentView('grid')}
+              className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg transition-all ${
+                currentView === 'grid' ? 'bg-white text-emerald-800 shadow-xs' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Schedule Cards
+              <LayoutGrid className="w-4 h-4" />
+              <span>Staff Grid</span>
+            </button>
+            <button
+              onClick={() => setCurrentView('cards')}
+              className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg transition-all ${
+                currentView === 'cards' ? 'bg-white text-emerald-800 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <CalendarIcon className="w-4 h-4" />
+              <span>Cards</span>
             </button>
             <button
               onClick={() => setCurrentView('list')}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
-                currentView === 'list' ? 'bg-white text-sky-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+              className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg transition-all ${
+                currentView === 'list' ? 'bg-white text-emerald-800 shadow-xs' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Table View
+              <List className="w-4 h-4" />
+              <span>Table</span>
             </button>
+          </div>
+
+          {/* MioSalon 15m vs 30m Slot Interval Toggle */}
+          {currentView === 'grid' && (
+            <div className="flex bg-slate-100 p-1 rounded-xl text-xs sm:text-sm font-bold items-center">
+              <button
+                type="button"
+                onClick={() => setGridInterval(15)}
+                className={`px-3 py-1 rounded-lg transition-all ${
+                  gridInterval === 15 ? 'bg-white text-blue-800 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="15-minute slot intervals"
+              >
+                15m
+              </button>
+              <button
+                type="button"
+                onClick={() => setGridInterval(30)}
+                className={`px-3 py-1 rounded-lg transition-all ${
+                  gridInterval === 30 ? 'bg-white text-blue-800 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="30-minute slot intervals"
+              >
+                30m
+              </button>
+            </div>
+          )}
+
+          {/* MioSalon Color Code Button */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowColorCodeLegend(!showColorCodeLegend)}
+              className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs sm:text-sm flex items-center space-x-1.5 border border-slate-200 transition shadow-2xs"
+            >
+              <span className="w-2.5 h-2.5 bg-blue-500 rounded-xs inline-block" />
+              <span>Color Code</span>
+            </button>
+            {showColorCodeLegend && (
+              <div className="absolute right-0 mt-2 z-40 w-64 bg-white rounded-xl shadow-xl border border-slate-200 p-3.5 space-y-2 text-xs animate-in fade-in zoom-in-95">
+                <div className="font-bold text-slate-900 border-b border-slate-100 pb-1.5 flex justify-between items-center text-sm">
+                  <span>MioSalon Status Colors</span>
+                  <button onClick={() => setShowColorCodeLegend(false)} className="text-slate-400 hover:text-slate-600 font-bold text-base">×</button>
+                </div>
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex items-center space-x-2"><span className="w-3 h-3 rounded bg-[#3b82f6] shrink-0" /><span className="text-slate-700">New in-app booking (Booked)</span></div>
+                  <div className="flex items-center space-x-2"><span className="w-3 h-3 rounded bg-[#a855f7] shrink-0" /><span className="text-slate-700">New online booking</span></div>
+                  <div className="flex items-center space-x-2"><span className="w-3 h-3 rounded bg-[#eab308] shrink-0" /><span className="text-slate-700">Arrived (In Clinic)</span></div>
+                  <div className="flex items-center space-x-2"><span className="w-3 h-3 rounded bg-[#22c55e] shrink-0" /><span className="text-slate-700">Started (In consultation)</span></div>
+                  <div className="flex items-center space-x-2"><span className="w-3 h-3 rounded bg-[#f97316] shrink-0" /><span className="text-slate-700">No show</span></div>
+                  <div className="flex items-center space-x-2"><span className="w-3 h-3 rounded bg-[#8b5cf6] shrink-0" /><span className="text-slate-700">Completed</span></div>
+                  <div className="flex items-center space-x-2"><span className="w-3 h-3 rounded bg-rose-500 shrink-0" /><span className="text-slate-700">Cancelled</span></div>
+                </div>
+              </div>
+            )}
           </div>
 
           <button
@@ -356,7 +517,7 @@ export default function AppointmentsCalendarPage() {
               setShowBookingModal(true);
               setConflictWarning(null);
             }}
-            className="flex items-center space-x-1.5 bg-sky-600 hover:bg-sky-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm transition"
+            className="flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-xs transition"
           >
             <Plus className="w-4 h-4" />
             <span>Book Appointment</span>
@@ -365,17 +526,17 @@ export default function AppointmentsCalendarPage() {
       </div>
 
       {/* Filter Ribbon */}
-      <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3 text-xs">
+      <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-3 text-sm">
         <div className="flex items-center space-x-3 w-full sm:w-auto">
           {/* Search box */}
-          <div className="relative w-full sm:w-64">
+          <div className="relative w-full sm:w-72">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
             <input
               type="text"
-              placeholder="Search patient, phone, service..."
+              placeholder="Search patient, mobile, service..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-sky-500"
+              className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
             />
           </div>
 
@@ -383,9 +544,9 @@ export default function AppointmentsCalendarPage() {
           <select
             value={selectedStaffFilter}
             onChange={(e) => setSelectedStaffFilter(e.target.value)}
-            className="p-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700"
+            className="p-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-800"
           >
-            <option value="ALL">All Specialists & Doctors</option>
+            <option value="ALL">All Staff & Doctors ({staffMembers.length})</option>
             {staffMembers.map((st) => (
               <option key={st._id} value={st.name}>
                 {st.name} ({st.designation})
@@ -395,15 +556,15 @@ export default function AppointmentsCalendarPage() {
         </div>
 
         {/* Status Pills */}
-        <div className="flex items-center space-x-1 overflow-x-auto">
+        <div className="flex items-center space-x-1.5 overflow-x-auto">
           {['ALL', 'Booked', 'Arrived', 'In consultation', 'Completed', 'Cancelled'].map((st) => (
             <button
               key={st}
               onClick={() => setStatusFilter(st)}
-              className={`px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
                 statusFilter === st
                   ? 'bg-slate-900 text-white shadow-xs'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200 font-semibold'
               }`}
             >
               {st}
@@ -412,12 +573,190 @@ export default function AppointmentsCalendarPage() {
         </div>
       </div>
 
-      {/* VIEW 1: APPOINTMENT SCHEDULE CARDS (Clean, usable, replaces empty 15-min slot grid: Bug 3) */}
+      {/* ================= VIEW 1: MIOSALON STAFF COLUMN DAY GRID ================= */}
+      {currentView === 'grid' && (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <div className="min-w-[850px]">
+              {/* Sticky Staff Column Headers */}
+              <div className="grid grid-cols-[80px_repeat(auto-fit,_minmax(190px,_1fr))] border-b border-slate-200 bg-slate-50 sticky top-0 z-10">
+                <div className="p-3 text-center text-xs font-bold text-slate-600 uppercase tracking-wider border-r border-slate-200">
+                  Time
+                </div>
+                {visibleStaffMembers.map((st) => {
+                  const staffBookings = filteredAppointments.filter(
+                    (a) => a.staffName === st.name || a.doctorName === st.name
+                  );
+                  return (
+                    <div
+                      key={st._id}
+                      className="p-3 border-r border-slate-200 last:border-r-0 flex items-center space-x-2.5"
+                    >
+                      <div
+                        className="w-9 h-9 rounded-full flex items-center justify-center font-black text-sm text-white shadow-xs shrink-0"
+                        style={{ backgroundColor: st.calendarColour || '#059669' }}
+                      >
+                        {st.name.charAt(0)}
+                      </div>
+                      <div className="truncate flex-1">
+                        <div className="font-bold text-slate-900 text-sm truncate">{st.name}</div>
+                        <div className="flex items-center space-x-1.5">
+                          <span className="text-xs text-slate-600 truncate font-medium">{st.designation}</span>
+                          <span className="text-xs font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
+                            {staffBookings.length}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Time Slots Grid Rows */}
+              <div className="divide-y divide-slate-100">
+                {gridTimeSlots.map((slot) => (
+                  <div
+                    key={slot}
+                    className="grid grid-cols-[80px_repeat(auto-fit,_minmax(190px,_1fr))] min-h-[75px]"
+                  >
+                    {/* Time Label */}
+                    <div className="p-2.5 border-r border-slate-200 text-center font-mono font-bold text-[11px] text-slate-500 bg-slate-50/60 flex items-start justify-center pt-3">
+                      {slot}
+                    </div>
+
+                    {/* Staff Columns for this Time Slot */}
+                    {visibleStaffMembers.map((st) => {
+                      const apptsInSlot = filteredAppointments.filter((a) => {
+                        const matchesStaff = a.staffName === st.name || a.doctorName === st.name;
+                        if (!matchesStaff) return false;
+                        const apptTime = a.startTime || a.time || '';
+                        if (apptTime === slot) return true;
+                        if (gridInterval === 30) {
+                          const slotMins = parseTimeToMins(slot);
+                          const apptMins = parseTimeToMins(apptTime);
+                          return apptMins >= slotMins && apptMins < slotMins + 30;
+                        }
+                        return false;
+                      });
+
+                      return (
+                        <div
+                          key={st._id}
+                          className="p-1.5 border-r border-slate-100 last:border-r-0 relative group min-h-[75px] flex flex-col justify-center"
+                        >
+                          {apptsInSlot.length > 0 ? (
+                            <div className="space-y-1.5">
+                              {apptsInSlot.map((appt) => {
+                                const staffColor = st.calendarColour || '#059669';
+                                const startT = appt.startTime || appt.time || '10:00 AM';
+                                const dur = appt.durationMins || 30;
+                                const endT = calculateEndTime(startT, dur);
+
+                                return (
+                                  <div
+                                    key={appt._id || appt.appointmentId}
+                                    onClick={() => setSelectedApptForDetails(appt)}
+                                    className="p-2.5 bg-white rounded-xl border border-slate-200/90 shadow-2xs hover:shadow-md transition-all space-y-1.5 relative overflow-hidden cursor-pointer group hover:border-blue-400"
+                                    style={{ borderLeftWidth: '4px', borderLeftColor: staffColor }}
+                                    title="Click to view full MioSalon appointment details"
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <span className="font-mono text-[10px] font-bold text-slate-700 bg-slate-100/90 px-1.5 py-0.5 rounded border border-slate-200">
+                                        {startT} - {endT} ({dur}m)
+                                      </span>
+                                      {getStatusBadge(appt.status)}
+                                    </div>
+
+                                    <div>
+                                      <div className="font-black text-slate-900 text-xs truncate group-hover:text-blue-600 transition">
+                                        {appt.customerName}
+                                      </div>
+                                      <div className="text-[10px] text-slate-400 font-mono">
+                                        {appt.customerPhone}
+                                      </div>
+                                    </div>
+
+                                    <div className="flex items-center space-x-1 text-[11px] font-semibold text-slate-700 truncate">
+                                      <Sparkles className="w-3 h-3 text-amber-500 shrink-0" />
+                                      <span className="truncate">{appt.serviceName}</span>
+                                    </div>
+
+                                    {appt.notes?.includes('Package') && (
+                                      <span className="inline-block text-[9px] bg-purple-100 text-purple-800 font-bold px-1.5 py-0.2 rounded">
+                                        🎁 Package Sitting
+                                      </span>
+                                    )}
+
+                                    {/* Action Shortcuts */}
+                                    <div className="pt-1 flex items-center justify-between border-t border-slate-100 gap-1 text-[10px]">
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setSelectedApptForDetails(appt);
+                                        }}
+                                        className="text-[10px] font-bold text-blue-600 hover:text-blue-800 hover:underline flex items-center space-x-0.5"
+                                      >
+                                        <span>Details →</span>
+                                      </button>
+                                      {appt.status === 'Booked' && (
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleCheckIn(appt._id || appt.appointmentId!);
+                                          }}
+                                          className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold shadow-2xs transition"
+                                        >
+                                          ✓ Arrived
+                                        </button>
+                                      )}
+                                      <Link
+                                        href={`/admin/pos?mobile=${encodeURIComponent(appt.customerPhone)}&customerId=${encodeURIComponent(appt.customerId || '')}&serviceName=${encodeURIComponent(appt.serviceName)}&amount=${appt.amount || 0}`}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="px-2 py-0.5 bg-blue-600 hover:bg-blue-700 text-white rounded font-bold transition ml-auto"
+                                      >
+                                        Raise Sale
+                                      </Link>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setBookingStaff(st.name);
+                                setBookingTime(slot);
+                                setShowBookingModal(true);
+                                setConflictWarning(null);
+                              }}
+                              className="h-full w-full min-h-[60px] rounded-lg border border-dashed border-transparent hover:border-emerald-300 hover:bg-emerald-50/50 cursor-pointer flex items-center justify-center transition-all group/btn"
+                            >
+                              <span className="opacity-0 group-hover/btn:opacity-100 text-[10px] font-bold text-emerald-700 flex items-center space-x-1">
+                                <Plus className="w-3 h-3" />
+                                <span>Book {slot}</span>
+                              </span>
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= VIEW 2: SCHEDULE CARDS ================= */}
       {currentView === 'cards' && (
         <div className="space-y-4">
           {filteredAppointments.length === 0 ? (
             <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center space-y-3">
-              <div className="w-12 h-12 bg-sky-50 text-sky-600 rounded-full flex items-center justify-center mx-auto">
+              <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
                 <CalendarIcon className="w-6 h-6" />
               </div>
               <h3 className="text-sm font-bold text-slate-800">No Appointments for {selectedDate}</h3>
@@ -429,27 +768,24 @@ export default function AppointmentsCalendarPage() {
                   setShowBookingModal(true);
                   setConflictWarning(null);
                 }}
-                className="mt-2 inline-flex items-center space-x-1.5 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold rounded-xl shadow-xs"
+                className="mt-2 inline-flex items-center space-x-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-xs"
               >
                 <Plus className="w-4 h-4" />
-                <span>+ Book New Appointment</span>
+                <span>Book New Appointment</span>
               </button>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredAppointments.map((appt) => {
                 const staffObj = staffMembers.find((s) => s.name === appt.staffName || s.name === appt.doctorName);
-                const color = staffObj?.calendarColour || '#0284c7';
+                const color = staffObj?.calendarColour || '#059669';
 
                 return (
                   <div
                     key={appt._id || appt.appointmentId}
                     className="bg-white rounded-2xl border border-slate-200/90 hover:border-slate-300 p-4 shadow-xs hover:shadow-md transition-all flex flex-col justify-between space-y-3 relative overflow-hidden group"
                   >
-                    <div
-                      className="absolute top-0 left-0 bottom-0 w-1.5"
-                      style={{ backgroundColor: color }}
-                    />
+                    <div className="absolute top-0 left-0 bottom-0 w-1.5" style={{ backgroundColor: color }} />
 
                     <div>
                       {/* Top Bar: Time & Status */}
@@ -500,6 +836,14 @@ export default function AppointmentsCalendarPage() {
 
                     {/* Actions */}
                     <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedApptForDetails(appt)}
+                        className="px-2.5 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg text-xs font-bold border border-blue-200 transition"
+                      >
+                        View Details
+                      </button>
+
                       {appt.status === 'Booked' && (
                         <button
                           onClick={() => handleCheckIn(appt._id || appt.appointmentId!)}
@@ -547,7 +891,7 @@ export default function AppointmentsCalendarPage() {
         </div>
       )}
 
-      {/* VIEW 2: LIST VIEW */}
+      {/* ================= VIEW 3: TABLE VIEW ================= */}
       {currentView === 'list' && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <table className="w-full text-left text-xs text-slate-600">
@@ -580,10 +924,18 @@ export default function AppointmentsCalendarPage() {
                   </td>
                   <td className="p-3.5 font-medium text-slate-800">{appt.serviceName}</td>
                   <td className="p-3.5 font-semibold text-slate-700">
-                    {appt.staffName || appt.doctorName || appt.stylistName}
+                    {appt.staffName || appt.doctorName || (appt as any).stylistName}
                   </td>
                   <td className="p-3.5">{getStatusBadge(appt.status)}</td>
                   <td className="p-3.5 text-right space-x-2">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedApptForDetails(appt)}
+                      className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-xs font-bold border border-blue-200 transition"
+                    >
+                      View Details
+                    </button>
+
                     {appt.status === 'Booked' && (
                       <button
                         onClick={() => handleCheckIn(appt._id || appt.appointmentId!)}
@@ -630,7 +982,7 @@ export default function AppointmentsCalendarPage() {
         </div>
       )}
 
-      {/* NEW APPOINTMENT BOOKING MODAL */}
+      {/* ================= NEW APPOINTMENT BOOKING MODAL ================= */}
       {showBookingModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto space-y-4">
@@ -685,7 +1037,7 @@ export default function AppointmentsCalendarPage() {
                     placeholder="Search by 10-digit mobile number..."
                     value={clientSearchMobile}
                     onChange={(e) => handleClientMobileSearch(e.target.value)}
-                    className="w-full p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 outline-none"
+                    className="w-full p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none"
                   />
                 </div>
 
@@ -699,7 +1051,7 @@ export default function AppointmentsCalendarPage() {
                           setSelectedClient(c);
                           setClientMatches([]);
                         }}
-                        className="p-2 hover:bg-sky-50 rounded-lg cursor-pointer flex justify-between items-center text-xs"
+                        className="p-2 hover:bg-emerald-50 rounded-lg cursor-pointer flex justify-between items-center text-xs"
                       >
                         <span className="font-bold text-slate-800">{c.name}</span>
                         <span className="text-slate-500 font-mono">{c.mobile}</span>
@@ -709,14 +1061,14 @@ export default function AppointmentsCalendarPage() {
                 )}
 
                 {selectedClient ? (
-                  <div className="bg-sky-50 border border-sky-200 text-sky-800 p-2.5 rounded-xl flex items-center justify-between text-xs">
+                  <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 p-2.5 rounded-xl flex items-center justify-between text-xs">
                     <div>
                       <strong>{selectedClient.name}</strong> • {selectedClient.mobile} (ID: {selectedClient.customerId})
                     </div>
                     <button
                       type="button"
                       onClick={() => setSelectedClient(null)}
-                      className="text-sky-600 hover:text-sky-800 font-semibold"
+                      className="text-emerald-700 hover:text-emerald-900 font-bold"
                     >
                       Change
                     </button>
@@ -736,6 +1088,48 @@ export default function AppointmentsCalendarPage() {
                 )}
               </div>
 
+              {/* ⭐ Active Package Sittings Selector (When Customer has remaining sittings) */}
+              {clientPackages.filter((p) => (p.remainingSittings || 0) > 0).length > 0 && (
+                <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between text-xs font-bold text-purple-900">
+                    <span className="flex items-center space-x-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                      <span>Active Package Sittings Ready to Schedule</span>
+                    </span>
+                    <span className="text-[10px] bg-purple-200 text-purple-800 px-2 py-0.5 rounded font-bold">Prepaid</span>
+                  </div>
+                  <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                    {clientPackages.map((cp) =>
+                      (cp.servicesRemaining || [])
+                        .filter((s) => s.remainingCount > 0)
+                        .map((s, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center justify-between bg-white p-2 rounded-lg border border-purple-100 text-xs"
+                          >
+                            <div className="truncate pr-2">
+                              <span className="font-bold text-slate-800 block truncate">{s.serviceName}</span>
+                              <span className="text-[10px] text-purple-700">
+                                {cp.packageName} • {s.remainingCount} sittings left
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setBookingService(s.serviceName);
+                                setBookingNotes(`[Package: ${cp.packageName}] Sitting ${s.usedCount + 1} of ${s.totalCount}`);
+                              }}
+                              className="px-2.5 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold text-[11px] shadow-2xs shrink-0"
+                            >
+                              Use Sitting
+                            </button>
+                          </div>
+                        ))
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Service & Specialist */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -747,7 +1141,7 @@ export default function AppointmentsCalendarPage() {
                       const svc = services.find((s) => s.name === e.target.value);
                       if (svc?.duration) setBookingDuration(svc.duration);
                     }}
-                    className="w-full p-2.5 border border-slate-300 rounded-xl bg-white"
+                    className="w-full p-2.5 border border-slate-300 rounded-xl bg-white font-medium"
                   >
                     {services.map((s) => (
                       <option key={s._id} value={s.name}>
@@ -761,7 +1155,7 @@ export default function AppointmentsCalendarPage() {
                   <select
                     value={bookingStaff}
                     onChange={(e) => setBookingStaff(e.target.value)}
-                    className="w-full p-2.5 border border-slate-300 rounded-xl bg-white"
+                    className="w-full p-2.5 border border-slate-300 rounded-xl bg-white font-medium"
                   >
                     {staffMembers.map((st) => (
                       <option key={st._id} value={st.name}>
@@ -779,9 +1173,9 @@ export default function AppointmentsCalendarPage() {
                   <select
                     value={bookingTime}
                     onChange={(e) => setBookingTime(e.target.value)}
-                    className="w-full p-2.5 border border-slate-300 rounded-xl bg-white font-semibold"
+                    className="w-full p-2.5 border border-slate-300 rounded-xl bg-white font-bold"
                   >
-                    {timeSlots.map((ts) => (
+                    {bookingTimeSlots.map((ts) => (
                       <option key={ts} value={ts}>
                         {ts}
                       </option>
@@ -793,7 +1187,7 @@ export default function AppointmentsCalendarPage() {
                   <select
                     value={bookingDuration}
                     onChange={(e) => setBookingDuration(Number(e.target.value))}
-                    className="w-full p-2.5 border border-slate-300 rounded-xl bg-white font-semibold"
+                    className="w-full p-2.5 border border-slate-300 rounded-xl bg-white font-bold"
                   >
                     <option value={15}>15 Minutes</option>
                     <option value={30}>30 Minutes</option>
@@ -819,13 +1213,13 @@ export default function AppointmentsCalendarPage() {
                 <button
                   type="button"
                   onClick={() => setShowBookingModal(false)}
-                  className="px-4 py-2 border border-slate-300 rounded-xl text-slate-600 hover:bg-slate-50 transition"
+                  className="px-4 py-2 border border-slate-300 rounded-xl text-slate-600 hover:bg-slate-50 transition font-bold"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl font-medium transition"
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition shadow-xs"
                 >
                   Confirm Booking
                 </button>
@@ -835,7 +1229,7 @@ export default function AppointmentsCalendarPage() {
         </div>
       )}
 
-      {/* CANCELLATION MODAL */}
+      {/* ================= CANCELLATION MODAL ================= */}
       {cancellingAppt && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 space-y-4">
@@ -883,6 +1277,29 @@ export default function AppointmentsCalendarPage() {
           </div>
         </div>
       )}
+
+      {/* ================= MIOSALON APPOINTMENT DETAIL MODAL POPUP ================= */}
+      <AppointmentDetailModal
+        isOpen={Boolean(selectedApptForDetails)}
+        onClose={() => setSelectedApptForDetails(null)}
+        appointment={selectedApptForDetails}
+        staffMembers={staffMembers}
+        onAppointmentUpdated={() => {
+          loadAppointmentsAndMasters();
+        }}
+        onCancelAppointment={(appt) => {
+          setCancellingAppt(appt);
+          setCancelReason('');
+        }}
+      />
     </div>
+  );
+}
+
+export default function AppointmentsCalendarPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-xs text-slate-400">Loading Appointments Calendar...</div>}>
+      <AppointmentsCalendarContent />
+    </Suspense>
   );
 }

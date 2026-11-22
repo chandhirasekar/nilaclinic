@@ -182,14 +182,14 @@ export default function StaffMasterPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Staff Master (M2)</h1>
-          <p className="text-xs text-slate-500 mt-1">
+          <h1 className="text-2xl font-black text-slate-900">Staff Master (M2)</h1>
+          <p className="text-sm text-slate-600 mt-1 font-medium">
             FR-08 to FR-10: Doctors, Therapists, Front desk, and Managers. Configurable store assignments, calendar colours, and logins.
           </p>
         </div>
         <button
           onClick={handleOpenAdd}
-          className="flex items-center space-x-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-xl shadow-md transition-all self-start sm:self-auto"
+          className="flex items-center space-x-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl shadow-md transition-all self-start sm:self-auto"
         >
           <Plus className="w-4 h-4" />
           <span>Add New Staff Member</span>
@@ -205,7 +205,7 @@ export default function StaffMasterPage() {
             placeholder="Search staff by name, mobile, email..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
+            className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
           />
         </div>
 
@@ -214,7 +214,7 @@ export default function StaffMasterPage() {
             <button
               key={des}
               onClick={() => setDesignationFilter(des)}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+              className={`px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
                 designationFilter === des
                   ? 'bg-slate-900 text-white shadow-xs'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -244,7 +244,7 @@ export default function StaffMasterPage() {
                 ></span>
 
                 <span
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                  className={`text-xs font-bold px-2.5 py-1 rounded-full ${
                     st.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-700'
                   }`}
                 >
@@ -254,35 +254,35 @@ export default function StaffMasterPage() {
 
               <div className="flex items-center space-x-2.5">
                 <div
-                  className="w-9 h-9 rounded-full text-white font-bold flex items-center justify-center text-xs shadow-xs"
+                  className="w-10 h-10 rounded-full text-white font-bold flex items-center justify-center text-sm shadow-xs"
                   style={{ backgroundColor: st.calendarColour || '#0284c7' }}
                 >
                   {st.name.charAt(0)}
                 </div>
                 <div>
-                  <h3 className="font-bold text-slate-900 text-sm leading-tight">{st.name}</h3>
-                  <span className="text-[11px] font-semibold text-slate-500">{st.designation}</span>
+                  <h3 className="font-bold text-slate-900 text-base leading-tight">{st.name}</h3>
+                  <span className="text-xs font-bold text-slate-600">{st.designation}</span>
                 </div>
               </div>
 
-              <div className="space-y-1.5 text-xs text-slate-600 mt-3 pt-3 border-t border-slate-100">
+              <div className="space-y-1.5 text-xs text-slate-700 mt-3 pt-3 border-t border-slate-100">
                 <div className="flex items-center space-x-2">
-                  <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                  <span className="text-[11px]">{st.mobile}</span>
+                  <Phone className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                  <span className="text-xs font-medium">{st.mobile}</span>
                 </div>
                 {st.email && (
                   <div className="flex items-center space-x-2">
-                    <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span className="text-[11px] truncate">{st.email}</span>
+                    <Mail className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                    <span className="text-xs font-medium truncate">{st.email}</span>
                   </div>
                 )}
-                <div className="flex items-center space-x-2 text-[11px] text-slate-500">
-                  <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <div className="flex items-center space-x-2 text-xs text-slate-600 font-medium">
+                  <Calendar className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                   <span>Calendar View: {st.showInAppointmentCalendar ? 'Visible' : 'Hidden'}</span>
                 </div>
                 {st.hasLogin && (
-                  <div className="flex items-center space-x-1.5 text-[10px] text-purple-700 font-bold bg-purple-50 px-2 py-0.5 rounded-md inline-block">
-                    <Lock className="w-3 h-3 inline mr-1" />
+                  <div className="flex items-center space-x-1.5 text-xs text-purple-700 font-bold bg-purple-50 px-2.5 py-1 rounded-md inline-block">
+                    <Lock className="w-3.5 h-3.5 inline mr-1" />
                     <span>Login Enabled ({st.loginRole})</span>
                   </div>
                 )}
@@ -290,10 +290,10 @@ export default function StaffMasterPage() {
 
               {/* Assigned stores tags */}
               <div className="mt-3 pt-2 border-t border-slate-100">
-                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Assigned Stores:</span>
+                <span className="text-xs uppercase font-bold text-slate-500 block mb-1">Assigned Stores:</span>
                 <div className="flex flex-wrap gap-1">
                   {st.stores.map((sc) => (
-                    <span key={sc} className="text-[10px] font-bold px-2 py-0.5 bg-slate-100 text-slate-700 rounded">
+                    <span key={sc} className="text-xs font-bold px-2 py-0.5 bg-slate-100 text-slate-700 rounded">
                       {sc}
                     </span>
                   ))}
@@ -305,7 +305,7 @@ export default function StaffMasterPage() {
             <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
               <button
                 onClick={() => toggleStaffActive(st)}
-                className={`text-xs font-semibold px-2.5 py-1 rounded-lg transition-all ${
+                className={`text-xs sm:text-sm font-bold px-3 py-1 rounded-lg transition-all ${
                   st.isActive
                     ? 'text-red-600 hover:bg-red-50'
                     : 'text-emerald-700 hover:bg-emerald-50'
@@ -316,7 +316,7 @@ export default function StaffMasterPage() {
 
               <button
                 onClick={() => handleOpenEdit(st)}
-                className="p-1.5 text-slate-500 hover:text-sky-600 hover:bg-sky-50 rounded-lg text-xs font-semibold flex items-center space-x-1"
+                className="p-1.5 text-slate-600 hover:text-sky-600 hover:bg-sky-50 rounded-lg text-xs sm:text-sm font-bold flex items-center space-x-1"
               >
                 <Edit2 className="w-3.5 h-3.5" />
                 <span>Edit</span>
@@ -330,57 +330,57 @@ export default function StaffMasterPage() {
       {showModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-100 p-6 relative max-h-[90vh] overflow-y-auto">
-            <h3 className="font-bold text-slate-900 text-base mb-1">
+            <h3 className="font-black text-slate-900 text-lg mb-1">
               {editingStaff ? 'Edit Staff Member' : 'Register New Staff Member'}
             </h3>
-            <p className="text-xs text-slate-500 mb-4">
+            <p className="text-sm text-slate-600 mb-4 font-medium">
               Enter staff role, store assignments, calendar color, and login access.
             </p>
 
-            <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
+            <form onSubmit={handleSubmit} className="space-y-3.5 text-sm">
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Full Name *</label>
+                <label className="block font-bold text-slate-700 mb-1">Full Name *</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Dr. Rajesh Varma"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Mobile Number *</label>
+                  <label className="block font-bold text-slate-700 mb-1">Mobile Number *</label>
                   <input
                     type="text"
                     required
                     placeholder="+91 98450 00000"
                     value={formData.mobile}
                     onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Email</label>
+                  <label className="block font-bold text-slate-700 mb-1">Email</label>
                   <input
                     type="email"
                     placeholder="staff@nilaclinic.com"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Designation *</label>
+                  <label className="block font-bold text-slate-700 mb-1">Designation *</label>
                   <select
                     value={formData.designation}
                     onChange={(e) => setFormData({ ...formData, designation: e.target.value as any })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer"
                   >
                     <option value="Doctor">Doctor</option>
                     <option value="Therapist">Therapist</option>
@@ -390,7 +390,7 @@ export default function StaffMasterPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Calendar Colour</label>
+                  <label className="block font-bold text-slate-700 mb-1">Calendar Colour</label>
                   <div className="flex items-center space-x-2">
                     <input
                       type="color"
@@ -405,7 +405,7 @@ export default function StaffMasterPage() {
 
               {/* Stores Multi-Select (FR-08) */}
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Assigned Clinic Stores *</label>
+                <label className="block font-bold text-slate-700 mb-1">Assigned Clinic Stores *</label>
                 <div className="grid grid-cols-2 gap-2 p-2.5 bg-slate-50 rounded-xl border border-slate-200">
                   {stores.map((st) => (
                     <label key={st.code} className="flex items-center space-x-2 cursor-pointer select-none">
@@ -415,7 +415,7 @@ export default function StaffMasterPage() {
                         onChange={() => handleStoreToggle(st.code)}
                         className="h-4 w-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500"
                       />
-                      <span className="text-xs font-semibold text-slate-700">[{st.code}]</span>
+                      <span className="text-sm font-bold text-slate-800">[{st.code}]</span>
                     </label>
                   ))}
                 </div>
@@ -429,7 +429,7 @@ export default function StaffMasterPage() {
                   onChange={(e) => setFormData({ ...formData, showInAppointmentCalendar: e.target.checked })}
                   className="h-4 w-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500"
                 />
-                <span className="text-xs text-slate-700 font-semibold">
+                <span className="text-sm text-slate-800 font-bold">
                   Show as column in Appointment Calendar
                 </span>
               </label>
@@ -443,17 +443,17 @@ export default function StaffMasterPage() {
                     onChange={(e) => setFormData({ ...formData, hasLogin: e.target.checked })}
                     className="h-4 w-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500"
                   />
-                  <span className="text-xs text-slate-900 font-bold">Enable System Login for this Staff</span>
+                  <span className="text-sm text-slate-900 font-bold">Enable System Login for this Staff</span>
                 </label>
 
                 {formData.hasLogin && (
                   <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200">
                     <div>
-                      <label className="block font-semibold text-slate-700 mb-1">Login Role</label>
+                      <label className="block font-bold text-slate-700 mb-1">Login Role</label>
                       <select
                         value={formData.loginRole}
                         onChange={(e) => setFormData({ ...formData, loginRole: e.target.value as any })}
-                        className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                        className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-sm font-medium"
                       >
                         <option value="Staff">Staff</option>
                         <option value="Doctor">Doctor</option>
@@ -461,13 +461,13 @@ export default function StaffMasterPage() {
                       </select>
                     </div>
                     <div>
-                      <label className="block font-semibold text-slate-700 mb-1">Password</label>
+                      <label className="block font-bold text-slate-700 mb-1">Password</label>
                       <input
                         type="password"
                         placeholder="••••••••"
                         value={formData.password}
                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                        className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                        className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-sm font-medium"
                       />
                     </div>
                   </div>
@@ -478,13 +478,13 @@ export default function StaffMasterPage() {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 text-slate-600 font-semibold hover:bg-slate-100 rounded-xl"
+                  className="px-4 py-2 text-slate-600 font-bold hover:bg-slate-100 rounded-xl text-sm"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl shadow-xs"
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-xs text-sm"
                 >
                   {editingStaff ? 'Save Staff' : 'Create Staff'}
                 </button>

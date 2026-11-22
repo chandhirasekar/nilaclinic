@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import {
   Package,
   Plus,
@@ -18,8 +19,9 @@ import {
   X,
   Layers,
 } from 'lucide-react';
-import { IPackageMaster, ICustomerPackage, IService, ICustomer } from '@/types';
+import { IPackageMaster, ICustomerPackage, IService, ICustomer, IStaff } from '@/types';
 import { useClinic } from '@/context/ClinicContext';
+import PackageSchedulerModal from '@/components/admin/PackageSchedulerModal';
 
 export default function PackagesPage() {
   const { user, selectedStore, stores } = useClinic();
@@ -28,7 +30,9 @@ export default function PackagesPage() {
   // Masters
   const [packages, setPackages] = useState<IPackageMaster[]>([]);
   const [services, setServices] = useState<IService[]>([]);
+  const [staffMembers, setStaffMembers] = useState<IStaff[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [schedulingPackage, setSchedulingPackage] = useState<ICustomerPackage | null>(null);
 
   // Package Catalog Modal
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -65,14 +69,17 @@ export default function PackagesPage() {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [pkgRes, svcRes] = await Promise.all([
+      const [pkgRes, svcRes, staffRes] = await Promise.all([
         fetch(`/api/packages?storeCode=${selectedStore}`),
         fetch(`/api/masters/services?storeCode=${selectedStore}`),
+        fetch(`/api/masters/staff?storeCode=${selectedStore}`),
       ]);
       const pkgData = await pkgRes.json();
       const svcData = await svcRes.json();
+      const staffData = await staffRes.json();
       if (pkgData.success) setPackages(pkgData.data || []);
       if (svcData.success) setServices(svcData.data || []);
+      if (staffData.success) setStaffMembers(staffData.data || []);
     } catch (e) {
       console.error(e);
     } finally {
@@ -225,24 +232,22 @@ export default function PackagesPage() {
 
         <div className="flex items-center space-x-3 w-full sm:w-auto">
           {/* Tab Switcher */}
-          <div className="flex bg-slate-100 p-1 rounded-xl text-xs font-semibold">
+          <div className="flex bg-slate-100 p-1 rounded-xl text-sm font-bold">
             <button
               onClick={() => setActiveTab('catalog')}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
-                activeTab === 'catalog'
-                  ? 'bg-white text-indigo-600 shadow-sm'
+              className={`px-3.5 py-2 rounded-lg transition-all ${activeTab === 'catalog'
+                  ? 'bg-white text-indigo-700 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
-              }`}
+                }`}
             >
               Package Catalog
             </button>
             <button
               onClick={() => setActiveTab('customer_packages')}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
-                activeTab === 'customer_packages'
-                  ? 'bg-white text-indigo-600 shadow-sm'
+              className={`px-3.5 py-2 rounded-lg transition-all ${activeTab === 'customer_packages'
+                  ? 'bg-white text-indigo-700 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
-              }`}
+                }`}
             >
               Client Sittings Balances
             </button>
@@ -251,7 +256,7 @@ export default function PackagesPage() {
           {activeTab === 'catalog' && (
             <button
               onClick={() => setShowCreateModal(true)}
-              className="flex items-center justify-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-medium transition shadow-sm"
+              className="flex items-center justify-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-bold transition shadow-xs"
             >
               <Plus className="w-4 h-4" />
               <span>Create Package</span>
@@ -266,44 +271,43 @@ export default function PackagesPage() {
           {packages.map((pkg) => (
             <div
               key={pkg._id}
-              className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col justify-between hover:shadow-md transition-shadow"
+              className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden flex flex-col justify-between hover:shadow-md transition-shadow"
             >
               <div className="p-5">
                 <div className="flex justify-between items-start mb-2">
                   <span
-                    className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full ${
-                      pkg.type === 'Fixed'
-                        ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                        : 'bg-amber-50 text-amber-700 border border-amber-200'
-                    }`}
+                    className={`text-xs uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full ${pkg.type === 'Fixed'
+                        ? 'bg-indigo-50 text-indigo-800 border border-indigo-200'
+                        : 'bg-amber-50 text-amber-900 border border-amber-200'
+                      }`}
                   >
                     {pkg.type} Package
                   </span>
-                  <span className="text-xs font-medium text-slate-500">
+                  <span className="text-xs font-semibold text-slate-600">
                     Validity: {pkg.validityDays} days
                   </span>
                 </div>
 
-                <h3 className="font-bold text-slate-800 text-base mb-1">{pkg.name}</h3>
-                <div className="text-2xl font-black text-slate-900 mb-3">
+                <h3 className="font-black text-slate-900 text-lg mb-1">{pkg.name}</h3>
+                <div className="text-3xl font-black text-slate-900 mb-3">
                   ₹{pkg.price.toLocaleString('en-IN')}
                 </div>
 
                 {/* Sittings & breakdown */}
-                <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 space-y-2 mb-4">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-500 font-medium">Total Sittings:</span>
-                    <span className="font-bold text-slate-800">{pkg.totalSittings} Sessions</span>
+                <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200/80 space-y-2 mb-4">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-600 font-medium">Total Sittings:</span>
+                    <span className="font-bold text-slate-900">{pkg.totalSittings} Sessions</span>
                   </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-500 font-medium">Value / Sitting:</span>
-                    <span className="font-semibold text-emerald-600">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-600 font-medium">Value / Sitting:</span>
+                    <span className="font-bold text-emerald-700">
                       ₹{Math.round(pkg.valuePerSitting || pkg.price / pkg.totalSittings).toLocaleString('en-IN')}
                     </span>
                   </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-500 font-medium">Store Availability:</span>
-                    <span className="font-semibold text-slate-700">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-600 font-medium">Store Availability:</span>
+                    <span className="font-semibold text-slate-800">
                       {pkg.availableStores.includes('ALL') ? 'All Stores' : pkg.availableStores.join(', ')}
                     </span>
                   </div>
@@ -311,17 +315,17 @@ export default function PackagesPage() {
 
                 {/* Services included list */}
                 <div>
-                  <div className="text-[11px] uppercase font-bold text-slate-400 tracking-wider mb-2">
+                  <div className="text-xs uppercase font-bold text-slate-500 tracking-wider mb-2">
                     Included Treatments
                   </div>
                   <ul className="space-y-1.5">
                     {pkg.services.map((s, idx) => (
-                      <li key={idx} className="flex items-center justify-between text-xs text-slate-700">
+                      <li key={idx} className="flex items-center justify-between text-sm text-slate-800">
                         <span className="truncate pr-2 font-medium flex items-center">
-                          <Sparkles className="w-3 h-3 text-indigo-500 mr-1.5 flex-shrink-0" />
+                          <Sparkles className="w-3.5 h-3.5 text-indigo-600 mr-1.5 flex-shrink-0" />
                           {s.serviceName}
                         </span>
-                        <span className="bg-slate-200/70 text-slate-800 px-2 py-0.5 rounded-md font-semibold text-[10px]">
+                        <span className="bg-slate-200/70 text-slate-900 px-2.5 py-0.5 rounded-md font-bold text-xs">
                           {s.count} sittings
                         </span>
                       </li>
@@ -330,10 +334,10 @@ export default function PackagesPage() {
                 </div>
               </div>
 
-              <div className="bg-slate-50 p-3.5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+              <div className="bg-slate-50 p-3.5 border-t border-slate-100 flex items-center justify-between text-xs sm:text-sm text-slate-600 font-medium">
                 <span>Active in POS Quick Sale</span>
-                <span className="inline-flex items-center text-emerald-600 font-medium">
-                  <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Ready to Sell
+                <span className="inline-flex items-center text-emerald-700 font-bold">
+                  <CheckCircle2 className="w-4 h-4 mr-1 text-emerald-600" /> Ready to Sell
                 </span>
               </div>
             </div>
@@ -342,8 +346,8 @@ export default function PackagesPage() {
           {packages.length === 0 && !isLoading && (
             <div className="col-span-full bg-white p-12 text-center rounded-2xl border border-slate-200">
               <Package className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-              <p className="text-sm text-slate-600 font-medium">No packages configured yet</p>
-              <p className="text-xs text-slate-400 mt-1">Click &quot;Create Package&quot; to configure your first treatment plan.</p>
+              <p className="text-base text-slate-700 font-semibold">No packages configured yet</p>
+              <p className="text-sm text-slate-500 mt-1">Click &quot;Create Package&quot; to configure your first treatment plan.</p>
             </div>
           )}
         </div>
@@ -354,8 +358,8 @@ export default function PackagesPage() {
         <div className="space-y-5">
           {/* Client Search Card */}
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-            <h3 className="font-bold text-sm text-slate-800 mb-2">Look Up Client Package Balance</h3>
-            <p className="text-xs text-slate-500 mb-4">
+            <h3 className="font-bold text-base text-slate-900 mb-2">Look Up Client Package Balance</h3>
+            <p className="text-sm text-slate-600 mb-4">
               Enter customer mobile number to inspect active packages, remaining sittings, expiry date, or perform admin adjustments.
             </p>
             <div className="flex gap-3 max-w-md">
@@ -367,29 +371,29 @@ export default function PackagesPage() {
                   value={searchMobile}
                   onChange={(e) => setSearchMobile(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleCustomerSearch()}
-                  className="w-full pl-9 pr-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                  className="w-full pl-9 pr-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
                 />
               </div>
               <button
                 onClick={handleCustomerSearch}
                 disabled={isSearchingClient}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-medium transition"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-xl text-sm font-bold transition shadow-xs"
               >
                 {isSearchingClient ? 'Searching...' : 'Search'}
               </button>
             </div>
 
             {searchedCustomer && (
-              <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between text-xs">
+              <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between text-sm">
                 <div>
-                  <span className="font-bold text-slate-800 text-sm">{searchedCustomer.name}</span>
-                  <span className="text-slate-500 ml-2 font-mono">({searchedCustomer.mobile})</span>
-                  <span className="ml-3 px-2 py-0.5 bg-slate-100 rounded text-[10px] text-slate-600">
+                  <span className="font-bold text-slate-900 text-base">{searchedCustomer.name}</span>
+                  <span className="text-slate-600 ml-2 font-mono">({searchedCustomer.mobile})</span>
+                  <span className="ml-3 px-2.5 py-0.5 bg-slate-100 rounded text-xs text-slate-700 font-bold">
                     ID: {searchedCustomer.customerId}
                   </span>
                 </div>
-                <div className="text-slate-500">
-                  Registered at: <span className="font-semibold text-slate-700">{searchedCustomer.firstStoreId}</span>
+                <div className="text-slate-600">
+                  Registered at: <span className="font-bold text-slate-900">{searchedCustomer.firstStoreId}</span>
                 </div>
               </div>
             )}
@@ -406,37 +410,46 @@ export default function PackagesPage() {
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-3 border-b border-slate-100">
                     <div>
                       <div className="flex items-center space-x-2">
-                        <h4 className="font-bold text-base text-slate-800">{cp.packageName}</h4>
+                        <h4 className="font-black text-lg text-slate-900">{cp.packageName}</h4>
                         <span
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                            cp.status === 'Active'
-                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                              : 'bg-slate-100 text-slate-600'
-                          }`}
+                          className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${cp.status === 'Active'
+                              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                              : 'bg-slate-100 text-slate-700'
+                            }`}
                         >
                           {cp.status}
                         </span>
                       </div>
-                      <div className="text-xs text-slate-500 mt-0.5">
-                        Purchased at store <span className="font-semibold">{cp.storeSold}</span> • Bill #{' '}
-                        <span className="font-mono">{cp.purchaseInvoiceNo}</span>
+                      <div className="text-sm text-slate-600 mt-1 font-medium">
+                        Purchased at store <span className="font-bold text-slate-800">{cp.storeSold}</span> • Bill #{' '}
+                        <span className="font-mono font-bold text-slate-800">{cp.purchaseInvoiceNo}</span>
                       </div>
                     </div>
 
-                    <div className="flex items-center space-x-3">
-                      <div className="text-right">
-                        <div className="text-xs text-slate-500">Valid Until</div>
-                        <div className="text-xs font-bold text-slate-800 font-mono">
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <div className="text-right mr-1">
+                        <div className="text-xs text-slate-500 font-medium">Valid Until</div>
+                        <div className="text-sm font-bold text-slate-900 font-mono">
                           {cp.validityExpiryDate}
                         </div>
                       </div>
+                      {cp.remainingSittings > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setSchedulingPackage(cp)}
+                          className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-xl text-sm font-bold shadow-xs transition flex items-center space-x-1.5"
+                        >
+                          <Calendar className="w-4 h-4" />
+                          <span> Schedule Remaining ({cp.remainingSittings}) on Calendar</span>
+                        </button>
+                      )}
                       {user?.role === 'admin' && (
                         <button
                           onClick={() => {
                             setSelectedPackageForAdjust(cp);
                             setAdjustNewExpiry(cp.validityExpiryDate);
                           }}
-                          className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition"
+                          className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-sm font-bold transition"
                         >
                           Adjust Sittings
                         </button>
@@ -446,15 +459,15 @@ export default function PackagesPage() {
 
                   {/* Sittings progress bar */}
                   <div className="space-y-2">
-                    <div className="flex justify-between text-xs">
-                      <span className="font-medium text-slate-600">
-                        Sittings: <strong className="text-indigo-600">{cp.remainingSittings} Remaining</strong> of {cp.totalSittings}
+                    <div className="flex justify-between text-sm">
+                      <span className="font-semibold text-slate-700">
+                        Sittings: <strong className="text-indigo-700 font-black">{cp.remainingSittings} Remaining</strong> of {cp.totalSittings}
                       </span>
-                      <span className="text-slate-500">{cp.usedSittings} Completed</span>
+                      <span className="text-slate-600 font-medium">{cp.usedSittings} Completed</span>
                     </div>
-                    <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                    <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
                       <div
-                        className="bg-indigo-600 h-2.5 rounded-full transition-all duration-500"
+                        className="bg-indigo-600 h-3 rounded-full transition-all duration-500"
                         style={{
                           width: `${Math.round((cp.usedSittings / cp.totalSittings) * 100)}%`,
                         }}
@@ -471,6 +484,7 @@ export default function PackagesPage() {
                           <th className="p-2.5 text-center">Total Allowed</th>
                           <th className="p-2.5 text-center">Used</th>
                           <th className="p-2.5 text-center">Remaining Balance</th>
+                          <th className="p-2.5 text-right">Calendar Schedule</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
@@ -481,6 +495,19 @@ export default function PackagesPage() {
                             <td className="p-2.5 text-center text-slate-600">{s.usedCount}</td>
                             <td className="p-2.5 text-center font-bold text-indigo-600">
                               {s.remainingCount} sittings
+                            </td>
+                            <td className="p-2.5 text-right">
+                              {s.remainingCount > 0 ? (
+                                <Link
+                                  href={`/admin/appointments?customerId=${encodeURIComponent(searchedCustomer?.customerId || searchedCustomer?._id || '')}&customerName=${encodeURIComponent(searchedCustomer?.name || '')}&customerPhone=${encodeURIComponent(searchedCustomer?.mobile || '')}&serviceName=${encodeURIComponent(s.serviceName)}&packageId=${encodeURIComponent(cp.packageId || '')}&packageName=${encodeURIComponent(cp.packageName || '')}&packageSitting=true`}
+                                  className="inline-flex items-center space-x-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-[11px] shadow-xs transition"
+                                >
+                                  <Calendar className="w-3 h-3" />
+                                  <span>Book in Calendar ({s.remainingCount} left)</span>
+                                </Link>
+                              ) : (
+                                <span className="text-slate-400 text-[11px] font-medium">All completed</span>
+                              )}
                             </td>
                           </tr>
                         ))}
@@ -764,6 +791,24 @@ export default function PackagesPage() {
             </form>
           </div>
         </div>
+      )}
+      {/* Multi-Session Calendar Scheduler Modal */}
+      {schedulingPackage && searchedCustomer && (
+        <PackageSchedulerModal
+          isOpen={Boolean(schedulingPackage)}
+          onClose={() => setSchedulingPackage(null)}
+          customer={{
+            customerId: searchedCustomer.customerId || (searchedCustomer as any)._id,
+            name: searchedCustomer.name,
+            mobile: searchedCustomer.mobile,
+          }}
+          customerPackage={schedulingPackage}
+          staffMembers={staffMembers}
+          storeId={selectedStore}
+          onSuccess={() => {
+            handleCustomerSearch();
+          }}
+        />
       )}
     </div>
   );

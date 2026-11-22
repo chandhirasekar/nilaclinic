@@ -19,6 +19,8 @@ import {
   Sparkles,
   ChevronRight,
   Plus,
+  CalendarDays,
+  ClipboardList,
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useClinic } from '@/context/ClinicContext';
@@ -31,6 +33,7 @@ export default function ClinicDashboardPage() {
   const [reportData, setReportData] = useState<any>(null);
   const [unpaidInvoices, setUnpaidInvoices] = useState<any[]>([]);
   const [todayAppointments, setTodayAppointments] = useState<any[]>([]);
+  const [dashboardApptFilter, setDashboardApptFilter] = useState<string>('ALL');
   const [loading, setLoading] = useState(true);
   const [settlingInvoiceId, setSettlingInvoiceId] = useState<string | null>(null);
 
@@ -63,6 +66,8 @@ export default function ClinicDashboardPage() {
     fetchDashboardData();
   }, [selectedStore, dateRange]);
 
+  const [settlingAll, setSettlingAll] = useState(false);
+
   const handleQuickCollectCash = async (inv: any) => {
     const invId = inv.invoiceNo || inv._id;
     setSettlingInvoiceId(invId);
@@ -74,12 +79,15 @@ export default function ClinicDashboardPage() {
           invoiceId: invId,
           status: 'Paid',
           paymentMethod: 'Cash',
-          paidAmount: inv.payableAmount || inv.grandTotal,
+          grandTotal: inv.grandTotal || inv.payableAmount || 500,
+          paidAmount: inv.payableAmount || inv.grandTotal || 500,
           staffName: user?.name || 'Reception Staff',
         }),
       });
       const data = await res.json();
       if (data.success) {
+        // Optimistically remove from unpaid state immediately so it vanishes from dashboard
+        setUnpaidInvoices((prev) => prev.filter((i) => (i.invoiceNo || i._id) !== invId));
         await fetchDashboardData();
       } else {
         alert(data.message || 'Failed to settle bill');
@@ -88,6 +96,35 @@ export default function ClinicDashboardPage() {
       alert('Error settling bill');
     } finally {
       setSettlingInvoiceId(null);
+    }
+  };
+
+  const handleSettleAllCash = async () => {
+    if (unpaidInvoices.length === 0) return;
+    if (!confirm(`Are you sure you want to mark all ${unpaidInvoices.length} pending consultation bills as Paid (Cash)?`)) return;
+    setSettlingAll(true);
+    try {
+      for (const inv of unpaidInvoices) {
+        const invId = inv.invoiceNo || inv._id;
+        await fetch('/api/invoices', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            invoiceId: invId,
+            status: 'Paid',
+            paymentMethod: 'Cash',
+            grandTotal: inv.grandTotal || inv.payableAmount || 500,
+            paidAmount: inv.payableAmount || inv.grandTotal || 500,
+            staffName: user?.name || 'Reception Staff',
+          }),
+        });
+      }
+      setUnpaidInvoices([]);
+      await fetchDashboardData();
+    } catch (e) {
+      console.error('Error settling all:', e);
+    } finally {
+      setSettlingAll(false);
     }
   };
 
@@ -110,6 +147,14 @@ export default function ClinicDashboardPage() {
   const staffCounts = reportData?.staffCounts || [];
   const salesTrend = reportData?.salesTrend || [];
   const storeBreakdown = reportData?.storeBreakdown || [];
+
+  const filteredDashboardAppts = todayAppointments.filter((a) => {
+    if (dashboardApptFilter === 'ALL') return true;
+    if (dashboardApptFilter === 'waiting') return a.status === 'Arrived' || a.status === 'Booked';
+    if (dashboardApptFilter === 'in_service') return a.status === 'In consultation';
+    if (dashboardApptFilter === 'completed') return a.status === 'Completed';
+    return true;
+  });
 
   if (loading && !reportData) {
     return (
@@ -231,417 +276,456 @@ export default function ClinicDashboardPage() {
     );
   }
 
-  // ================= 2. STAFF DASHBOARD (Own Store Billing & Reception) =================
-  if (userRole === 'staff') {
-    return (
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <div>
-            <h1 className="text-xl font-bold text-slate-800 tracking-tight">Store Reception & Billing Counter</h1>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Store [{selectedStore}]: Appointments check-in, doctor consultation bills, and Quick Sale POS.
-            </p>
-          </div>
+  // ================= 2 & 3. MIOSALON ELEVATED CLINIC & OPERATIONAL DASHBOARD (Admin & Staff) =================
+  const bookedCount = todayAppointments.filter((a) => a.status === 'Booked').length;
+  const arrivedCount = todayAppointments.filter((a) => a.status === 'Arrived').length;
+  const inServiceCount = todayAppointments.filter((a) => a.status === 'In consultation').length;
+  const completedApptCount = todayAppointments.filter((a) => a.status === 'Completed').length;
 
-          <Link
-            href="/admin/pos"
-            className="flex items-center space-x-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md transition"
-          >
-            <CreditCard className="w-4 h-4" />
-            <span>Launch Quick Sale POS</span>
-          </Link>
-        </div>
-
-        {/* Staff KPI Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Today&apos;s Store Revenue</span>
-            <div className="text-2xl font-black text-emerald-700 mt-1">₹{kpi.totalRevenue.toLocaleString()}</div>
-            <span className="text-[11px] text-emerald-600 font-semibold mt-1 block">{kpi.paidBillsCount} Invoices Paid</span>
-          </div>
-
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Unpaid Bills (Doctor Queue)</span>
-            <div className="text-2xl font-black text-amber-600 mt-1">{unpaidInvoices.length}</div>
-            <span className="text-[11px] text-amber-700 font-semibold mt-1 block">Awaiting payment collection</span>
-          </div>
-
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Today&apos;s Appointments</span>
-            <div className="text-2xl font-black text-sky-700 mt-1">{todayAppointments.length}</div>
-            <span className="text-[11px] text-sky-600 font-semibold mt-1 block">Booked clients</span>
-          </div>
-
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Cash In Counter</span>
-            <div className="text-2xl font-black text-slate-900 mt-1">₹{(paymentModeTotals['Cash']?.amount || 0).toLocaleString()}</div>
-            <span className="text-[11px] text-slate-500 font-semibold mt-1 block">Ready for day-end cash up</span>
-          </div>
-        </div>
-
-        {/* Unpaid Bills Waiting for Reception Payment */}
-        {unpaidInvoices.length > 0 && (
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-3">
-            <div className="flex items-center space-x-2 text-amber-900 font-bold text-xs">
-              <AlertCircle className="w-4 h-4 text-amber-600" />
-              <span>Pending Doctor Consultation Bills Ready for Collection</span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-              {unpaidInvoices.map((inv) => (
-                <div key={inv._id} className="bg-white p-3 rounded-xl border border-amber-200 text-xs space-y-1">
-                  <div className="flex justify-between font-bold text-slate-800">
-                    <span>{inv.customerName}</span>
-                    <span className="text-emerald-700 font-mono">₹{inv.payableAmount || inv.grandTotal}</span>
-                  </div>
-                  <div className="text-[11px] text-slate-500 flex justify-between">
-                    <span>Invoice: {inv.invoiceNo}</span>
-                    <span>By: {inv.staffName}</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 pt-2">
-                    <button
-                      type="button"
-                      disabled={settlingInvoiceId === (inv.invoiceNo || inv._id)}
-                      onClick={() => handleQuickCollectCash(inv)}
-                      className="py-1 text-center bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-[11px] transition-all disabled:opacity-50"
-                    >
-                      {settlingInvoiceId === (inv.invoiceNo || inv._id) ? 'Saving...' : 'Quick Cash Pay'}
-                    </button>
-                    <Link
-                      href={`/admin/pos?invoiceNo=${inv.invoiceNo}`}
-                      className="py-1 text-center bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-lg text-[11px] transition-all"
-                    >
-                      POS & Print
-                    </Link>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Today's Appointments with Direct Check-in */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-3">
-          <div className="flex justify-between items-center pb-2 border-b border-slate-100">
-            <h3 className="font-bold text-slate-800 text-sm">Today&apos;s Appointments Schedule</h3>
-            <Link href="/admin/appointments" className="text-xs text-sky-600 font-semibold hover:underline">
-              View Calendar →
-            </Link>
-          </div>
-
-          <div className="divide-y divide-slate-100">
-            {todayAppointments.map((a) => (
-              <div key={a._id} className="py-2.5 flex items-center justify-between text-xs">
-                <div>
-                  <span className="font-bold text-slate-900">{a.customerName}</span>
-                  <span className="text-slate-400 ml-2 font-mono">{a.startTime || a.time}</span>
-                  <div className="text-[11px] text-slate-500">{a.serviceName} • Specialist: {a.staffName || a.doctorName}</div>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                      a.status === 'Completed'
-                        ? 'bg-emerald-100 text-emerald-800'
-                        : a.status === 'Arrived'
-                        ? 'bg-amber-100 text-amber-800'
-                        : 'bg-blue-50 text-blue-700'
-                    }`}
-                  >
-                    {a.status}
-                  </span>
-                  <Link
-                    href={`/admin/pos?mobile=${encodeURIComponent(a.customerPhone)}`}
-                    className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold"
-                  >
-                    Bill POS
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ================= 3. ADMIN DASHBOARD (All Stores Global View) =================
   return (
-    <div className="space-y-6">
-      {/* Top Header & Store/Date Filter Controls (FR-27) */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+    <div className="space-y-5">
+      {/* MioSalon Header with Store, Date Range & Quick Actions */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Clinic Operational Dashboard</h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Real-time multi-store metrics, patient counts, doctor workload, and POS collections.
+          <div className="flex items-center space-x-2.5">
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Clinic Operational Dashboard</h1>
+            <span className="text-xs font-mono font-bold bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-md">
+              [{selectedStore}]
+            </span>
+          </div>
+          <p className="text-sm text-slate-600 font-medium mt-1">
+            Real-time appointment schedule, collections, doctor queue, and quick POS billing.
           </p>
         </div>
 
-        {/* Filters (FR-27) */}
         <div className="flex flex-wrap items-center gap-2.5">
-          <div className="flex items-center space-x-1.5 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-2xs">
-            <Building2 className="w-3.5 h-3.5 text-emerald-600" />
-            <select
-              value={selectedStore}
-              onChange={(e) => setSelectedStore(e.target.value)}
-              className="text-xs font-semibold text-slate-800 bg-transparent focus:outline-none cursor-pointer"
-            >
-              <option value="ALL">All Stores Combined</option>
-              {stores.map((st) => (
-                <option key={st.code} value={st.code}>
-                  [{st.code}] {st.name.replace('Nila Clinic - ', '')}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Store Switcher (For Admin) */}
+          {userRole === 'admin' && (
+            <div className="flex items-center space-x-2 bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-200 text-sm">
+              <Building2 className="w-4 h-4 text-emerald-600" />
+              <select
+                value={selectedStore}
+                onChange={(e) => setSelectedStore(e.target.value)}
+                className="bg-transparent font-bold text-slate-800 outline-none cursor-pointer text-sm"
+              >
+                <option value="ALL">All Stores Combined</option>
+                {stores.map((st) => (
+                  <option key={st.code} value={st.code}>
+                    [{st.code}] {st.name.replace('Nila Clinic - ', '')}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
-          <div className="flex items-center space-x-1 bg-white p-1 rounded-xl border border-slate-200 shadow-2xs text-xs">
+          {/* Quick Date Switcher */}
+          <div className="flex items-center bg-slate-100 p-1 rounded-xl text-sm font-bold">
             {(['today', 'week', 'month'] as const).map((r) => (
               <button
                 key={r}
                 onClick={() => setDateRange(r)}
-                className={`px-3 py-1 rounded-lg font-bold capitalize transition-all ${
-                  dateRange === r ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'
+                className={`px-3.5 py-1.5 rounded-lg capitalize transition-all ${
+                  dateRange === r ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 {r === 'today' ? 'Today' : r === 'week' ? 'This Week' : 'This Month'}
               </button>
             ))}
           </div>
-        </div>
-      </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                {dateRange === 'today' ? "Today's" : dateRange === 'week' ? 'Weekly' : 'Monthly'} Net Sales
-              </p>
-              <h3 className="text-2xl font-black text-slate-900 mt-1">₹{kpi.totalRevenue.toLocaleString()}</h3>
-            </div>
-            <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
-              <IndianRupee className="w-6 h-6" />
-            </div>
-          </div>
-          <div className="mt-3 flex items-center text-xs text-emerald-600 font-semibold">
-            <TrendingUp className="w-3.5 h-3.5 mr-1" />
-            <span>{kpi.paidBillsCount} Paid Invoices Collected</span>
-          </div>
-        </div>
-
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Patients Attended</p>
-              <h3 className="text-2xl font-black text-slate-900 mt-1">{kpi.totalPatientsCount} Consultations</h3>
-            </div>
-            <div className="w-12 h-12 bg-sky-50 text-sky-600 rounded-xl flex items-center justify-center">
-              <Users className="w-6 h-6" />
-            </div>
-          </div>
-          <div className="mt-3 flex items-center text-xs text-sky-700 font-semibold">
-            <CheckCircle2 className="w-3.5 h-3.5 mr-1 text-sky-500" />
-            <span>Cross-store queue tracking</span>
-          </div>
-        </div>
-
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Invoices Processed</p>
-              <h3 className="text-2xl font-black text-slate-900 mt-1">{kpi.totalBillsCount} Invoices</h3>
-            </div>
-            <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center">
-              <CreditCard className="w-6 h-6" />
-            </div>
-          </div>
-          <div className="mt-3 flex items-center text-xs text-purple-600 font-semibold">
-            <Sparkles className="w-3.5 h-3.5 mr-1" />
-            <span>Avg Ticket: ₹{kpi.totalBillsCount ? Math.round(kpi.totalRevenue / kpi.totalBillsCount) : 0}</span>
-          </div>
-        </div>
-
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Unpaid Doctor Bills</p>
-              <h3 className="text-2xl font-black text-amber-600 mt-1">₹{kpi.pendingPayments.toLocaleString()}</h3>
-            </div>
-            <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center">
-              <Clock className="w-6 h-6" />
-            </div>
-          </div>
-          <div className="mt-3 flex items-center text-xs text-amber-700 font-semibold">
-            <AlertCircle className="w-3.5 h-3.5 mr-1 text-amber-500" />
-            <span>{kpi.unpaidBillsCount} Invoices Pending Collection</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Branch-Wise Performance Grid for Admin Multi-Store (Bug 6) */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-100 pb-3">
-          <div>
-            <h3 className="font-bold text-slate-900 text-sm flex items-center space-x-1.5">
-              <Building2 className="w-4 h-4 text-emerald-600" />
-              <span>Multi-Branch Performance Overview ({storeBreakdown.length || stores.length} Branches)</span>
-            </h3>
-            <p className="text-[11px] text-slate-400">
-              Consolidated real-time metrics across all Nila Clinic locations. Click any branch to focus view.
-            </p>
-          </div>
-          <button
-            onClick={() => setSelectedStore('ALL')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              selectedStore === 'ALL'
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
+          {/* Quick Action Shortcuts */}
+          <Link
+            href="/admin/appointments"
+            className="flex items-center space-x-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold shadow-xs transition"
           >
-            {selectedStore === 'ALL' ? '✓ Showing All Branches' : 'View All (Consolidated)'}
-          </button>
+            <CalendarDays className="w-4 h-4" />
+            <span>Book Appointment</span>
+          </Link>
+
+          <Link
+            href="/admin/pos"
+            className="flex items-center space-x-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-sm font-bold shadow-xs transition"
+          >
+            <CreditCard className="w-4 h-4" />
+            <span>Quick Sale POS</span>
+          </Link>
+        </div>
+      </div>
+
+      {/* MioSalon 4 Top KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* KPI 1: Net Sales with Cash/Card/UPI breakdown */}
+        <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs space-y-2.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-600">
+              {dateRange === 'today' ? "Today's" : dateRange === 'week' ? 'Weekly' : 'Monthly'} Net Sales
+            </span>
+            <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
+              <IndianRupee className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="text-3xl sm:text-4xl font-black text-slate-900">
+            ₹{kpi.totalRevenue.toLocaleString()}
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5 pt-1 text-xs font-bold">
+            <span className="px-2 py-0.5 bg-emerald-50 text-emerald-900 rounded border border-emerald-200">
+              Cash: ₹{(paymentModeTotals['Cash']?.amount || 0).toLocaleString()}
+            </span>
+            <span className="px-2 py-0.5 bg-indigo-50 text-indigo-900 rounded border border-indigo-200">
+              UPI: ₹{(paymentModeTotals['UPI']?.amount || 0).toLocaleString()}
+            </span>
+            <span className="px-2 py-0.5 bg-sky-50 text-sky-900 rounded border border-sky-200">
+              Card: ₹{(paymentModeTotals['Card']?.amount || 0).toLocaleString()}
+            </span>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 pt-1">
-          {(storeBreakdown.length > 0 ? storeBreakdown : stores).map((st: any) => {
-            const code = st.storeId || st.code;
-            const name = st.name ? st.name.replace('Nila Clinic - ', '') : code;
-            const revenue = st.revenue !== undefined ? st.revenue : 0;
-            const invoices = st.invoices !== undefined ? st.invoices : 0;
-            const isSelected = selectedStore.toUpperCase() === code.toUpperCase();
+        {/* KPI 2: Today's Appointments with status pills */}
+        <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs space-y-2.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-600">Appointments Today</span>
+            <div className="w-10 h-10 bg-sky-50 text-sky-600 rounded-xl flex items-center justify-center">
+              <Calendar className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="text-3xl sm:text-4xl font-black text-slate-900">
+            {todayAppointments.length} <span className="text-sm font-semibold text-slate-500">Bookings</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5 pt-1 text-xs font-bold">
+            <span className="px-2 py-0.5 bg-blue-50 text-blue-800 rounded border border-blue-200">
+              {bookedCount} Booked
+            </span>
+            <span className="px-2 py-0.5 bg-amber-50 text-amber-900 rounded border border-amber-200">
+              {arrivedCount} Arrived
+            </span>
+            <span className="px-2 py-0.5 bg-purple-50 text-purple-800 rounded border border-purple-200">
+              {inServiceCount} In Service
+            </span>
+            <span className="px-2 py-0.5 bg-emerald-50 text-emerald-800 rounded border border-emerald-200">
+              {completedApptCount} Done
+            </span>
+          </div>
+        </div>
 
-            return (
-              <div
-                key={code}
-                onClick={() => setSelectedStore(code)}
-                className={`p-3.5 rounded-xl border text-xs cursor-pointer transition-all flex flex-col justify-between space-y-2 ${
-                  isSelected
-                    ? 'bg-emerald-50/70 border-emerald-400 shadow-xs ring-2 ring-emerald-500/20'
-                    : 'bg-slate-50 hover:bg-slate-100/80 border-slate-200'
-                }`}
+        {/* KPI 3: Invoices & Average Ticket */}
+        <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs space-y-2.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-600">Bills & Average Ticket</span>
+            <div className="w-10 h-10 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center">
+              <CreditCard className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="text-3xl sm:text-4xl font-black text-slate-900">
+            {kpi.paidBillsCount} <span className="text-sm font-semibold text-slate-500">Invoices Paid</span>
+          </div>
+          <div className="flex items-center justify-between pt-1 text-sm text-slate-600 font-semibold">
+            <span>Avg Bill: <strong className="text-slate-900">₹{kpi.paidBillsCount ? Math.round(kpi.totalRevenue / kpi.paidBillsCount) : 0}</strong></span>
+            <span className="text-amber-800 font-bold">{unpaidInvoices.length} Unpaid</span>
+          </div>
+        </div>
+
+        {/* KPI 4: Cash in Counter / Registry */}
+        <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs space-y-2.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-600">Cash in Counter</span>
+            <div className="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center">
+              <Clock className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="text-3xl sm:text-4xl font-black text-slate-900">
+            ₹{(paymentModeTotals['Cash']?.amount || 0).toLocaleString()}
+          </div>
+          <div className="flex items-center justify-between pt-1 text-sm text-slate-600">
+            <span className="text-emerald-800 font-bold">Ready for Day-End Cash Up</span>
+            <span className="text-xs text-slate-600 font-medium">{paymentModeTotals['Cash']?.count || 0} Cash Bills</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Unpaid Bills Waiting for Reception Payment (1-Click Settle or POS) */}
+      {unpaidInvoices.length > 0 && (
+        <div className="bg-amber-50/90 border border-amber-300 rounded-2xl p-5 space-y-3.5 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div className="flex items-center space-x-2.5 text-amber-950 font-bold text-sm sm:text-base">
+              <AlertCircle className="w-5 h-5 text-amber-700 shrink-0" />
+              <span>Pending Doctor Consultation Bills Ready for Collection ({unpaidInvoices.length})</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <button
+                type="button"
+                onClick={handleSettleAllCash}
+                disabled={settlingAll}
+                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition shadow-xs disabled:opacity-50"
               >
-                <div>
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono font-bold text-slate-900">[{code}]</span>
-                    {isSelected && (
-                      <span className="text-[9px] font-bold bg-emerald-600 text-white px-1.5 py-0.2 rounded-full">
-                        ACTIVE
-                      </span>
-                    )}
-                  </div>
-                  <h4 className="font-bold text-slate-800 text-xs mt-1 truncate" title={name}>
-                    {name}
-                  </h4>
-                </div>
+                {settlingAll ? 'Settling All...' : 'Settle All as Paid (Cash)'}
+              </button>
+              <span className="text-xs text-amber-900 font-bold hidden sm:inline">• Awaiting billing settlement</span>
+            </div>
+          </div>
 
-                <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+            {unpaidInvoices.map((inv) => (
+              <div key={inv._id || inv.invoiceNo} className="bg-white p-4 rounded-xl border border-amber-200 space-y-2.5 shadow-xs">
+                <div className="flex justify-between items-center font-bold">
+                  <span className="text-base font-black text-slate-900">{inv.customerName}</span>
+                  <span className="text-emerald-700 font-black text-base">₹{inv.payableAmount || inv.grandTotal}</span>
+                </div>
+                <div className="text-xs text-slate-600 font-medium flex justify-between">
+                  <span className="font-mono">Bill #{inv.invoiceNo}</span>
+                  <span>By: {inv.staffName}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <button
+                    type="button"
+                    disabled={settlingInvoiceId === (inv.invoiceNo || inv._id)}
+                    onClick={() => handleQuickCollectCash(inv)}
+                    className="py-2 text-center bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-sm transition-all disabled:opacity-50 shadow-xs"
+                  >
+                    {settlingInvoiceId === (inv.invoiceNo || inv._id) ? 'Saving...' : 'Quick Cash Pay'}
+                  </button>
+                  <Link
+                    href={`/admin/pos?invoiceNo=${inv.invoiceNo}`}
+                    className="py-2 text-center bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-lg text-sm transition-all shadow-xs"
+                  >
+                    POS & Print
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* MioSalon Core Two-Column Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        {/* ================= COLUMN 1 (Left 7 cols): Live Appointment Stream & Reception Queue ================= */}
+        <div className="lg:col-span-7 space-y-4">
+          <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs p-5 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 pb-3.5 border-b border-slate-100">
+              <div>
+                <h3 className="font-black text-slate-900 text-lg">Today&apos;s Appointments & Queue</h3>
+                <p className="text-xs text-slate-500 font-medium">Live reception check-in and doctor queue tracking</p>
+              </div>
+
+              {/* Status Filter Tabs */}
+              <div className="flex items-center space-x-1.5 bg-slate-100 p-1 rounded-xl text-xs sm:text-sm font-bold">
+                <button
+                  type="button"
+                  onClick={() => setDashboardApptFilter('ALL')}
+                  className={`px-3 py-1.5 rounded-lg transition-all ${
+                    dashboardApptFilter === 'ALL' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  All ({todayAppointments.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDashboardApptFilter('waiting')}
+                  className={`px-3 py-1.5 rounded-lg transition-all ${
+                    dashboardApptFilter === 'waiting' ? 'bg-white text-amber-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Waiting ({bookedCount + arrivedCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDashboardApptFilter('in_service')}
+                  className={`px-3 py-1.5 rounded-lg transition-all ${
+                    dashboardApptFilter === 'in_service' ? 'bg-white text-purple-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  In Service ({inServiceCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDashboardApptFilter('completed')}
+                  className={`px-3 py-1.5 rounded-lg transition-all ${
+                    dashboardApptFilter === 'completed' ? 'bg-white text-emerald-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Done ({completedApptCount})
+                </button>
+              </div>
+            </div>
+
+            {/* Appointment Cards List */}
+            {filteredDashboardAppts.length === 0 ? (
+              <div className="py-12 text-center text-sm text-slate-500 space-y-2.5">
+                <Calendar className="w-10 h-10 text-slate-300 mx-auto" />
+                <p className="font-medium">No appointments match the selected filter for today.</p>
+                <Link
+                  href="/admin/appointments"
+                  className="inline-flex items-center space-x-1 text-emerald-700 font-bold hover:underline text-sm"
+                >
+                  <span>Book New Appointment</span>
+                </Link>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredDashboardAppts.map((a) => (
+                  <div
+                    key={a._id || a.appointmentId}
+                    className="p-4 bg-slate-50 hover:bg-slate-100/80 rounded-xl border border-slate-200 text-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3.5 transition-all shadow-2xs"
+                  >
+                    <div className="flex items-start space-x-3.5">
+                      <div className="p-2.5 bg-white rounded-xl border border-slate-200 text-center font-mono shrink-0 shadow-2xs">
+                        <span className="font-black text-slate-900 text-sm block">{a.startTime || a.time}</span>
+                        <span className="text-xs text-slate-500 font-semibold">{a.durationMins || 30}m</span>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex items-center space-x-2.5">
+                          <span className="font-black text-slate-900 text-base">{a.customerName}</span>
+                          <span className="text-xs text-slate-500 font-mono font-medium">{a.customerPhone}</span>
+                        </div>
+                        <div className="flex items-center space-x-2 text-xs text-slate-700 font-medium">
+                          <span className="text-emerald-700 font-bold">{a.serviceName}</span>
+                          <span>• Specialist: <strong className="text-slate-900">{a.staffName || a.doctorName}</strong></span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2.5 self-end sm:self-auto shrink-0">
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-bold ${
+                          a.status === 'Completed'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : a.status === 'Arrived'
+                            ? 'bg-amber-100 text-amber-800'
+                            : a.status === 'In consultation'
+                            ? 'bg-purple-100 text-purple-800'
+                            : 'bg-blue-50 text-blue-800 border border-blue-200'
+                        }`}
+                      >
+                        {a.status}
+                      </span>
+
+                      {a.status === 'Booked' && (
+                        <Link
+                          href="/admin/appointments"
+                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition shadow-xs"
+                        >
+                          Check-in
+                        </Link>
+                      )}
+
+                      {a.status === 'Arrived' && (
+                        <Link
+                          href="/admin/patients"
+                          className="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-bold transition shadow-xs"
+                        >
+                          Doctor Queue
+                        </Link>
+                      )}
+
+                      <Link
+                        href={`/admin/pos?mobile=${encodeURIComponent(a.customerPhone)}`}
+                        className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition shadow-xs"
+                      >
+                        Bill POS
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ================= COLUMN 2 (Right 5 cols): Collections, Specialists & Trend ================= */}
+        <div className="lg:col-span-5 space-y-4">
+          {/* Collections by Payment Mode */}
+          <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs p-5 space-y-3.5">
+            <h3 className="font-black text-slate-900 text-base">Collections by Payment Mode</h3>
+            <div className="space-y-3 text-sm">
+              <div className="p-3.5 bg-emerald-50/80 border border-emerald-200 rounded-xl flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-emerald-950 block text-sm">Cash Counter</span>
+                  <span className="text-xs text-emerald-800 font-medium">{paymentModeTotals['Cash']?.count || 0} Transactions</span>
+                </div>
+                <span className="text-lg font-black text-emerald-900">
+                  ₹{(paymentModeTotals['Cash']?.amount || 0).toLocaleString()}
+                </span>
+              </div>
+
+              <div className="p-3.5 bg-indigo-50/80 border border-indigo-200 rounded-xl flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-indigo-950 block text-sm">UPI / QR Code</span>
+                  <span className="text-xs text-indigo-800 font-medium">{paymentModeTotals['UPI']?.count || 0} Transactions</span>
+                </div>
+                <span className="text-lg font-black text-indigo-900">
+                  ₹{(paymentModeTotals['UPI']?.amount || 0).toLocaleString()}
+                </span>
+              </div>
+
+              <div className="p-3.5 bg-sky-50/80 border border-sky-200 rounded-xl flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-sky-950 block text-sm">Credit / Debit Card</span>
+                  <span className="text-xs text-sky-800 font-medium">{paymentModeTotals['Card']?.count || 0} Transactions</span>
+                </div>
+                <span className="text-lg font-black text-sky-900">
+                  ₹{(paymentModeTotals['Card']?.amount || 0).toLocaleString()}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Specialist & Doctor Activity */}
+          <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs p-5 space-y-3.5">
+            <h3 className="font-black text-slate-900 text-base">Specialist Consultations & Collections</h3>
+            <div className="space-y-2.5 text-sm">
+              {doctorCounts.slice(0, 4).map((doc: any) => (
+                <div key={doc.name} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
                   <div>
-                    <span className="text-[10px] text-slate-400 block">Revenue</span>
-                    <span className="font-black text-slate-900 text-xs">₹{Number(revenue).toLocaleString()}</span>
+                    <h4 className="font-bold text-slate-900 text-sm">{doc.name}</h4>
+                    <p className="text-xs text-slate-500 font-medium">Doctor / Consulting Specialist</p>
                   </div>
                   <div className="text-right">
-                    <span className="text-[10px] text-slate-400 block">Bills</span>
-                    <span className="font-bold text-slate-700">{invoices}</span>
+                    <span className="font-bold text-slate-900 block text-sm">{doc.visits} Patient(s)</span>
+                    <span className="text-xs text-emerald-700 font-bold">{doc.completed} Completed</span>
                   </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Payment Modes Split (FR-25) */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs">
-        <h3 className="font-bold text-slate-900 text-sm mb-3">Collections by Payment Mode</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-          <div className="p-4 bg-emerald-50/70 border border-emerald-200/60 rounded-xl">
-            <span className="text-emerald-800 font-bold block">Cash</span>
-            <div className="text-xl font-black text-emerald-900 mt-1">
-              ₹{(paymentModeTotals['Cash']?.amount || 0).toLocaleString()}
+              ))}
+              {staffCounts.slice(0, 3).map((st: any) => (
+                <div key={st.name} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
+                  <div>
+                    <h4 className="font-bold text-slate-900 text-sm">{st.name}</h4>
+                    <p className="text-xs text-slate-500 font-medium">{st.billsProcessed} Bills Processed</p>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-black text-slate-900 text-sm">₹{st.revenueCollected}</span>
+                    <span className="text-xs text-emerald-700 font-bold block">Collected</span>
+                  </div>
+                </div>
+              ))}
             </div>
-            <span className="text-[10px] text-emerald-600">{paymentModeTotals['Cash']?.count || 0} Transactions</span>
           </div>
 
-          <div className="p-4 bg-sky-50/70 border border-sky-200/60 rounded-xl">
-            <span className="text-sky-800 font-bold block">Card</span>
-            <div className="text-xl font-black text-sky-900 mt-1">
-              ₹{(paymentModeTotals['Card']?.amount || 0).toLocaleString()}
-            </div>
-            <span className="text-[10px] text-sky-600">{paymentModeTotals['Card']?.count || 0} Transactions</span>
-          </div>
-
-          <div className="p-4 bg-indigo-50/70 border border-indigo-200/60 rounded-xl">
-            <span className="text-indigo-800 font-bold block">UPI</span>
-            <div className="text-xl font-black text-indigo-900 mt-1">
-              ₹{(paymentModeTotals['UPI']?.amount || 0).toLocaleString()}
-            </div>
-            <span className="text-[10px] text-indigo-600">{paymentModeTotals['UPI']?.count || 0} Transactions</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Doctor & Staff Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs">
-          <h3 className="font-bold text-slate-900 text-sm mb-3">Doctor Consultation Activity</h3>
-          <div className="space-y-3">
-            {doctorCounts.map((doc: any) => (
-              <div key={doc.name} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs">
-                <div>
-                  <h4 className="font-bold text-slate-900">{doc.name}</h4>
-                  <p className="text-[10px] text-slate-400">Consulting Specialist</p>
-                </div>
-                <div className="text-right">
-                  <span className="font-bold text-slate-900 block">{doc.visits} Patient(s)</span>
-                  <span className="text-[10px] text-emerald-600 font-semibold">{doc.completed} Completed</span>
-                </div>
+          {/* Revenue Trend Graph */}
+          {salesTrend.length > 0 && (
+            <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs p-5 space-y-3">
+              <h3 className="font-black text-slate-900 text-sm">Sales Trend</h3>
+              <div className="h-44 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={salesTrend} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorRevMio" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#059669" stopOpacity={0.25} />
+                        <stop offset="95%" stopColor="#059669" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 11 }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 11 }} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#0f172a', borderRadius: '12px', color: '#fff', border: 'none', fontSize: '11px' }}
+                      formatter={(value: any) => [`₹${Number(value).toLocaleString()}`, 'Revenue']}
+                    />
+                    <Area type="monotone" dataKey="revenue" stroke="#059669" strokeWidth={2.5} fillOpacity={1} fill="url(#colorRevMio)" />
+                  </AreaChart>
+                </ResponsiveContainer>
               </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs">
-          <h3 className="font-bold text-slate-900 text-sm mb-3">Staff Collections Activity</h3>
-          <div className="space-y-3">
-            {staffCounts.map((st: any) => (
-              <div key={st.name} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs">
-                <div>
-                  <h4 className="font-bold text-slate-900">{st.name}</h4>
-                  <p className="text-[10px] text-slate-400">{st.billsProcessed} Bills Processed</p>
-                </div>
-                <div className="text-right">
-                  <span className="font-black text-slate-900 text-sm">₹{st.revenueCollected}</span>
-                  <span className="text-[10px] text-emerald-600 font-semibold block">Collected</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Revenue Graph */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-xs">
-        <h3 className="font-bold text-slate-900 text-sm mb-4">Revenue Flow Trend</h3>
-        <div className="h-60 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={salesTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <defs>
-                <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
-              <Tooltip
-                contentStyle={{ backgroundColor: '#0f172a', borderRadius: '12px', color: '#fff', border: 'none', fontSize: '12px' }}
-                formatter={(value: any) => [`₹${Number(value).toLocaleString()}`, 'Revenue']}
-              />
-              <Area type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
-            </AreaChart>
-          </ResponsiveContainer>
+            </div>
+          )}
         </div>
       </div>
     </div>

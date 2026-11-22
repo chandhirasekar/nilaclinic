@@ -8,42 +8,42 @@ export async function GET(req: Request) {
     const role = searchParams.get('role') || undefined;
 
     let users = await clinicService.getUsers(storeCode);
-    if (role) {
-      users = users.filter(u => u.role === role);
+
+    // Also include staff registered as Doctor or with system login access
+    const staffList = await clinicService.getStaff(storeCode);
+    const docStaff = staffList.filter(s => s.designation === 'Doctor' || s.hasLogin);
+    for (const ds of docStaff) {
+      const dsName = (ds.name || '').trim();
+      const dsEmail = (ds.email || '').trim().toLowerCase();
+      const alreadyExists = users.some(u => {
+        const uEmail = (u.email || '').trim().toLowerCase();
+        const uName = (u.name || '').trim().toLowerCase();
+        return (
+          String(u._id) === String(ds._id) ||
+          (dsEmail && uEmail && uEmail === dsEmail) ||
+          (dsName && uName && uName === dsName.toLowerCase())
+        );
+      });
+      if (!alreadyExists) {
+        const cleanSlug = dsName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'staff';
+        const roleAssigned = ds.designation === 'Doctor' ? 'doctor' : (ds.loginRole?.toLowerCase() === 'admin' ? 'admin' : 'staff');
+        const safeEmail = ds.email || `${roleAssigned}.${cleanSlug}@nilaclinic.com`;
+        users.push({
+          _id: String(ds._id),
+          name: dsName || 'Specialist',
+          email: safeEmail,
+          role: roleAssigned,
+          phone: ds.mobile || '',
+          assignedStoreIds: ds.stores || (storeCode && storeCode !== 'ALL' ? [storeCode] : ['NILA-TH']),
+          primaryStoreId: ds.stores?.[0] || (storeCode && storeCode !== 'ALL' ? storeCode : 'NILA-TH'),
+          isActive: ds.isActive !== false,
+          specialization: ds.designation === 'Doctor' ? 'Consulting Doctor' : undefined,
+        } as any);
+      }
     }
 
-    if (role === 'doctor') {
-      // Also include staff registered as Doctor
-      const staffList = await clinicService.getStaff(storeCode);
-      const docStaff = staffList.filter(s => s.designation === 'Doctor');
-      for (const ds of docStaff) {
-        const dsName = (ds.name || '').trim();
-        const dsEmail = (ds.email || '').trim().toLowerCase();
-        const alreadyExists = users.some(u => {
-          const uEmail = (u.email || '').trim().toLowerCase();
-          const uName = (u.name || '').trim().toLowerCase();
-          return (
-            String(u._id) === String(ds._id) ||
-            (dsEmail && uEmail && uEmail === dsEmail) ||
-            (dsName && uName && uName === dsName.toLowerCase())
-          );
-        });
-        if (!alreadyExists) {
-          const cleanSlug = dsName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'staff';
-          const safeEmail = ds.email || `doctor.${cleanSlug}@nilaclinic.com`;
-          users.push({
-            _id: String(ds._id),
-            name: dsName || 'Doctor',
-            email: safeEmail,
-            role: 'doctor',
-            phone: ds.mobile || '',
-            assignedStoreIds: ds.stores || (storeCode && storeCode !== 'ALL' ? [storeCode] : ['NILA-TH']),
-            primaryStoreId: ds.stores?.[0] || (storeCode && storeCode !== 'ALL' ? storeCode : 'NILA-TH'),
-            isActive: ds.isActive !== false,
-            specialization: 'Consulting Doctor',
-          } as any);
-        }
-      }
+    if (role) {
+      users = users.filter(u => u.role === role);
     }
 
     // Do not leak raw passwords

@@ -5,6 +5,7 @@ export interface IUserDocument extends Omit<IUser, '_id'>, Document {}
 
 const UserSchema: Schema = new Schema({
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+  username: { type: String, lowercase: true, trim: true },
   password: { type: String, required: true },
   name: { type: String, required: true },
   role: { type: String, enum: ['admin', 'staff', 'doctor'], default: 'admin' },

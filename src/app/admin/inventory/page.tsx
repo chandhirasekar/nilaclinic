@@ -63,12 +63,12 @@ export default function InventoryPage() {
       
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Inventory & Product Stock</h1>
-          <p className="text-sm text-slate-500">Track professional products, stock levels, suppliers, and reorder warnings.</p>
+          <h1 className="text-2xl font-black text-slate-900">Inventory & Product Stock</h1>
+          <p className="text-sm text-slate-600 font-medium mt-1">Track professional products, stock levels, suppliers, and reorder warnings.</p>
         </div>
         <button
           onClick={() => setShowModal(true)}
-          className="flex items-center justify-center space-x-2 px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-semibold text-sm rounded-xl shadow-md transition-all"
+          className="flex items-center justify-center space-x-2 px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-bold text-sm rounded-xl shadow-md transition-all"
         >
           <Plus className="w-4 h-4" />
           <span>Add Stock Item</span>
@@ -83,15 +83,15 @@ export default function InventoryPage() {
             placeholder="Search stock item name or supplier..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-sky-500 outline-none"
+            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-sky-500 outline-none font-medium"
           />
         </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-600">
-            <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] font-bold tracking-wider">
+          <table className="w-full text-left text-sm text-slate-700">
+            <thead className="bg-slate-50 text-slate-600 uppercase text-xs font-bold tracking-wider">
               <tr>
                 <th className="px-6 py-3.5">Product Name</th>
                 <th className="px-6 py-3.5">Category</th>

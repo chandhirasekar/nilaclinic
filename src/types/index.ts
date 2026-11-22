@@ -153,6 +153,7 @@ export interface IQuickSaleItem {
   discountPercent?: number;
   total: number;
   packageId?: string;
+  packageServiceName?: string;
   isFromPackage?: boolean;
 }
 

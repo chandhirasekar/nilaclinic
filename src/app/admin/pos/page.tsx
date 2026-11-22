@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import {
   CreditCard,
@@ -40,6 +41,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { useMasterData } from '@/hooks/useMasterData';
 import { ButtonLoader } from '@/components/ui/ButtonLoader';
 import { PosGridSkeleton } from '@/components/ui/skeletons/PosGridSkeleton';
+import PackageSchedulerModal from '@/components/admin/PackageSchedulerModal';
 
 function QuickSalePOSContent() {
   const { user, selectedStore, stores, currentStoreObj } = useClinic();
@@ -99,6 +101,8 @@ function QuickSalePOSContent() {
 
   // Bill List Drawer (FR-53)
   const [showBillList, setShowBillList] = useState(false);
+  const [recentBillFilter, setRecentBillFilter] = useState<'ALL' | 'services' | 'products' | 'packages'>('ALL');
+  const [schedulingPackage, setSchedulingPackage] = useState<ICustomerPackage | null>(null);
 
   // BR-03: Doctor restricted from seeing billing amounts or bills
   if (user && user.role === 'doctor') {
@@ -120,6 +124,13 @@ function QuickSalePOSContent() {
         .then((data) => {
           if (data.success && data.data) {
             const inv = data.data;
+            if (inv.status === 'Paid') {
+              alert(`Bill #${inv.invoiceNo} has already been settled as Paid.`);
+              if (typeof window !== 'undefined') {
+                window.history.replaceState(null, '', '/admin/pos');
+              }
+              return;
+            }
             setActiveInvoiceNo(inv.invoiceNo);
             if (inv.items && inv.items.length > 0) {
               setItems(inv.items);
@@ -242,7 +253,7 @@ function QuickSalePOSContent() {
       total: item.price,
     };
 
-    setItems([...items, newItem]);
+    setItems((prev) => [...prev, newItem]);
     setShowCatalogModal(null);
   };
 
@@ -263,7 +274,7 @@ function QuickSalePOSContent() {
       total: pkg.price,
     };
 
-    setItems([...items, newItem]);
+    setItems((prev) => [...prev, newItem]);
     setShowCatalogModal(null);
   };
 
@@ -277,6 +288,7 @@ function QuickSalePOSContent() {
       itemId: custPkg.packageId,
       packageId: custPkg._id,
       name: `${serviceName} (From Package: ${custPkg.packageName})`,
+      packageServiceName: serviceName,
       staffId: defaultStaffId,
       staffName: defaultStaff,
       quantity: 1,
@@ -286,7 +298,7 @@ function QuickSalePOSContent() {
       isFromPackage: true,
     };
 
-    setItems([...items, newItem]);
+    setItems((prev) => [...prev, newItem]);
     setShowRedeemPackageModal(false);
   };
 
@@ -328,7 +340,21 @@ function QuickSalePOSContent() {
   const payableAmount = grandTotal + (Number(tipAmount) || 0);
 
   // Payment splits calculation
-  const totalPaidAcrossModes = Object.values(payments).reduce((acc, v) => acc + (Number(v) || 0), 0);
+  const cashRaw = Number(payments['Cash']) || 0;
+  const nonCashTotal = Object.entries(payments)
+    .filter(([m]) => m !== 'Cash')
+    .reduce((acc, [_, v]) => acc + (Number(v) || 0), 0);
+
+  // Cash needed to settle the remaining bill after non-cash payments (Card, UPI, NEFT)
+  const cashNeeded = Math.max(0, payableAmount - nonCashTotal);
+
+  // If the patient pays with a larger currency note (e.g. ₹2000 note for ₹1800 bill):
+  // The amount applied to settle the bill is capped at cashNeeded.
+  const isCashOverpaid = cashRaw > cashNeeded && cashNeeded > 0;
+  const effectiveCashApplied = isCashOverpaid ? cashNeeded : cashRaw;
+
+  // Total paid towards the bill and balance remaining
+  const totalPaidAcrossModes = nonCashTotal + effectiveCashApplied;
   const balanceRemaining = payableAmount - totalPaidAcrossModes;
 
   // Auto-sync single payment mode when payableAmount changes (e.g. adding discount or line items)
@@ -345,12 +371,20 @@ function QuickSalePOSContent() {
       }
       return prev;
     });
-    setCashTendered((prev) => (prev < payableAmount ? payableAmount : prev));
   }, [payableAmount]);
 
-  // Change amount calculation (for cash only: FR-21)
-  const cashAmountEntered = payments['Cash'] || 0;
-  const changeAmount = cashTendered > cashAmountEntered ? cashTendered - cashAmountEntered : 0;
+  // Cash Tendered (the actual currency note / cash handed over by the patient):
+  // If the user entered 2000 in Cash or in Cash Tendered, effectiveCashTendered is 2000.
+  // If cash is e.g. 200 in split payment, defaults to 200 (so change is 0 unless a higher note is entered).
+  const effectiveCashTendered = cashTendered > 0
+    ? Math.max(cashTendered, cashRaw)
+    : Math.max(cashRaw, effectiveCashApplied);
+
+  // Change amount calculation (only cash gives change: Section 10)
+  // Example: Bill ₹1,800, patient gives ₹2,000 note -> Change = ₹200.
+  const changeAmount = (effectiveCashTendered > effectiveCashApplied && effectiveCashApplied > 0)
+    ? effectiveCashTendered - effectiveCashApplied
+    : 0;
 
   // Set single payment mode helper
   const setExactPaymentMode = (modeName: string) => {
@@ -361,6 +395,8 @@ function QuickSalePOSContent() {
     setPayments(newPayments);
     if (modeName === 'Cash') {
       setCashTendered(payableAmount);
+    } else {
+      setCashTendered(0);
     }
   };
 
@@ -395,9 +431,16 @@ function QuickSalePOSContent() {
         [mode]: payableAmount,
       };
       setPayments(finalPayments);
-    } else if (Math.abs(balanceRemaining) > 0.5) {
-      alert(`Split payments total (₹${totalPaidAcrossModes}) must equal payable amount (₹${payableAmount}). Balance remaining: ₹${balanceRemaining}`);
-      return;
+    } else {
+      // Split payments: if cash was overpaid, cap cash applied to remaining balance needed
+      if (isCashOverpaid && nonCashTotal < payableAmount) {
+        finalPayments['Cash'] = cashNeeded;
+      }
+      const splitTotal = Object.values(finalPayments).reduce((sum, v) => sum + (Number(v) || 0), 0);
+      if (Math.abs(splitTotal - payableAmount) > 0.5) {
+        alert(`Split payments total (₹${splitTotal.toFixed(2)}) must equal payable amount (₹${payableAmount.toFixed(2)}). Balance remaining: ₹${(payableAmount - splitTotal).toFixed(2)}. Click Auto-Balance to adjust.`);
+        return;
+      }
     }
 
     setIsProcessing(true);
@@ -431,7 +474,7 @@ function QuickSalePOSContent() {
       tipStaffName,
       payableAmount,
       payments: paymentSplits,
-      paidAmount: totalPaidAcrossModes,
+      paidAmount: payableAmount,
       changeAmount,
       remarks,
       staffName: user?.name || 'Front Desk Staff',
@@ -449,8 +492,11 @@ function QuickSalePOSContent() {
       if (data.success) {
         setLastInvoice(data.data);
         setShowReceiptModal(true);
-        // Clear screen (FR-50)
+        // Clear screen and remove query params (FR-50)
         handleReset();
+        if (typeof window !== 'undefined') {
+          window.history.replaceState(null, '', '/admin/pos');
+        }
         refreshInvoices();
       } else {
         alert(data.message || 'Error completing checkout');
@@ -477,6 +523,9 @@ function QuickSalePOSContent() {
       initialMap[pm.name] = 0;
     });
     setPayments(initialMap);
+    if (typeof window !== 'undefined') {
+      window.history.replaceState(null, '', '/admin/pos');
+    }
   };
 
   if (isMasterLoading && services.length === 0 && products.length === 0) {
@@ -497,37 +546,37 @@ function QuickSalePOSContent() {
   return (
     <div className="space-y-4">
       {/* Quick Sale Header matching Figure 3 */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <div className="flex items-center space-x-2">
-            <h1 className="text-xl font-black text-slate-900 tracking-tight">Quick Sale (POS Billing)</h1>
-            <span className="text-xs font-mono font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">
+          <div className="flex items-center space-x-2.5">
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Quick Sale (POS Billing)</h1>
+            <span className="text-xs font-mono font-bold bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-md">
               Store: [{selectedStore}] {currentStoreObj?.name ? currentStoreObj.name.replace('Nila Clinic - ', '') : selectedStore}
             </span>
           </div>
-          <p className="text-xs text-slate-500">
+          <p className="text-sm text-slate-600 font-medium mt-1">
             FR-40: Collect customer details, add services/products, apply discounts, take split payment, and print bill.
           </p>
         </div>
 
-        <div className="flex items-center space-x-2 self-start sm:self-auto">
+        <div className="flex items-center space-x-2.5 self-start sm:self-auto">
           {/* Bill Date */}
-          <div className="flex items-center space-x-1.5 bg-slate-50 px-2.5 py-1.5 rounded-xl border border-slate-200 text-xs">
-            <Calendar className="w-3.5 h-3.5 text-slate-400" />
+          <div className="flex items-center space-x-1.5 bg-slate-50 px-3 py-2 rounded-xl border border-slate-200 text-sm">
+            <Calendar className="w-4 h-4 text-slate-500" />
             <input
               type="date"
               value={billDate}
               disabled={user?.role !== 'admin' && !settings?.backDatedBillingRoles?.includes(user?.role || '')}
               onChange={(e) => setBillDate(e.target.value)}
-              className="bg-transparent font-semibold text-slate-800 outline-none text-xs disabled:opacity-60"
+              className="bg-transparent font-semibold text-slate-800 outline-none text-sm disabled:opacity-60"
             />
           </div>
 
           <button
             onClick={() => setShowBillList(!showBillList)}
-            className="flex items-center space-x-1.5 px-3 py-1.5 bg-slate-900 text-white rounded-xl text-xs font-semibold hover:bg-slate-800 transition-all"
+            className="flex items-center space-x-1.5 px-4 py-2 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800 transition-all shadow-xs"
           >
-            <Receipt className="w-3.5 h-3.5" />
+            <Receipt className="w-4 h-4" />
             <span>Recent Bills ({recentBills.length})</span>
           </button>
         </div>
@@ -539,9 +588,9 @@ function QuickSalePOSContent() {
         <div className="lg:col-span-8 space-y-4">
           {/* Collecting Payment for Doctor Consultation Bill Alert */}
           {activeInvoiceNo && (
-            <div className="bg-amber-50 border border-amber-300 p-3.5 rounded-2xl flex items-center justify-between text-xs text-amber-900 shadow-2xs">
-              <div className="flex items-center space-x-2">
-                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+            <div className="bg-amber-50 border border-amber-300 p-4 rounded-2xl flex items-center justify-between text-sm text-amber-950 shadow-xs">
+              <div className="flex items-center space-x-2.5">
+                <AlertCircle className="w-5 h-5 text-amber-700 shrink-0" />
                 <span>
                   Collecting payment for Doctor Consultation Bill <strong>#{activeInvoiceNo}</strong> ({selectedCustomer?.name || 'Client'})
                 </span>
@@ -549,7 +598,7 @@ function QuickSalePOSContent() {
               <button
                 type="button"
                 onClick={handleReset}
-                className="text-amber-800 underline hover:text-amber-950 font-bold ml-2 text-xs"
+                className="text-amber-900 underline hover:text-amber-950 font-bold ml-2 text-sm"
               >
                 Cancel / New Ticket
               </button>
@@ -557,25 +606,25 @@ function QuickSalePOSContent() {
           )}
 
           {/* 1. Customer Section (FR-20, FR-21, FR-22) */}
-          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
-            <div className="text-xs font-bold text-slate-900 flex items-center justify-between">
+          <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
+            <div className="text-sm font-black text-slate-900 flex items-center justify-between">
               <span>1. Customer Details</span>
               {selectedCustomer && (
-                <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded text-[11px]">
+                <span className="text-emerald-800 font-bold bg-emerald-50 px-2.5 py-0.5 rounded-md text-xs border border-emerald-200">
                   ✓ Selected: {selectedCustomer.name} ({selectedCustomer.customerId})
                 </span>
               )}
             </div>
 
             <div className="flex flex-col sm:flex-row items-center gap-2.5">
-              <div className="flex items-center w-full sm:w-72 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs">
-                <span className="font-bold text-slate-400 mr-1.5">+91</span>
+              <div className="flex items-center w-full sm:w-80 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm">
+                <span className="font-bold text-slate-500 mr-2">+91</span>
                 <input
                   type="text"
                   placeholder="Mobile number [search]..."
                   value={searchMobile}
                   onChange={(e) => handleMobileLookup(e.target.value)}
-                  className="w-full bg-transparent outline-none font-semibold text-slate-800 text-xs"
+                  className="w-full bg-transparent outline-none font-semibold text-slate-800 text-sm"
                 />
               </div>
 
@@ -586,7 +635,7 @@ function QuickSalePOSContent() {
                     const cust = matchingCustomers.find((c) => c.customerId === e.target.value);
                     if (cust) setSelectedCustomer(cust);
                   }}
-                  className="w-full sm:w-60 bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-800 font-semibold"
+                  className="w-full sm:w-64 bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 font-semibold"
                 >
                   <option value="">Select Matching Client...</option>
                   {matchingCustomers.map((c) => (
@@ -601,9 +650,9 @@ function QuickSalePOSContent() {
               <button
                 type="button"
                 onClick={() => setShowInlineAddClient(!showInlineAddClient)}
-                className="px-3 py-1.5 bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 font-bold rounded-xl text-xs flex items-center space-x-1 whitespace-nowrap"
+                className="px-4 py-2 bg-sky-50 text-sky-800 hover:bg-sky-100 border border-sky-200 font-bold rounded-xl text-sm flex items-center space-x-1.5 whitespace-nowrap shadow-xs"
               >
-                <Plus className="w-3.5 h-3.5" />
+                <Plus className="w-4 h-4" />
                 <span>Add Client</span>
               </button>
             </div>
@@ -665,39 +714,39 @@ function QuickSalePOSContent() {
           </div>
 
           {/* 2. Items Table & Rows (FR-42, FR-44) */}
-          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
-            <div className="flex items-center justify-between text-xs font-bold text-slate-900 border-b border-slate-100 pb-2">
+          <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
+            <div className="flex items-center justify-between text-sm font-black text-slate-900 border-b border-slate-100 pb-2.5">
               <span>2. Line Items ({items.length})</span>
-              <span className="text-[11px] text-slate-400 font-normal">Prices loaded from masters</span>
+              <span className="text-xs text-slate-500 font-normal">Prices loaded from masters</span>
             </div>
 
             {items.length === 0 ? (
-              <div className="py-8 text-center text-slate-400 text-xs">
+              <div className="py-8 text-center text-slate-500 text-sm">
                 No items added yet. Click <strong>Service</strong> or <strong>Product</strong> below to add.
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] font-bold">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-slate-50 text-slate-600 uppercase text-xs font-bold">
                     <tr>
-                      <th className="px-3 py-2">Service / Product *</th>
-                      <th className="px-3 py-2">Attending Staff *</th>
-                      <th className="px-3 py-2 text-center w-16">Qty</th>
-                      <th className="px-3 py-2 text-right w-24">Price (₹)</th>
-                      <th className="px-3 py-2 text-center w-20">Disc %</th>
-                      <th className="px-3 py-2 text-right w-24">Total (₹)</th>
-                      <th className="px-2 py-2 text-center w-10">Del</th>
+                      <th className="px-3.5 py-2.5">Service / Product *</th>
+                      <th className="px-3.5 py-2.5">Attending Staff *</th>
+                      <th className="px-3.5 py-2.5 text-center w-16">Qty</th>
+                      <th className="px-3.5 py-2.5 text-right w-24">Price (₹)</th>
+                      <th className="px-3.5 py-2.5 text-center w-20">Disc %</th>
+                      <th className="px-3.5 py-2.5 text-right w-24">Total (₹)</th>
+                      <th className="px-2 py-2.5 text-center w-10">Del</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {items.map((it, idx) => (
                       <tr key={idx} className="hover:bg-slate-50/50">
-                        <td className="px-3 py-2 font-bold text-slate-900">{it.name}</td>
-                        <td className="px-3 py-2">
+                        <td className="px-3.5 py-2.5 font-bold text-slate-900">{it.name}</td>
+                        <td className="px-3.5 py-2.5">
                           <select
                             value={it.staffName || ''}
                             onChange={(e) => updateItemField(idx, 'staffName', e.target.value)}
-                            className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs text-slate-800"
+                            className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs sm:text-sm text-slate-800 font-medium"
                           >
                             {staffList.map((st) => (
                               <option key={st._id} value={st.name}>
@@ -706,36 +755,36 @@ function QuickSalePOSContent() {
                             ))}
                           </select>
                         </td>
-                        <td className="px-3 py-2 text-center">
+                        <td className="px-3.5 py-2.5 text-center">
                           <input
                             type="number"
                             min="1"
                             value={it.quantity}
                             onChange={(e) => updateItemField(idx, 'quantity', Number(e.target.value))}
-                            className="w-14 text-center bg-slate-50 border border-slate-200 rounded-lg py-1 font-bold text-xs"
+                            className="w-14 text-center bg-slate-50 border border-slate-200 rounded-lg py-1 font-bold text-sm"
                           />
                         </td>
-                        <td className="px-3 py-2 text-right">
+                        <td className="px-3.5 py-2.5 text-right">
                           <input
                             type="number"
                             disabled={!settings?.staffCanEditPrice && user?.role !== 'admin'}
                             value={it.price}
                             onChange={(e) => updateItemField(idx, 'price', Number(e.target.value))}
-                            className="w-20 text-right bg-slate-50 border border-slate-200 rounded-lg py-1 font-bold text-xs disabled:opacity-60"
+                            className="w-24 text-right bg-slate-50 border border-slate-200 rounded-lg py-1 font-bold text-sm disabled:opacity-60"
                           />
                         </td>
-                        <td className="px-3 py-2 text-center">
+                        <td className="px-3.5 py-2.5 text-center">
                           <input
                             type="number"
                             min="0"
                             max="100"
                             value={it.discountPercent || 0}
                             onChange={(e) => updateItemField(idx, 'discountPercent', Number(e.target.value))}
-                            className="w-16 text-center bg-slate-50 border border-slate-200 rounded-lg py-1 text-xs"
+                            className="w-16 text-center bg-slate-50 border border-slate-200 rounded-lg py-1 text-sm font-semibold"
                           />
                         </td>
-                        <td className="px-3 py-2 text-right font-black text-slate-900">₹{it.total}</td>
-                        <td className="px-2 py-2 text-center">
+                        <td className="px-3.5 py-2.5 text-right font-black text-slate-900 text-sm">₹{it.total}</td>
+                        <td className="px-2 py-2.5 text-center">
                           <button
                             type="button"
                             onClick={() => removeItem(idx)}
@@ -752,30 +801,30 @@ function QuickSalePOSContent() {
             )}
 
             {/* Add Items Action Bar (Figure 3) */}
-            <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center gap-2 text-xs">
-              <span className="font-bold text-slate-500 mr-1">Add items:</span>
+            <div className="pt-2.5 border-t border-slate-100 flex flex-wrap items-center gap-2.5 text-sm">
+              <span className="font-bold text-slate-600 mr-1">Add items:</span>
               <button
                 type="button"
                 onClick={() => setShowCatalogModal('service')}
-                className="px-3 py-1.5 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200 rounded-xl font-bold flex items-center space-x-1"
+                className="px-3.5 py-2 bg-emerald-50 text-emerald-900 hover:bg-emerald-100 border border-emerald-200 rounded-xl font-bold flex items-center space-x-1.5 shadow-2xs"
               >
-                <Sparkles className="w-3.5 h-3.5" />
+                <Sparkles className="w-4 h-4 text-emerald-600" />
                 <span>Service</span>
               </button>
               <button
                 type="button"
                 onClick={() => setShowCatalogModal('product')}
-                className="px-3 py-1.5 bg-sky-50 text-sky-800 hover:bg-sky-100 border border-sky-200 rounded-xl font-bold flex items-center space-x-1"
+                className="px-3.5 py-2 bg-sky-50 text-sky-900 hover:bg-sky-100 border border-sky-200 rounded-xl font-bold flex items-center space-x-1.5 shadow-2xs"
               >
-                <Package className="w-3.5 h-3.5" />
+                <Package className="w-4 h-4 text-sky-600" />
                 <span>Product</span>
               </button>
               <button
                 type="button"
                 onClick={() => setShowCatalogModal('package')}
-                className="px-3 py-1.5 bg-purple-50 text-purple-800 hover:bg-purple-100 border border-purple-200 rounded-xl font-bold flex items-center space-x-1"
+                className="px-3.5 py-2 bg-purple-50 text-purple-900 hover:bg-purple-100 border border-purple-200 rounded-xl font-bold flex items-center space-x-1.5 shadow-2xs"
               >
-                <Package className="w-3.5 h-3.5" />
+                <Package className="w-4 h-4 text-purple-600" />
                 <span>Package</span>
               </button>
               <button
@@ -787,11 +836,11 @@ function QuickSalePOSContent() {
                   }
                   setShowRedeemPackageModal(true);
                 }}
-                className="px-3 py-1.5 bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200 rounded-xl font-bold flex items-center space-x-1"
+                className="px-3.5 py-2 bg-amber-50 text-amber-900 hover:bg-amber-100 border border-amber-200 rounded-xl font-bold flex items-center space-x-1.5 shadow-2xs"
               >
                 <span>Use Customer Package</span>
                 {customerPackages.length > 0 && (
-                  <span className="bg-amber-600 text-white text-[10px] px-1.5 py-0.2 rounded-full">
+                  <span className="bg-amber-600 text-white text-xs px-2 py-0.5 rounded-full font-bold">
                     {customerPackages.reduce((acc, p) => acc + (p.remainingSittings || 0), 0)} left
                   </span>
                 )}
@@ -800,15 +849,15 @@ function QuickSalePOSContent() {
           </div>
 
           {/* 3. Discounts & Tips (FR-45, FR-48) */}
-          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+          <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             {/* Bill Discount (by value OR by percent) */}
             <div className="space-y-2">
-              <span className="font-bold text-slate-900 block">3. Bill Discount (One at a time)</span>
+              <span className="font-black text-slate-900 block text-sm">3. Bill Discount (One at a time)</span>
               <div className="flex items-center space-x-2">
                 <button
                   type="button"
                   onClick={() => setDiscountType('percent')}
-                  className={`px-2.5 py-1 rounded-lg font-bold ${discountType === 'percent' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700'
+                  className={`px-3 py-1.5 rounded-lg font-bold text-xs ${discountType === 'percent' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700'
                     }`}
                 >
                   By % (Percent)
@@ -816,7 +865,7 @@ function QuickSalePOSContent() {
                 <button
                   type="button"
                   onClick={() => setDiscountType('value')}
-                  className={`px-2.5 py-1 rounded-lg font-bold ${discountType === 'value' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700'
+                  className={`px-3 py-1.5 rounded-lg font-bold text-xs ${discountType === 'value' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700'
                     }`}
                 >
                   By ₹ (Value)
@@ -827,17 +876,17 @@ function QuickSalePOSContent() {
                   value={discountValue || ''}
                   placeholder={discountType === 'percent' ? 'e.g. 10%' : 'e.g. ₹500'}
                   onChange={(e) => setDiscountValue(Number(e.target.value))}
-                  className="w-28 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg font-bold text-xs"
+                  className="w-32 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-bold text-sm"
                 />
               </div>
-              <span className="text-[10px] text-slate-400 block">
+              <span className="text-xs text-slate-500 block font-medium">
                 Max staff discount limit: <strong>{settings?.maxStaffDiscountPercent || 10}%</strong>
               </span>
             </div>
 
             {/* Optional Tip against Staff (FR-48) */}
             <div className="space-y-2">
-              <span className="font-bold text-slate-900 block">Add Tip (Optional)</span>
+              <span className="font-black text-slate-900 block text-sm">Add Tip (Optional)</span>
               <div className="flex items-center space-x-2">
                 <input
                   type="number"
@@ -845,12 +894,12 @@ function QuickSalePOSContent() {
                   placeholder="Tip Amount (₹)"
                   value={tipAmount || ''}
                   onChange={(e) => setTipAmount(Number(e.target.value))}
-                  className="w-28 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg font-bold text-xs"
+                  className="w-32 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-bold text-sm"
                 />
                 <select
                   value={tipStaffName}
                   onChange={(e) => setTipStaffName(e.target.value)}
-                  className="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                  className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm"
                 >
                   <option value="">Attribute Tip to Staff...</option>
                   {staffList.map((st) => (
@@ -864,18 +913,18 @@ function QuickSalePOSContent() {
           </div>
 
           {/* 4. Split Payment Mode (FR-46) */}
-          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
-            <div className="flex items-center justify-between text-xs font-bold text-slate-900">
+          <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-3.5">
+            <div className="flex items-center justify-between text-sm font-black text-slate-900">
               <span>4. Mode of Payment (Split Allowed across modes)</span>
               <div className="flex items-center space-x-2">
-                <span className={`text-[11px] font-bold ${balanceRemaining === 0 ? 'text-emerald-700' : 'text-amber-700'}`}>
-                  {balanceRemaining === 0 ? '✓ Balanced' : `Balance Remaining: ₹${balanceRemaining}`}
+                <span className={`text-xs font-bold ${Math.abs(balanceRemaining) < 0.01 ? 'text-emerald-700' : 'text-amber-800'}`}>
+                  {Math.abs(balanceRemaining) < 0.01 ? '✓ Balanced' : `Balance Remaining: ₹${balanceRemaining.toFixed(2)}`}
                 </span>
-                {balanceRemaining !== 0 && (
+                {Math.abs(balanceRemaining) >= 0.01 && (
                   <button
                     type="button"
                     onClick={handleAutoBalance}
-                    className="px-2 py-0.5 bg-amber-600 hover:bg-amber-700 text-white rounded text-[10px] font-bold transition-colors shadow-xs"
+                    className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-colors shadow-xs"
                   >
                     Auto-Balance
                   </button>
@@ -884,14 +933,14 @@ function QuickSalePOSContent() {
             </div>
 
             {/* Quick 1-click full payment buttons */}
-            <div className="flex items-center space-x-1.5 text-xs">
-              <span className="text-[10px] text-slate-400 font-bold uppercase mr-1">Pay All With:</span>
+            <div className="flex items-center space-x-2 text-sm">
+              <span className="text-xs text-slate-500 font-bold uppercase mr-1">Pay All With:</span>
               {paymentModes.map((pm) => (
                 <button
                   key={pm.name}
                   type="button"
                   onClick={() => setExactPaymentMode(pm.name)}
-                  className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg font-bold text-[11px]"
+                  className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg font-bold text-xs"
                 >
                   {pm.name}
                 </button>
@@ -899,12 +948,12 @@ function QuickSalePOSContent() {
             </div>
 
             {/* Mode and Amount Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
               {paymentModes.map((pm) => (
-                <div key={pm.name} className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+                <div key={pm.name} className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-800">{pm.name}</span>
-                    <span className="text-[9px] text-slate-400">{pm.type}</span>
+                    <span className="font-bold text-slate-900 text-sm">{pm.name}</span>
+                    <span className="text-[10px] text-slate-500 uppercase font-semibold">{pm.type}</span>
                   </div>
                   <input
                     type="number"
@@ -912,33 +961,77 @@ function QuickSalePOSContent() {
                     placeholder="0"
                     value={payments[pm.name] || ''}
                     onChange={(e) => {
+                      const val = Number(e.target.value);
                       setPayments({
                         ...payments,
-                        [pm.name]: Number(e.target.value),
+                        [pm.name]: val,
                       });
+                      if (pm.name === 'Cash') {
+                        setCashTendered(val);
+                      }
                     }}
-                    className="w-full px-2 py-1 bg-white border border-slate-200 rounded font-black text-xs text-slate-900"
+                    className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg font-black text-sm text-slate-900"
                   />
                 </div>
               ))}
             </div>
 
             {/* Cash Tendered & Change (only cash gives change: Section 10) */}
-            {(payments['Cash'] || 0) > 0 && (
-              <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 flex items-center justify-between text-xs">
-                <div>
-                  <span className="font-bold text-amber-900 block">Cash Tendered by Patient:</span>
-                  <input
-                    type="number"
-                    value={cashTendered || ''}
-                    placeholder={`e.g. ₹${payments['Cash']}`}
-                    onChange={(e) => setCashTendered(Number(e.target.value))}
-                    className="w-28 mt-1 px-2.5 py-1 bg-white border border-amber-300 rounded font-black text-xs text-slate-900"
-                  />
-                </div>
-                <div className="text-right">
-                  <span className="text-[11px] text-amber-800 font-semibold block">Change to Return (Cash only):</span>
-                  <span className="text-lg font-black text-emerald-700">₹{changeAmount}</span>
+            {(effectiveCashApplied > 0 || cashRaw > 0) && (
+              <div className="p-4 bg-amber-50/90 rounded-xl border border-amber-200 space-y-2 text-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <span className="font-bold text-amber-950 text-sm">Cash Tendered by Patient:</span>
+                      <span className="text-xs bg-amber-100/90 text-amber-900 px-2 py-0.5 rounded font-bold border border-amber-200">
+                        Currency Note given
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600 mt-1 font-medium">
+                      Actual cash/note received (e.g. ₹2,000 note for ₹1,800 bill)
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2 mt-2">
+                      <input
+                        type="number"
+                        min="0"
+                        value={cashTendered > 0 ? cashTendered : (cashRaw > 0 ? cashRaw : '')}
+                        placeholder={`e.g. ₹${effectiveCashApplied}`}
+                        onChange={(e) => setCashTendered(Number(e.target.value))}
+                        className="w-32 px-3 py-1.5 bg-white border border-amber-300 rounded-lg font-black text-sm text-slate-900 shadow-xs focus:ring-1 focus:ring-amber-500 outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setCashTendered(effectiveCashApplied)}
+                        className="px-2.5 py-1.5 bg-white hover:bg-amber-100 border border-amber-200 rounded text-xs font-bold text-amber-900 shadow-xs"
+                      >
+                        Exact (₹{effectiveCashApplied})
+                      </button>
+                      {[500, 1000, 2000].map((note) => (
+                        note >= effectiveCashApplied && (
+                          <button
+                            key={note}
+                            type="button"
+                            onClick={() => setCashTendered(note)}
+                            className="px-2.5 py-1.5 bg-white hover:bg-amber-100 border border-amber-200 rounded text-xs font-bold text-amber-900 shadow-xs"
+                          >
+                            ₹{note} Note
+                          </button>
+                        )
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="text-right sm:border-l sm:border-amber-200/80 sm:pl-4">
+                    <span className="text-xs text-amber-900 font-bold block">Cash Change to Return:</span>
+                    <span className={`text-2xl font-black ${changeAmount > 0 ? 'text-emerald-700' : 'text-slate-800'}`}>
+                      ₹{changeAmount.toFixed(2)}
+                    </span>
+                    {changeAmount > 0 && (
+                      <span className="text-xs text-emerald-800 font-bold block mt-0.5">
+                        (₹{effectiveCashTendered} received − ₹{effectiveCashApplied} bill)
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -950,7 +1043,7 @@ function QuickSalePOSContent() {
                 placeholder="Billing remarks / special notes..."
                 value={remarks}
                 onChange={(e) => setRemarks(e.target.value)}
-                className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none"
+                className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none font-medium"
               />
             </div>
           </div>
@@ -958,26 +1051,26 @@ function QuickSalePOSContent() {
 
         {/* Right Column: Live Totals & Action Buttons (Figure 3) */}
         <div className="lg:col-span-4 sticky top-20 self-start bg-white rounded-2xl border border-slate-200/80 shadow-md p-5 flex flex-col justify-between space-y-4">
-          <div className="space-y-3">
-            <h3 className="font-black text-slate-900 text-sm border-b border-slate-100 pb-2">
+          <div className="space-y-3.5">
+            <h3 className="font-black text-slate-900 text-base border-b border-slate-100 pb-2.5">
               Billing Summary & Totals
             </h3>
 
-            <div className="space-y-2 text-xs text-slate-600">
-              <div className="flex justify-between">
+            <div className="space-y-2.5 text-sm text-slate-600">
+              <div className="flex justify-between font-medium">
                 <span>Subtotal</span>
-                <span className="font-bold text-slate-800">₹{subtotal.toFixed(2)}</span>
+                <span className="font-bold text-slate-900">₹{subtotal.toFixed(2)}</span>
               </div>
 
               {billDiscountAmount > 0 && (
-                <div className="flex justify-between text-emerald-600">
+                <div className="flex justify-between text-emerald-700 font-medium">
                   <span>Bill Discount ({discountType === 'percent' ? `${discountValue}%` : 'Flat'})</span>
                   <span className="font-bold">-₹{billDiscountAmount.toFixed(2)}</span>
                 </div>
               )}
 
               {isGstOn && (
-                <div className="flex justify-between text-slate-500">
+                <div className="flex justify-between text-slate-500 font-medium">
                   <span>GST (18%)</span>
                   <span>₹{gstAmount.toFixed(2)}</span>
                 </div>
@@ -985,50 +1078,52 @@ function QuickSalePOSContent() {
 
               <div className="flex justify-between items-center text-sm font-bold text-slate-800 pt-2 border-t border-slate-200">
                 <span>Grand Total</span>
-                <span>₹{grandTotal.toFixed(2)}</span>
+                <span className="font-black text-slate-900">₹{grandTotal.toFixed(2)}</span>
               </div>
 
               {tipAmount > 0 && (
-                <div className="flex justify-between text-indigo-600 text-xs">
+                <div className="flex justify-between text-indigo-700 text-sm font-medium">
                   <span>Staff Tip {tipStaffName ? `(${tipStaffName})` : ''}</span>
                   <span className="font-bold">+₹{tipAmount}</span>
                 </div>
               )}
 
-              <div className="flex justify-between items-center text-base font-black text-slate-900 pt-2 border-t border-slate-300">
+              <div className="flex justify-between items-center text-base font-black text-slate-900 pt-2.5 border-t border-slate-300">
                 <span>Payable Amount</span>
-                <span className="text-emerald-700 text-xl">₹{payableAmount.toFixed(2)}</span>
+                <span className="text-emerald-700 text-2xl font-black">₹{payableAmount.toFixed(2)}</span>
               </div>
 
-              {(payments['Cash'] || 0) > 0 && (
-                <div className="flex justify-between text-xs text-slate-500 pt-1">
+              {(effectiveCashApplied > 0 || cashRaw > 0) && (
+                <div className="flex justify-between text-sm text-slate-600 pt-1 font-medium">
                   <span>Cash Change to Return</span>
-                  <span className="font-bold text-slate-800">₹{changeAmount.toFixed(2)}</span>
+                  <span className={`font-bold ${changeAmount > 0 ? 'text-emerald-700 font-black text-base' : 'text-slate-800'}`}>
+                    ₹{changeAmount.toFixed(2)}
+                  </span>
                 </div>
               )}
             </div>
           </div>
 
           {/* Action Buttons (Reset & Save + Print) */}
-          <div className="space-y-2 pt-4 border-t border-slate-100">
+          <div className="space-y-2.5 pt-4 border-t border-slate-100">
             <ButtonLoader
               type="button"
               onClick={handleSaveBill}
               isLoading={isProcessing}
               loadingText="Processing & Printing..."
               disabled={items.length === 0}
-              className="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-600/20 active:scale-[0.99] transition-all disabled:opacity-50 flex items-center justify-center space-x-2 cursor-pointer"
+              className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-sm sm:text-base rounded-xl shadow-lg shadow-emerald-600/20 active:scale-[0.99] transition-all disabled:opacity-50 flex items-center justify-center space-x-2 cursor-pointer"
             >
-              <Printer className="w-4 h-4 mr-1.5" />
+              <Printer className="w-5 h-5 mr-1.5" />
               <span>Save + Print (₹{payableAmount.toFixed(2)})</span>
             </ButtonLoader>
 
             <button
               type="button"
               onClick={handleReset}
-              className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold text-xs rounded-xl flex items-center justify-center space-x-1.5 transition-all"
+              className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm rounded-xl flex items-center justify-center space-x-1.5 transition-all"
             >
-              <RotateCcw className="w-3.5 h-3.5" />
+              <RotateCcw className="w-4 h-4" />
               <span>Reset Screen</span>
             </button>
           </div>
@@ -1291,50 +1386,207 @@ function QuickSalePOSContent() {
                 Close
               </button>
             </div>
+
+            {/* If package sitting or sale was involved, prompt to set next sitting on calendar */}
+            {lastInvoice && (lastInvoice.items || []).some((i) => i.type === 'package' || i.type === 'package_use' || i.isFromPackage) && (
+              <div className="mt-3 p-3 bg-purple-50 border border-purple-200 rounded-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs">
+                <div>
+                  <span className="font-bold text-purple-900 block">Package Sitting Processed (1 of {customerPackages[0]?.totalSittings || 4})</span>
+                  <span className="text-[11px] text-purple-700">Remaining sessions can now be scheduled directly on the calendar.</span>
+                </div>
+                <div className="flex items-center space-x-2 shrink-0">
+                  {customerPackages.length > 0 && customerPackages[0].remainingSittings > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setSchedulingPackage(customerPackages[0])}
+                      className="px-3 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-lg text-xs flex items-center space-x-1 shadow-xs"
+                    >
+                      <Calendar className="w-3.5 h-3.5" />
+                      <span>Schedule Remaining ({customerPackages[0].remainingSittings}) on Calendar</span>
+                    </button>
+                  )}
+                  <Link
+                    href={`/admin/appointments?customerId=${encodeURIComponent(lastInvoice.customerId || '')}&customerName=${encodeURIComponent(lastInvoice.customerName)}&customerPhone=${encodeURIComponent(lastInvoice.customerMobile || '')}`}
+                    className="px-2.5 py-1.5 bg-white border border-purple-300 text-purple-800 hover:bg-purple-100 font-semibold rounded-lg text-xs"
+                  >
+                    Open Calendar →
+                  </Link>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
 
       {/* Bill List Drawer (FR-53) */}
       {showBillList && (
-        <div className="fixed inset-y-0 right-0 z-50 w-full sm:w-96 bg-white shadow-2xl border-l border-slate-200 p-5 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
-              <h3 className="font-bold text-slate-900 text-sm">Recent Bills - [{selectedStore}]</h3>
-              <button onClick={() => setShowBillList(false)} className="text-slate-400 hover:text-slate-600">
+        <div className="fixed inset-y-0 right-0 z-50 w-full sm:w-[460px] bg-white shadow-2xl border-l border-slate-200 p-5 flex flex-col justify-between">
+          <div className="flex-1 flex flex-col min-h-0">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
+              <div>
+                <h3 className="font-bold text-slate-900 text-sm">Recent POS Sales - [{selectedStore}]</h3>
+                <p className="text-[11px] text-slate-400">Differentiated by Services, Products & Packages</p>
+              </div>
+              <button onClick={() => setShowBillList(false)} className="text-slate-400 hover:text-slate-600 p-1">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="space-y-3 overflow-y-auto max-h-[calc(100vh-140px)] pr-1">
-              {recentBills.map((bill) => (
-                <div key={bill._id || bill.invoiceNo} className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono font-bold text-emerald-700">{bill.invoiceNo}</span>
-                    <span className="font-black text-slate-900">₹{bill.payableAmount || bill.grandTotal}</span>
-                  </div>
-                  <div className="font-bold text-slate-800">{bill.customerName}</div>
-                  <div className="text-[11px] text-slate-400 flex items-center justify-between">
-                    <span>{bill.date}</span>
-                    <span>{bill.paymentMethod || 'Split Payment'}</span>
-                  </div>
-                  <div className="pt-2 flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setLastInvoice(bill);
-                        setShowReceiptModal(true);
-                      }}
-                      className="px-2.5 py-1 bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 font-bold rounded-lg text-[10px]"
-                    >
-                      Reprint Bill
-                    </button>
-                  </div>
-                </div>
-              ))}
+            {/* Product / Service Filter Tabs (MioSalon POS Style) */}
+            <div className="grid grid-cols-4 gap-1 p-1 bg-slate-100 rounded-xl mb-3 text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => setRecentBillFilter('ALL')}
+                className={`py-1.5 rounded-lg text-center transition-all ${recentBillFilter === 'ALL' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'
+                  }`}
+              >
+                All ({recentBills.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setRecentBillFilter('services')}
+                className={`py-1.5 rounded-lg text-center transition-all ${recentBillFilter === 'services' ? 'bg-white text-emerald-700 shadow-xs font-bold' : 'text-slate-500 hover:text-slate-800'
+                  }`}
+              >
+                Services
+              </button>
+              <button
+                type="button"
+                onClick={() => setRecentBillFilter('products')}
+                className={`py-1.5 rounded-lg text-center transition-all ${recentBillFilter === 'products' ? 'bg-white text-sky-700 shadow-xs font-bold' : 'text-slate-500 hover:text-slate-800'
+                  }`}
+              >
+                Products
+              </button>
+              <button
+                type="button"
+                onClick={() => setRecentBillFilter('packages')}
+                className={`py-1.5 rounded-lg text-center transition-all ${recentBillFilter === 'packages' ? 'bg-white text-purple-700 shadow-xs font-bold' : 'text-slate-500 hover:text-slate-800'
+                  }`}
+              >
+                Packages
+              </button>
+            </div>
+
+            <div className="space-y-3 overflow-y-auto flex-1 pr-1">
+              {recentBills
+                .filter((bill) => {
+                  if (recentBillFilter === 'ALL') return true;
+                  const hasServices = (bill.items || []).some(
+                    (i) => i.type === 'service' || i.type === 'package_use' || !i.type
+                  );
+                  const hasProducts = (bill.items || []).some((i) => i.type === 'product');
+                  const hasPackages = (bill.items || []).some((i) => i.type === 'package');
+                  if (recentBillFilter === 'services') return hasServices;
+                  if (recentBillFilter === 'products') return hasProducts;
+                  if (recentBillFilter === 'packages') return hasPackages;
+                  return true;
+                })
+                .map((bill) => {
+                  const serviceItems = (bill.items || []).filter(
+                    (i) => i.type === 'service' || i.type === 'package_use' || !i.type
+                  );
+                  const productItems = (bill.items || []).filter((i) => i.type === 'product');
+                  const packageItems = (bill.items || []).filter((i) => i.type === 'package');
+
+                  return (
+                    <div key={bill._id || bill.invoiceNo} className="p-3.5 bg-slate-50 hover:bg-slate-100/80 rounded-xl border border-slate-200 text-xs space-y-2 transition-all">
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono font-bold text-emerald-700 text-xs">{bill.invoiceNo}</span>
+                        <span className="font-black text-slate-900 text-sm">₹{bill.payableAmount || bill.grandTotal}</span>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-slate-800 text-xs">{bill.customerName}</span>
+                        <span className="text-[10px] text-slate-400 font-mono">{bill.date}</span>
+                      </div>
+
+                      {/* Product vs Service Badges */}
+                      <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                        {serviceItems.length > 0 && (
+                          <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100/70 text-emerald-800 border border-emerald-200">
+                            <Sparkles className="w-3 h-3 text-emerald-600" />
+                            <span>Service ({serviceItems.length})</span>
+                          </span>
+                        )}
+                        {productItems.length > 0 && (
+                          <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-sky-100/70 text-sky-800 border border-sky-200">
+                            <Package className="w-3 h-3 text-sky-600" />
+                            <span>Product ({productItems.length})</span>
+                          </span>
+                        )}
+                        {packageItems.length > 0 && (
+                          <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-100/70 text-purple-800 border border-purple-200">
+                            <Package className="w-3 h-3 text-purple-600" />
+                            <span>Package ({packageItems.length})</span>
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Detailed item names preview */}
+                      <div className="bg-white p-2 rounded-lg border border-slate-200/60 space-y-1">
+                        {(bill.items || []).map((it, idx) => (
+                          <div key={idx} className="flex items-center justify-between text-[11px] text-slate-600">
+                            <div className="flex items-center space-x-1.5 truncate pr-2">
+                              <span
+                                className={`text-[9px] uppercase font-bold px-1 py-0.2 rounded ${it.type === 'product'
+                                    ? 'bg-sky-50 text-sky-700'
+                                    : it.type === 'package'
+                                      ? 'bg-purple-50 text-purple-700'
+                                      : 'bg-emerald-50 text-emerald-700'
+                                  }`}
+                              >
+                                {it.type === 'product' ? 'Product' : it.type === 'package' ? 'Package' : 'Service'}
+                              </span>
+                              <span className="truncate">{it.name}</span>
+                              <span className="text-slate-400">×{it.quantity}</span>
+                            </div>
+                            <span className="font-bold text-slate-800 shrink-0">₹{it.total}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="pt-1 flex items-center justify-between text-[11px] text-slate-500">
+                        <span>Paid via: <strong className="text-slate-700">{bill.paymentMethod || 'Split'}</strong></span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLastInvoice(bill);
+                            setShowReceiptModal(true);
+                          }}
+                          className="px-2.5 py-1 bg-white border border-slate-300 text-slate-800 hover:bg-slate-200 font-bold rounded-lg text-[10px] transition"
+                        >
+                          Reprint Bill
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+
+              {recentBills.length === 0 && (
+                <div className="p-8 text-center text-xs text-slate-400">No recent sales found for this store.</div>
+              )}
             </div>
           </div>
         </div>
+      )}
+      {/* Multi-Session Calendar Scheduler Modal */}
+      {schedulingPackage && (selectedCustomer || lastInvoice) && (
+        <PackageSchedulerModal
+          isOpen={Boolean(schedulingPackage)}
+          onClose={() => setSchedulingPackage(null)}
+          customer={{
+            customerId: (selectedCustomer?.customerId || lastInvoice?.customerId) as any,
+            name: selectedCustomer?.name || lastInvoice?.customerName || 'Client',
+            mobile: selectedCustomer?.mobile || lastInvoice?.customerMobile || '',
+          }}
+          customerPackage={schedulingPackage}
+          staffMembers={staffList}
+          storeId={selectedStore}
+          onSuccess={() => {
+            alert('Remaining sessions booked on Appointment Calendar!');
+          }}
+        />
       )}
     </div>
   );

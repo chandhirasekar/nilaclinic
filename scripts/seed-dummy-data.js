@@ -849,6 +849,27 @@ async function seed() {
       isDummyData: true,
       createdAt: new Date(),
     },
+    {
+      appointmentId: 'APP-1006',
+      customerId: 'CID-1006',
+      customerName: 'MALARMOZHI',
+      customerPhone: '+91 93615 39760',
+      serviceName: 'Underarm Peel (TCA 35%)',
+      serviceId: 'svc-3',
+      doctorId: 'user-doc-1',
+      doctorName: 'Dr. Anitha Ramachandran',
+      staffName: 'Dr. Anitha Ramachandran',
+      staffId: 'staff-1',
+      storeId: 'NILA-TH',
+      date: todayStr,
+      startTime: '10:15 AM',
+      durationMins: 30,
+      status: 'Booked',
+      notes: 'Underarm brightening chemical peel',
+      amount: 3000,
+      isDummyData: true,
+      createdAt: new Date(),
+    },
   ];
 
   // 12. VISITS / DOCTOR QUEUE (5 Patient Visits)

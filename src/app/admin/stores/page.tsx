@@ -155,14 +155,14 @@ export default function StoreMasterPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Multi-Store Master & Branches (M1)</h1>
-          <p className="text-xs text-slate-500 mt-1">
+          <h1 className="text-2xl font-black text-slate-900">Multi-Store Master & Branches (M1)</h1>
+          <p className="text-sm text-slate-600 mt-1 font-medium">
             FR-01: Admin can add, edit, and disable stores. Each store has an isolated invoice sequence (e.g. NILA-TH-) and operating hours.
           </p>
         </div>
         <button
           onClick={handleOpenAdd}
-          className="flex items-center space-x-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-xl shadow-md transition-all self-start sm:self-auto"
+          className="flex items-center space-x-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl shadow-md transition-all self-start sm:self-auto"
         >
           <Plus className="w-4 h-4" />
           <span>Add New Clinic Branch</span>
@@ -183,16 +183,16 @@ export default function StoreMasterPage() {
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center space-x-2">
-                    <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-800 font-black text-xs flex items-center justify-center">
+                    <div className="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-800 font-black text-sm flex items-center justify-center">
                       {st.code}
                     </div>
                     <div>
-                      <h3 className="font-bold text-slate-900 text-sm">{st.name}</h3>
-                      <span className="text-[10px] text-slate-400 font-mono">Invoice Prefix: {st.invoicePrefix || `${st.code}-`}</span>
+                      <h3 className="font-bold text-slate-900 text-base">{st.name}</h3>
+                      <span className="text-xs text-slate-500 font-mono font-medium">Invoice Prefix: {st.invoicePrefix || `${st.code}-`}</span>
                     </div>
                   </div>
                   <span
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                    className={`text-xs font-bold px-2.5 py-1 rounded-full ${
                       st.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-700'
                     }`}
                   >
@@ -200,35 +200,35 @@ export default function StoreMasterPage() {
                   </span>
                 </div>
 
-                <div className="space-y-1.5 text-xs text-slate-600 mt-3 pt-3 border-t border-slate-100">
+                <div className="space-y-1.5 text-xs text-slate-700 mt-3 pt-3 border-t border-slate-100 font-medium">
                   <div className="flex items-start space-x-2">
                     <MapPin className="w-3.5 h-3.5 text-slate-400 mt-0.5 shrink-0" />
-                    <span className="text-[11px] leading-tight">{st.address}</span>
+                    <span className="text-xs leading-relaxed">{st.address}</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span className="text-[11px]">{st.phone}</span>
+                    <span className="text-xs">{st.phone}</span>
                   </div>
                   {st.email && (
                     <div className="flex items-center space-x-2">
                       <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span className="text-[11px]">{st.email}</span>
+                      <span className="text-xs">{st.email}</span>
                     </div>
                   )}
-                  <div className="flex items-center space-x-2 text-[11px] text-slate-500">
+                  <div className="flex items-center space-x-2 text-xs text-slate-600">
                     <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                     <span>
                       {st.workingHours?.open || '09:00 AM'} - {st.workingHours?.close || '08:00 PM'} (Off: {st.workingHours?.weeklyOff || 'None'})
                     </span>
                   </div>
-                  <div className="text-[11px] text-slate-500">
-                    <strong>GSTIN:</strong> {st.gstin || '33ABCDE1234F1Z5'}
+                  <div className="text-xs text-slate-600">
+                    <strong className="text-slate-800">GSTIN:</strong> {st.gstin || '33ABCDE1234F1Z5'}
                   </div>
                 </div>
 
-                <div className="mt-4 p-2.5 bg-slate-50 rounded-xl flex items-center justify-between text-xs">
-                  <span className="text-slate-500">Next Invoice No:</span>
-                  <span className="font-mono font-bold text-emerald-700">
+                <div className="mt-4 p-3 bg-slate-50 rounded-xl flex items-center justify-between text-xs sm:text-sm">
+                  <span className="text-slate-600 font-medium">Next Invoice No:</span>
+                  <span className="font-mono font-bold text-emerald-700 text-base">
                     {st.invoicePrefix || `${st.code}-`}
                     {st.nextInvoiceNumber || 1001}
                   </span>
@@ -239,7 +239,7 @@ export default function StoreMasterPage() {
               <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between space-x-2">
                 <button
                   onClick={() => setSelectedStore(st.code)}
-                  className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-all ${
+                  className={`text-sm font-bold px-3.5 py-1.5 rounded-lg transition-all ${
                     isSelected
                       ? 'bg-emerald-600 text-white'
                       : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -254,7 +254,7 @@ export default function StoreMasterPage() {
                     className="p-1.5 text-slate-500 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-colors"
                     title="Edit Store"
                   >
-                    <Edit2 className="w-3.5 h-3.5" />
+                    <Edit2 className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => toggleStoreStatus(st)}
@@ -265,7 +265,7 @@ export default function StoreMasterPage() {
                     }`}
                     title={st.isActive ? 'Disable Store' : 'Enable Store'}
                   >
-                    {st.isActive ? <XCircle className="w-3.5 h-3.5" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                    {st.isActive ? <XCircle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
                   </button>
                 </div>
               </div>
@@ -278,20 +278,20 @@ export default function StoreMasterPage() {
       {showModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-100 p-6 relative">
-            <h3 className="font-bold text-slate-900 text-base mb-1">
+            <h3 className="font-black text-slate-900 text-lg mb-1">
               {editingStore ? 'Edit Clinic Store' : 'Register New Clinic Store'}
             </h3>
-            <p className="text-xs text-slate-500 mb-4">
+            <p className="text-sm text-slate-600 mb-4 font-medium">
               Enter branch code, invoice prefix, GSTIN, and operating hours.
             </p>
 
-            {error && <div className="mb-3 p-2 bg-red-50 text-red-600 rounded-lg text-xs">{error}</div>}
-            {success && <div className="mb-3 p-2 bg-emerald-50 text-emerald-600 rounded-lg text-xs">{success}</div>}
+            {error && <div className="mb-3 p-2 bg-red-50 text-red-600 rounded-lg text-sm font-medium">{error}</div>}
+            {success && <div className="mb-3 p-2 bg-emerald-50 text-emerald-600 rounded-lg text-sm font-medium">{success}</div>}
 
-            <form onSubmit={handleSubmit} className="space-y-3 text-xs">
+            <form onSubmit={handleSubmit} className="space-y-3.5 text-sm">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Store Code *</label>
+                  <label className="block font-bold text-slate-700 mb-1">Store Code *</label>
                   <input
                     type="text"
                     required
@@ -299,96 +299,96 @@ export default function StoreMasterPage() {
                     placeholder="e.g. NILA-CB"
                     value={formData.code}
                     onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none uppercase font-mono disabled:opacity-50"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none uppercase font-mono disabled:opacity-50 text-sm font-medium"
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Invoice Prefix *</label>
+                  <label className="block font-bold text-slate-700 mb-1">Invoice Prefix *</label>
                   <input
                     type="text"
                     required
                     placeholder="e.g. NILA-CB-"
                     value={formData.invoicePrefix}
                     onChange={(e) => setFormData({ ...formData, invoicePrefix: e.target.value.toUpperCase() })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none uppercase font-mono"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none uppercase font-mono text-sm font-medium"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Store Name *</label>
+                <label className="block font-bold text-slate-700 mb-1">Store Name *</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Nila Clinic - Coimbatore Branch"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-medium"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Address *</label>
+                <label className="block font-bold text-slate-700 mb-1">Address *</label>
                 <textarea
                   required
                   placeholder="Street, City, Pin Code"
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none h-14"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none h-14 text-sm font-medium"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Contact Phone *</label>
+                  <label className="block font-bold text-slate-700 mb-1">Contact Phone *</label>
                   <input
                     type="text"
                     required
                     placeholder="+91 98450 00000"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-medium"
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">GSTIN Number</label>
+                  <label className="block font-bold text-slate-700 mb-1">GSTIN Number</label>
                   <input
                     type="text"
                     placeholder="33ABCDE1234F1Z5"
                     value={formData.gstin}
                     onChange={(e) => setFormData({ ...formData, gstin: e.target.value.toUpperCase() })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none uppercase font-mono"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none uppercase font-mono text-sm font-medium"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Open Time</label>
+                  <label className="block font-bold text-slate-700 mb-1">Open Time</label>
                   <input
                     type="text"
                     placeholder="09:00 AM"
                     value={formData.openTime}
                     onChange={(e) => setFormData({ ...formData, openTime: e.target.value })}
-                    className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none"
+                    className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-medium"
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Close Time</label>
+                  <label className="block font-bold text-slate-700 mb-1">Close Time</label>
                   <input
                     type="text"
                     placeholder="08:00 PM"
                     value={formData.closeTime}
                     onChange={(e) => setFormData({ ...formData, closeTime: e.target.value })}
-                    className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none"
+                    className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-medium"
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Weekly Off</label>
+                  <label className="block font-bold text-slate-700 mb-1">Weekly Off</label>
                   <select
                     value={formData.weeklyOff}
                     onChange={(e) => setFormData({ ...formData, weeklyOff: e.target.value })}
-                    className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer"
+                    className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer text-sm font-medium"
                   >
                     <option value="None">None</option>
                     <option value="Sunday">Sunday</option>
@@ -406,13 +406,13 @@ export default function StoreMasterPage() {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 text-slate-600 font-semibold hover:bg-slate-100 rounded-xl"
+                  className="px-4 py-2 text-slate-600 font-bold hover:bg-slate-100 rounded-xl text-sm"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl shadow-xs"
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-xs text-sm"
                 >
                   {editingStore ? 'Save Store' : 'Create Store'}
                 </button>

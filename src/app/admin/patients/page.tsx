@@ -225,16 +225,16 @@ export default function PatientEntryAndQueuePage() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Patient Entry & Live Clinic Queue</h1>
-          <p className="text-xs text-slate-500 mt-1">
+          <h1 className="text-2xl font-black text-slate-900">Patient Entry & Live Clinic Queue</h1>
+          <p className="text-sm text-slate-600 font-medium mt-1">
             Store [{selectedStore}]: Register patients (duplicate phone flag), assign store doctors, and track visit status.
           </p>
         </div>
         <button
           onClick={() => setShowRegModal(true)}
-          className="flex items-center space-x-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-xl shadow-md transition-all self-start sm:self-auto"
+          className="flex items-center space-x-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl shadow-md transition-all self-start sm:self-auto"
         >
           <Plus className="w-4 h-4" />
           <span>Register New Patient</span>
@@ -244,43 +244,43 @@ export default function PatientEntryAndQueuePage() {
       {/* Live Visit Queue Section (FR-13: Waiting, In consultation, Done) */}
       <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs">
         <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
-          <div className="flex items-center space-x-2">
-            <Clock className="w-4 h-4 text-emerald-600" />
-            <h2 className="font-bold text-slate-900 text-sm">Today's Patient Queue ({visits.length})</h2>
+          <div className="flex items-center space-x-2.5">
+            <Clock className="w-5 h-5 text-emerald-600" />
+            <h2 className="font-black text-slate-900 text-base">Today&apos;s Patient Queue ({visits.length})</h2>
           </div>
-          <span className="text-xs text-slate-400">Live Status: Waiting → In consultation → Done</span>
+          <span className="text-xs sm:text-sm text-slate-600 font-medium">Live Status: Waiting → In consultation → Done</span>
         </div>
 
         {visits.length === 0 ? (
-          <div className="py-8 text-center text-slate-400 text-xs">
+          <div className="py-8 text-center text-slate-500 text-sm">
             No patients currently queued for consultation in store [{selectedStore}].
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Waiting Column */}
-            <div className="bg-amber-50/50 border border-amber-200/60 rounded-xl p-3.5 space-y-2.5">
-              <div className="flex items-center justify-between text-xs font-bold text-amber-800 border-b border-amber-200/60 pb-2">
+            <div className="bg-amber-50/60 border border-amber-200/80 rounded-xl p-4 space-y-3">
+              <div className="flex items-center justify-between text-sm font-black text-amber-950 border-b border-amber-200/60 pb-2">
                 <span>Waiting for Doctor</span>
-                <span className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full text-[10px]">
+                <span className="bg-amber-100 text-amber-900 px-2.5 py-0.5 rounded-full text-xs font-bold">
                   {visits.filter((v) => v.status === 'Waiting').length}
                 </span>
               </div>
-              <div className="space-y-2 max-h-80 overflow-y-auto">
+              <div className="space-y-2.5 max-h-80 overflow-y-auto">
                 {visits
                   .filter((v) => v.status === 'Waiting')
                   .map((v) => (
-                    <div key={v._id || v.visitId} className="bg-white p-3 rounded-lg border border-amber-100 shadow-2xs space-y-1">
+                    <div key={v._id || v.visitId} className="bg-white p-3.5 rounded-xl border border-amber-100 shadow-2xs space-y-1.5">
                       <div className="flex items-center justify-between">
-                        <span className="font-bold text-xs text-slate-900">{v.patientName}</span>
-                        <span className="text-[10px] font-mono text-slate-400">{v.patientId}</span>
+                        <span className="font-black text-sm text-slate-900">{v.patientName}</span>
+                        <span className="text-xs font-mono font-bold text-slate-500">{v.patientId}</span>
                       </div>
-                      <p className="text-[11px] text-slate-500 flex items-center">
-                        <Phone className="w-3 h-3 mr-1 text-slate-400" />
+                      <p className="text-xs text-slate-600 font-medium flex items-center">
+                        <Phone className="w-3.5 h-3.5 mr-1 text-slate-400" />
                         {v.patientPhone}
                       </p>
-                      <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between text-[10px]">
-                        <span className="text-sky-700 font-medium">Assigned: {v.doctorName}</span>
-                        <span className="text-amber-600 font-bold">Waiting</span>
+                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                        <span className="text-sky-800 font-semibold">Assigned: {v.doctorName}</span>
+                        <span className="text-amber-700 font-bold">Waiting</span>
                       </div>
                     </div>
                   ))}
@@ -288,24 +288,24 @@ export default function PatientEntryAndQueuePage() {
             </div>
 
             {/* In Consultation Column */}
-            <div className="bg-sky-50/50 border border-sky-200/60 rounded-xl p-3.5 space-y-2.5">
-              <div className="flex items-center justify-between text-xs font-bold text-sky-800 border-b border-sky-200/60 pb-2">
+            <div className="bg-sky-50/60 border border-sky-200/80 rounded-xl p-4 space-y-3">
+              <div className="flex items-center justify-between text-sm font-black text-sky-950 border-b border-sky-200/60 pb-2">
                 <span>In Consultation</span>
-                <span className="bg-sky-100 text-sky-800 px-2 py-0.5 rounded-full text-[10px]">
+                <span className="bg-sky-100 text-sky-900 px-2.5 py-0.5 rounded-full text-xs font-bold">
                   {visits.filter((v) => v.status === 'In consultation').length}
                 </span>
               </div>
-              <div className="space-y-2 max-h-80 overflow-y-auto">
+              <div className="space-y-2.5 max-h-80 overflow-y-auto">
                 {visits
                   .filter((v) => v.status === 'In consultation')
                   .map((v) => (
-                    <div key={v._id || v.visitId} className="bg-white p-3 rounded-lg border border-sky-100 shadow-2xs space-y-1">
+                    <div key={v._id || v.visitId} className="bg-white p-3.5 rounded-xl border border-sky-100 shadow-2xs space-y-1.5">
                       <div className="flex items-center justify-between">
-                        <span className="font-bold text-xs text-slate-900">{v.patientName}</span>
-                        <span className="text-[10px] font-mono text-slate-400">{v.patientId}</span>
+                        <span className="font-black text-sm text-slate-900">{v.patientName}</span>
+                        <span className="text-xs font-mono font-bold text-slate-500">{v.patientId}</span>
                       </div>
-                      <p className="text-[11px] text-slate-500">{v.doctorName} is examining patient...</p>
-                      <span className="inline-block text-[10px] bg-sky-100 text-sky-700 px-2 py-0.5 rounded-md font-bold animate-pulse">
+                      <p className="text-xs text-slate-600 font-medium">{v.doctorName} is examining patient...</p>
+                      <span className="inline-block text-xs bg-sky-100 text-sky-800 px-2.5 py-0.5 rounded-md font-bold animate-pulse">
                         Exam in progress
                       </span>
                     </div>
@@ -314,29 +314,29 @@ export default function PatientEntryAndQueuePage() {
             </div>
 
             {/* Done / Sent to Billing Column */}
-            <div className="bg-emerald-50/50 border border-emerald-200/60 rounded-xl p-3.5 space-y-2.5">
-              <div className="flex items-center justify-between text-xs font-bold text-emerald-800 border-b border-emerald-200/60 pb-2">
+            <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-xl p-4 space-y-3">
+              <div className="flex items-center justify-between text-sm font-black text-emerald-950 border-b border-emerald-200/60 pb-2">
                 <span>Done (Sent to Billing)</span>
-                <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full text-[10px]">
+                <span className="bg-emerald-100 text-emerald-900 px-2.5 py-0.5 rounded-full text-xs font-bold">
                   {visits.filter((v) => v.status === 'Done').length}
                 </span>
               </div>
-              <div className="space-y-2 max-h-80 overflow-y-auto">
+              <div className="space-y-2.5 max-h-80 overflow-y-auto">
                 {visits
                   .filter((v) => v.status === 'Done')
                   .map((v) => (
-                    <div key={v._id || v.visitId} className="bg-white p-3 rounded-lg border border-emerald-100 shadow-2xs space-y-1">
+                    <div key={v._id || v.visitId} className="bg-white p-3.5 rounded-xl border border-emerald-100 shadow-2xs space-y-1.5">
                       <div className="flex items-center justify-between">
-                        <span className="font-bold text-xs text-slate-900">{v.patientName}</span>
-                        <span className="text-[10px] text-emerald-600 font-bold">✓ Bill Created</span>
+                        <span className="font-black text-sm text-slate-900">{v.patientName}</span>
+                        <span className="text-xs text-emerald-700 font-black">✓ Bill Created</span>
                       </div>
-                      <p className="text-[10px] text-slate-500 line-clamp-1">Dr. Notes: {v.caseNotes || 'Completed'}</p>
-                      <div className="pt-1 flex items-center justify-between">
+                      <p className="text-xs text-slate-600 line-clamp-1 font-medium">Dr. Notes: {v.caseNotes || 'Completed'}</p>
+                      <div className="pt-1.5 flex items-center justify-between">
                         <a
                           href="/admin/pos"
-                          className="text-[10px] font-bold text-emerald-700 hover:underline flex items-center space-x-1"
+                          className="text-xs font-bold text-emerald-700 hover:underline flex items-center space-x-1"
                         >
-                          <CreditCard className="w-3 h-3" />
+                          <CreditCard className="w-3.5 h-3.5" />
                           <span>Collect Bill at POS →</span>
                         </a>
                       </div>
@@ -358,17 +358,17 @@ export default function PatientEntryAndQueuePage() {
               placeholder="Search by Mobile, Name, or Patient ID..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
+              className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none font-medium"
             />
           </div>
-          <span className="text-xs text-slate-500">
-            Registered Patients in [{selectedStore}]: <strong className="text-slate-800">{patients.length}</strong>
+          <span className="text-sm text-slate-600 font-medium">
+            Registered Patients in [{selectedStore}]: <strong className="text-slate-900 font-bold">{patients.length}</strong>
           </span>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-600">
-            <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] font-bold tracking-wider">
+          <table className="w-full text-left text-sm text-slate-700">
+            <thead className="bg-slate-50 text-slate-600 uppercase text-xs font-bold tracking-wider">
               <tr>
                 <th className="px-4 py-3">Patient ID</th>
                 <th className="px-4 py-3">Name</th>

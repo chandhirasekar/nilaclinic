@@ -131,7 +131,7 @@ export async function POST(req: Request) {
               });
             }
             if (item.isFromPackage && item.packageId) {
-              const rawServiceName = item.name.replace(/\(From Package:.*?\)/, '').trim();
+              const rawServiceName = item.packageServiceName || item.name.replace(/\s*\(From Package:.*$/i, '').trim();
               await clinicService.redeemPackageSitting(item.packageId, rawServiceName, storeId || existing.storeId);
             }
           }
@@ -166,6 +166,36 @@ export async function POST(req: Request) {
         status: status || 'Paid',
         visitId,
       });
+    }
+
+    // Link and complete visit when bill is settled
+    if (invoice && invoice.status === 'Paid') {
+      try {
+        const targetVisitId = invoice.visitId || visitId;
+        if (targetVisitId) {
+          await clinicService.updateVisit(targetVisitId, {
+            billId: invoice.invoiceNo,
+            status: 'Done',
+          });
+        } else if (customerId || customerMobile || customerPhone) {
+          const clientVisits = await clinicService.getVisits(storeId || 'NILA-TH');
+          const activeVisit = clientVisits.find(
+            (v) =>
+              (v.patientId === customerId ||
+                (customerMobile && v.patientPhone === customerMobile) ||
+                (customerPhone && v.patientPhone === customerPhone)) &&
+              (v.status === 'Waiting' || v.status === 'In consultation' || !v.billId)
+          );
+          if (activeVisit) {
+            await clinicService.updateVisit(activeVisit.visitId, {
+              billId: invoice.invoiceNo,
+              status: 'Done',
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Error linking visit to invoice on POS checkout:', err);
+      }
     }
 
     return NextResponse.json({ success: true, data: invoice });

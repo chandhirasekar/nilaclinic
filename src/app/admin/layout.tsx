@@ -28,7 +28,12 @@ import { ClinicProvider, useClinic } from '@/context/ClinicContext';
 function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const { user, selectedStore, setSelectedStore, stores, unreadDoctorVisits, logout } = useClinic();
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const userRole = user?.role || 'admin';
 
@@ -144,7 +149,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
             </div>
             <div className="md:hidden lg:block truncate">
               <h1 className="font-bold text-white text-base leading-none tracking-tight">Nila Clinic</h1>
-              <span className="text-[10px] text-emerald-400 font-medium block mt-0.5">Clinic Workflow & POS</span>
+              <span className="text-xs text-emerald-400 font-semibold block mt-1">Clinic Workflow & POS</span>
             </div>
           </div>
           <button onClick={() => setSidebarOpen(false)} className="md:hidden text-slate-400 hover:text-white shrink-0 ml-2">
@@ -157,15 +162,16 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
           {/* Active Store Selector (FR-03, FR-05 & Bug 6 Multi-store) */}
           {/* Desktop & Mobile drawer: Full Selector */}
           <div className="p-3 mx-3 my-2 bg-slate-800/80 rounded-xl border border-slate-700/60 md:hidden lg:block">
-            <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider flex items-center justify-between">
+            <div className="text-xs uppercase font-bold text-slate-300 tracking-wider flex items-center justify-between">
               <span>Active Clinic Store</span>
-              <Building2 className="w-3.5 h-3.5 text-emerald-400" />
+              <Building2 className="w-4 h-4 text-emerald-400" />
             </div>
             <select
               value={selectedStore}
               onChange={(e) => setSelectedStore(e.target.value)}
-              disabled={userRole !== 'admin' && selectableStores.length <= 1}
-              className="w-full mt-1.5 bg-slate-900 border border-slate-700 text-xs text-white rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-emerald-500 cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
+              disabled={mounted && userRole !== 'admin' && selectableStores.length <= 1}
+              suppressHydrationWarning
+              className="w-full mt-2 bg-slate-900 border border-slate-700 text-sm font-medium text-white rounded-lg px-2.5 py-2 focus:outline-none focus:border-emerald-500 cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
             >
               {selectableStores.map((st) => (
                 <option key={st.code} value={st.code}>
@@ -173,11 +179,11 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
                 </option>
               ))}
             </select>
-            {userRole !== 'admin' && (
-              <span className="text-[10px] text-slate-400 block mt-1">Locked to assigned store ({selectedStore})</span>
+            {mounted && userRole !== 'admin' && (
+              <span className="text-xs text-slate-300 block mt-1.5 font-medium">Locked to assigned store ({selectedStore})</span>
             )}
-            {userRole === 'admin' && selectedStore === 'ALL' && (
-              <span className="text-[10px] text-emerald-400 block mt-1 font-semibold">Viewing Consolidated Network Data</span>
+            {mounted && userRole === 'admin' && selectedStore === 'ALL' && (
+              <span className="text-xs text-emerald-400 block mt-1.5 font-semibold">Viewing Consolidated Network Data</span>
             )}
           </div>
 
@@ -187,13 +193,13 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
             title={`Active Clinic Store: [${selectedStore}]`}
           >
             <Building2 className="w-4 h-4 text-emerald-400 mb-0.5" />
-            <span className="text-[9px] font-bold text-white uppercase tracking-wider truncate max-w-full">
+            <span className="text-xs font-bold text-white uppercase tracking-wider truncate max-w-full">
               {selectedStore.replace('NILA-', '')}
             </span>
           </div>
 
           {/* Navigation Links */}
-          <nav className="px-2 sm:px-3 space-y-1 mt-2 pb-4">
+          <nav className="px-2 sm:px-3 space-y-1.5 mt-2 pb-4">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
@@ -203,10 +209,10 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
                   href={item.href}
                   onClick={() => setSidebarOpen(false)}
                   title={item.name}
-                  className={`relative flex items-center md:justify-center lg:justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all group ${
+                  className={`relative flex items-center md:justify-center lg:justify-between px-3.5 py-3 rounded-xl text-sm font-semibold transition-all group ${
                     isActive
                       ? 'bg-emerald-600 text-white shadow-sm'
-                      : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                      : 'text-slate-200 hover:bg-slate-800 hover:text-white'
                   }`}
                 >
                   <div className="flex items-center md:justify-center lg:justify-start space-x-0 lg:space-x-3">
@@ -215,10 +221,10 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
                   </div>
                   {item.badge !== undefined && (
                     <>
-                      <span className="md:hidden lg:inline bg-red-500 text-white font-bold text-[10px] px-1.5 py-0.5 rounded-full animate-pulse">
+                      <span className="md:hidden lg:inline bg-red-500 text-white font-bold text-xs px-2 py-0.5 rounded-full animate-pulse">
                         {item.badge}
                       </span>
-                      <span className="hidden md:block lg:hidden absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                      <span className="hidden md:block lg:hidden absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse" />
                     </>
                   )}
                 </Link>
@@ -228,7 +234,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* User Account Footer (Clean & Secure - Fixes Bug 5 & Bug 9) */}
-        <div className="p-2.5 sm:p-3 border-t border-slate-800 bg-slate-950/80 space-y-2 shrink-0">
+        <div className="p-3 border-t border-slate-800 bg-slate-950/80 space-y-2 shrink-0">
           <div className="flex items-center justify-between md:flex-col lg:flex-row md:gap-2">
             <div className="flex items-center space-x-2.5 md:space-x-0 lg:space-x-2.5 overflow-hidden">
               <div
@@ -244,10 +250,11 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
                 {userRole === 'admin' ? 'AD' : userRole === 'doctor' ? 'DR' : 'ST'}
               </div>
               <div className="truncate md:hidden lg:block">
-                <p className="text-xs font-bold text-white truncate">{user?.name || 'Nila User'}</p>
-                <div className="flex items-center space-x-1.5">
+                <p className="text-sm font-bold text-white truncate" suppressHydrationWarning>{user?.name || 'Nila User'}</p>
+                <div className="flex items-center space-x-1.5 mt-0.5">
                   <span
-                    className={`text-[9px] font-bold uppercase px-1.5 py-0.2 rounded ${
+                    suppressHydrationWarning
+                    className={`text-xs font-bold uppercase px-2 py-0.2 rounded ${
                       userRole === 'admin'
                         ? 'bg-purple-900/60 text-purple-300'
                         : userRole === 'doctor'
@@ -257,7 +264,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
                   >
                     {userRole}
                   </span>
-                  <span className="text-[10px] text-slate-400 font-medium truncate">
+                  <span className="text-xs text-slate-300 font-medium truncate" suppressHydrationWarning>
                     {user?.primaryStoreId ? `[${user.primaryStoreId}]` : ''}
                   </span>
                 </div>
@@ -277,19 +284,20 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
       {/* Main Content Area */}
       <div className="flex-1 md:ml-20 lg:ml-64 flex flex-col min-w-0 transition-all duration-300">
         {/* Top Header */}
-        <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-200 px-4 sm:px-6 py-2.5 flex items-center justify-between shadow-xs">
+        <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 sm:px-6 py-3 flex items-center justify-between shadow-xs">
           <div className="flex items-center space-x-3">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="md:hidden text-slate-600 hover:text-slate-900 p-1.5 rounded-lg bg-slate-100"
+              className="md:hidden text-slate-600 hover:text-slate-900 p-2 rounded-lg bg-slate-100"
             >
               <Menu className="w-5 h-5" />
             </button>
             <div>
               <div className="flex items-center space-x-2">
-                <span className="font-bold text-slate-900 text-sm">{user?.name || 'Nila Clinic'}</span>
+                <span className="font-black text-slate-900 text-base" suppressHydrationWarning>{user?.name || 'Nila Clinic'}</span>
                 <span
-                  className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                  suppressHydrationWarning
+                  className={`text-xs font-bold uppercase px-2.5 py-0.5 rounded-full ${
                     userRole === 'admin'
                       ? 'bg-purple-100 text-purple-800'
                       : userRole === 'doctor'
@@ -300,8 +308,8 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
                   {userRole}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500">
-                Active Store: <span className="font-semibold text-slate-700">[{selectedStore}]</span>
+              <p className="text-xs text-slate-600 font-medium mt-0.5" suppressHydrationWarning>
+                Active Store: <span className="font-bold text-slate-800">[{selectedStore}]</span>
               </p>
             </div>
           </div>
@@ -311,12 +319,12 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
             {userRole === 'doctor' && (
               <Link
                 href="/admin/doctor"
-                className="flex items-center space-x-1.5 px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold rounded-xl shadow-xs"
+                className="flex items-center space-x-2 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white text-sm font-bold rounded-xl shadow-xs transition"
               >
-                <Stethoscope className="w-3.5 h-3.5" />
+                <Stethoscope className="w-4 h-4" />
                 <span>Doctor Consultation Panel</span>
                 {unreadDoctorVisits > 0 && (
-                  <span className="bg-red-500 text-white font-bold text-[10px] px-1.5 py-0.2 rounded-full">
+                  <span className="bg-red-500 text-white font-bold text-xs px-2 py-0.5 rounded-full">
                     {unreadDoctorVisits}
                   </span>
                 )}
@@ -327,17 +335,17 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
               <>
                 <Link
                   href="/admin/patients"
-                  className="flex items-center space-x-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl"
+                  className="flex items-center space-x-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-sm font-bold rounded-xl transition"
                 >
-                  <ClipboardList className="w-3.5 h-3.5" />
+                  <ClipboardList className="w-4 h-4" />
                   <span>Patient Entry & Queue</span>
                 </Link>
 
                 <Link
                   href="/admin/pos"
-                  className="flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-xs"
+                  className="flex items-center space-x-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-xl shadow-xs transition"
                 >
-                  <CreditCard className="w-3.5 h-3.5" />
+                  <CreditCard className="w-4 h-4" />
                   <span>POS / Billing</span>
                 </Link>
               </>

@@ -54,7 +54,7 @@ export default function ReportsPage() {
     setIsLoading(true);
     try {
       const [invRes, apptRes, custRes, staffRes, pkgRes] = await Promise.all([
-        fetch(`/api/invoices?storeCode=${selectedStore}`),
+        fetch(`/api/invoices?storeCode=${selectedStore}&limit=500`),
         fetch(`/api/appointments?storeCode=${selectedStore}`),
         fetch(`/api/customers?storeCode=${selectedStore}`),
         fetch(`/api/masters/staff?storeCode=${selectedStore}`),
@@ -69,12 +69,48 @@ export default function ReportsPage() {
         pkgRes.json().then((r) => (r.success ? r.data || [] : [])),
       ]);
 
-      const todayStr = new Date().toISOString().split('T')[0];
+      const today = new Date();
+      const todayStr = today.toISOString().split('T')[0];
+
+      // Filter invoices & appointments by dateRange
+      const filteredInvoices = invoices.filter((inv: any) => {
+        if (dateRange === 'all') return true;
+        const invDate = inv.date || (inv.createdAt ? inv.createdAt.split('T')[0] : '');
+        if (dateRange === 'today') return invDate === todayStr;
+        if (dateRange === 'week') {
+          const d = new Date(invDate);
+          const diffDays = (today.getTime() - d.getTime()) / (1000 * 3600 * 24);
+          return diffDays >= 0 && diffDays <= 7;
+        }
+        if (dateRange === 'month') {
+          const d = new Date(invDate);
+          const diffDays = (today.getTime() - d.getTime()) / (1000 * 3600 * 24);
+          return diffDays >= 0 && diffDays <= 30;
+        }
+        return true;
+      });
+
+      const filteredAppts = appointments.filter((a: any) => {
+        if (dateRange === 'all') return true;
+        const aDate = a.date || '';
+        if (dateRange === 'today') return aDate === todayStr;
+        if (dateRange === 'week') {
+          const d = new Date(aDate);
+          const diffDays = (today.getTime() - d.getTime()) / (1000 * 3600 * 24);
+          return diffDays >= 0 && diffDays <= 7;
+        }
+        if (dateRange === 'month') {
+          const d = new Date(aDate);
+          const diffDays = (today.getTime() - d.getTime()) / (1000 * 3600 * 24);
+          return diffDays >= 0 && diffDays <= 30;
+        }
+        return true;
+      });
 
       // Format report based on activeReport
       if (activeReport === 'R1') {
         // Sales Summary
-        const rows = invoices.map((i: any) => ({
+        const rows = filteredInvoices.map((i: any) => ({
           invoiceNo: i.invoiceNo,
           date: i.date,
           store: i.storeId,
@@ -95,7 +131,7 @@ export default function ReportsPage() {
         });
       } else if (activeReport === 'R2') {
         // Daily Collection / Cash-up
-        const rows = invoices.filter((i: any) => i.status === 'Paid').map((i: any) => {
+        const rows = filteredInvoices.filter((i: any) => i.status === 'Paid').map((i: any) => {
           let cash = 0;
           let card = 0;
           let upi = 0;
@@ -133,7 +169,7 @@ export default function ReportsPage() {
       } else if (activeReport === 'R3') {
         // Service & Product Sales
         const itemMap: Record<string, { name: string; type: string; qty: number; revenue: number }> = {};
-        invoices.filter((i: any) => i.status === 'Paid').forEach((inv: any) => {
+        filteredInvoices.filter((i: any) => i.status === 'Paid').forEach((inv: any) => {
           (inv.items || []).forEach((it: any) => {
             const key = it.name;
             if (!itemMap[key]) {
@@ -167,19 +203,53 @@ export default function ReportsPage() {
         staffList.forEach((st: any) => {
           perfMap[st.name] = {
             staffName: st.name,
-            designation: st.designation,
-            stores: st.stores?.join(', '),
+            designation: st.designation || 'Staff',
+            stores: st.stores?.join(', ') || selectedStore,
             servicesCount: 0,
             revenue: 0,
             tips: 0,
           };
         });
-        invoices.filter((i: any) => i.status === 'Paid').forEach((inv: any) => {
-          const sName = inv.staffName;
-          if (sName && perfMap[sName]) {
-            perfMap[sName].revenue += inv.grandTotal || 0;
-            perfMap[sName].tips += inv.tipAmount || 0;
-            perfMap[sName].servicesCount += (inv.items || []).length;
+        filteredInvoices.filter((i: any) => i.status === 'Paid').forEach((inv: any) => {
+          if (inv.items && inv.items.length > 0) {
+            inv.items.forEach((it: any) => {
+              const sName = it.staffName || inv.staffName;
+              if (sName) {
+                if (!perfMap[sName]) {
+                  perfMap[sName] = {
+                    staffName: sName,
+                    designation: 'Specialist',
+                    stores: inv.storeId || selectedStore,
+                    servicesCount: 0,
+                    revenue: 0,
+                    tips: 0,
+                  };
+                }
+                perfMap[sName].revenue += Number(it.total) || 0;
+                perfMap[sName].servicesCount += Number(it.quantity) || 1;
+              }
+            });
+            const tipTarget = inv.tipStaffName || inv.staffName;
+            if (tipTarget && perfMap[tipTarget]) {
+              perfMap[tipTarget].tips += inv.tipAmount || 0;
+            }
+          } else {
+            const sName = inv.staffName;
+            if (sName) {
+              if (!perfMap[sName]) {
+                perfMap[sName] = {
+                  staffName: sName,
+                  designation: 'Staff',
+                  stores: inv.storeId || selectedStore,
+                  servicesCount: 0,
+                  revenue: 0,
+                  tips: 0,
+                };
+              }
+              perfMap[sName].revenue += inv.grandTotal || 0;
+              perfMap[sName].tips += inv.tipAmount || 0;
+              perfMap[sName].servicesCount += 1;
+            }
           }
         });
         const rows = Object.values(perfMap);
@@ -199,7 +269,7 @@ export default function ReportsPage() {
         setReportData(rows);
       } else if (activeReport === 'R7') {
         // Appointment Report
-        const rows = appointments.map((a: any) => ({
+        const rows = filteredAppts.map((a: any) => ({
           appointmentId: a.appointmentId || a._id,
           date: a.date,
           time: a.startTime || a.time,
@@ -214,7 +284,7 @@ export default function ReportsPage() {
         setReportData(rows);
       } else if (activeReport === 'R8') {
         // Discount Report
-        const rows = invoices.filter((i: any) => (i.discount || 0) > 0 || (i.rowDiscountTotal || 0) > 0).map((i: any) => ({
+        const rows = filteredInvoices.filter((i: any) => (i.discount || 0) > 0 || (i.rowDiscountTotal || 0) > 0).map((i: any) => ({
           invoiceNo: i.invoiceNo,
           date: i.date,
           store: i.storeId,
@@ -228,7 +298,7 @@ export default function ReportsPage() {
         setReportData(rows);
       } else if (activeReport === 'R9') {
         // Bill Register (Full Ledger)
-        const rows = invoices.map((i: any) => ({
+        const rows = filteredInvoices.map((i: any) => ({
           invoiceNo: i.invoiceNo,
           date: i.date,
           store: i.storeId,
@@ -310,13 +380,13 @@ export default function ReportsPage() {
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
         <div>
-          <div className="flex items-center space-x-2">
-            <div className="p-2 bg-slate-900 text-white rounded-xl">
+          <div className="flex items-center space-x-2.5">
+            <div className="p-2.5 bg-slate-900 text-white rounded-xl">
               <BarChart3 className="w-5 h-5" />
             </div>
-            <h1 className="text-xl font-bold text-slate-800 tracking-tight">Clinic Reports & Intelligence (R1 - R9)</h1>
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Clinic Reports & Intelligence (R1 - R9)</h1>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-sm text-slate-600 font-medium mt-1">
             Module 9: 9 structured reports with Excel/CSV export, role permissions, and cross-store filtering.
           </p>
         </div>
@@ -324,7 +394,7 @@ export default function ReportsPage() {
         <div className="flex items-center space-x-3 w-full sm:w-auto">
           <button
             onClick={() => window.print()}
-            className="flex items-center space-x-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition"
+            className="flex items-center space-x-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-sm font-bold transition shadow-xs"
           >
             <Printer className="w-4 h-4" />
             <span>Print Report</span>
@@ -332,7 +402,7 @@ export default function ReportsPage() {
           <button
             onClick={handleExportCSV}
             disabled={!canExport}
-            className="flex items-center space-x-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold transition shadow-sm disabled:opacity-50"
+            className="flex items-center space-x-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold transition shadow-xs disabled:opacity-50"
           >
             <Download className="w-4 h-4" />
             <span>Export to CSV / Excel</span>
@@ -350,14 +420,14 @@ export default function ReportsPage() {
               <button
                 key={rKey}
                 onClick={() => setActiveReport(rKey)}
-                className={`px-3 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 ${
+                className={`px-3.5 py-2 rounded-xl text-sm font-bold transition flex items-center space-x-2 ${
                   isActive
                     ? 'bg-slate-900 text-white shadow-xs'
                     : 'bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                 }`}
               >
                 <span>{rKey}</span>
-                <span className="font-normal text-[11px] opacity-90">{rInfo.title.replace(`${rKey}. `, '')}</span>
+                <span className="font-semibold text-xs opacity-90">{rInfo.title.replace(`${rKey}. `, '')}</span>
               </button>
             );
           })}
@@ -368,27 +438,27 @@ export default function ReportsPage() {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-3 border-b border-slate-100">
           <div>
-            <h2 className="text-base font-bold text-slate-800">{reportTitles[activeReport].title}</h2>
-            <p className="text-xs text-slate-500 mt-0.5">{reportTitles[activeReport].subtitle}</p>
+            <h2 className="text-lg font-black text-slate-900">{reportTitles[activeReport].title}</h2>
+            <p className="text-sm text-slate-600 font-medium mt-0.5">{reportTitles[activeReport].subtitle}</p>
           </div>
 
-          <div className="text-xs font-semibold text-slate-600 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
-            Store Scope: <span className="font-bold text-slate-800">{selectedStore}</span> • Records: {reportData.length}
+          <div className="text-sm font-semibold text-slate-700 bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-200">
+            Store Scope: <span className="font-bold text-slate-900">{selectedStore}</span> • Records: {reportData.length}
           </div>
         </div>
 
         {/* Data Table */}
         {isLoading ? (
-          <div className="py-12 text-center text-xs text-slate-400">Loading report records...</div>
+          <div className="py-12 text-center text-sm text-slate-500">Loading report records...</div>
         ) : reportData.length === 0 ? (
-          <div className="py-12 text-center text-xs text-slate-400">No records found for this report scope.</div>
+          <div className="py-12 text-center text-sm text-slate-500">No records found for this report scope.</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-700">
-              <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] font-bold tracking-wider border-b border-slate-200">
+            <table className="w-full text-left text-sm text-slate-700">
+              <thead className="bg-slate-50 text-slate-600 uppercase text-xs font-bold tracking-wider border-b border-slate-200">
                 <tr>
                   {Object.keys(reportData[0]).map((h) => (
-                    <th key={h} className="p-3 whitespace-nowrap">
+                    <th key={h} className="p-3.5 whitespace-nowrap">
                       {h.replace(/([A-Z])/g, ' $1').toUpperCase()}
                     </th>
                   ))}
@@ -396,9 +466,9 @@ export default function ReportsPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {reportData.map((row, idx) => (
-                  <tr key={idx} className="hover:bg-slate-50/60 font-mono text-[11px]">
+                  <tr key={idx} className="hover:bg-slate-50/60 font-mono text-xs sm:text-sm">
                     {Object.values(row).map((val: any, vIdx) => (
-                      <td key={vIdx} className="p-3 whitespace-nowrap">
+                      <td key={vIdx} className="p-3.5 whitespace-nowrap">
                         {typeof val === 'number' && val > 99 ? `₹${val.toLocaleString('en-IN')}` : String(val)}
                       </td>
                     ))}

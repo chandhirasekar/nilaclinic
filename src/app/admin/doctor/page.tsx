@@ -53,9 +53,17 @@ export default function DoctorPanelPage() {
   const [fileError, setFileError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [completedSuccess, setCompletedSuccess] = useState(false);
+  const [queueFilter, setQueueFilter] = useState<'active' | 'waiting' | 'done' | 'all'>('active');
 
-  // Poll doctor visits every 5 seconds (NFR-05)
+  const isFetchingVisitsRef = React.useRef(false);
+  const latestRequestIdRef = React.useRef(0);
+
+  // Poll doctor visits cleanly without overlapping requests or race conditions (NFR-05)
   const fetchVisits = async () => {
+    if (isFetchingVisitsRef.current) return;
+    isFetchingVisitsRef.current = true;
+    const currentReqId = ++latestRequestIdRef.current;
+
     try {
       const doctorId = user?.role === 'doctor' ? user._id || user.email : undefined;
       const url = doctorId
@@ -64,12 +72,13 @@ export default function DoctorPanelPage() {
 
       const res = await fetch(url);
       const data = await res.json();
-      if (data.success) {
+      if (currentReqId === latestRequestIdRef.current && data.success) {
         setVisits(data.data || []);
       }
     } catch (err) {
-      console.error(err);
+      console.error('fetchVisits error:', err);
     } finally {
+      isFetchingVisitsRef.current = false;
       setLoading(false);
     }
   };
@@ -78,10 +87,9 @@ export default function DoctorPanelPage() {
     fetchVisits();
     const interval = setInterval(() => {
       fetchVisits();
-      refreshDoctorAlerts();
-    }, 5000);
+    }, 10000);
     return () => clearInterval(interval);
-  }, [selectedStore, user]);
+  }, [selectedStore, user?._id, user?.role]);
 
   // Open patient details and mark 'In consultation' (FR-15, Section 7 lifecycle)
   const handleOpenPatient = async (visit: IVisit) => {
@@ -241,7 +249,15 @@ export default function DoctorPanelPage() {
 
   const waitingVisits = visits.filter((v) => v.status === 'Waiting');
   const inConsultVisits = visits.filter((v) => v.status === 'In consultation');
+  const activeVisits = visits.filter((v) => v.status === 'Waiting' || v.status === 'In consultation');
   const doneVisits = visits.filter((v) => v.status === 'Done');
+
+  const displayedVisits =
+    queueFilter === 'active'
+      ? activeVisits
+      : queueFilter === 'done'
+      ? doneVisits
+      : visits;
 
   return (
     <div className="space-y-6">
@@ -252,9 +268,9 @@ export default function DoctorPanelPage() {
             <span className="p-1.5 bg-sky-500/30 rounded-lg">
               <Stethoscope className="w-5 h-5 text-sky-300" />
             </span>
-            <h1 className="text-xl font-bold tracking-tight">Doctor Clinical Workspace</h1>
+            <h1 className="text-2xl font-black tracking-tight">Doctor Clinical Workspace</h1>
           </div>
-          <p className="text-xs text-sky-200">
+          <p className="text-sm text-sky-100 font-medium mt-1">
             Store [{selectedStore}]: Clinical case notes, cross-store history, prescription writer, and consultation completion.
           </p>
         </div>
@@ -268,13 +284,13 @@ export default function DoctorPanelPage() {
             )}
           </div>
           <div>
-            <div className="text-xs font-bold text-white flex items-center space-x-1.5">
+            <div className="text-sm font-bold text-white flex items-center space-x-2">
               <span>{waitingVisits.length} Arrived Patient(s) Waiting</span>
               {waitingVisits.length > 0 && (
-                <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">New</span>
+                <span className="bg-red-500 text-white text-xs px-2 py-0.2 rounded-full font-bold">New</span>
               )}
             </div>
-            <span className="text-[10px] text-sky-300">Live Auto-Sync Active (every 5s)</span>
+            <span className="text-xs text-sky-200 font-medium">Live Auto-Sync Active (every 5s)</span>
           </div>
         </div>
       </div>
@@ -282,67 +298,129 @@ export default function DoctorPanelPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left: Arrived & Waiting Patient Queue (FR-15) */}
         <div className="lg:col-span-5 space-y-4">
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="font-bold text-slate-900 text-sm flex items-center space-x-2">
-                <span>Arrived Patients Queue</span>
-                <span className="bg-sky-100 text-sky-800 px-2 py-0.5 rounded-full text-[11px] font-bold">
-                  {visits.length}
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs">
+            <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
+              <h3 className="font-black text-slate-900 text-base flex items-center space-x-2">
+                <span>Patients Queue</span>
+                <span className="bg-sky-100 text-sky-900 px-2.5 py-0.5 rounded-full text-xs font-bold">
+                  {displayedVisits.length}
                 </span>
               </h3>
-              <span className="text-[11px] text-slate-400">Store: {selectedStore}</span>
+              <span className="text-xs text-slate-500 font-medium">Store: {selectedStore}</span>
             </div>
 
-            {visits.length === 0 ? (
-              <div className="py-12 text-center text-slate-400 text-xs">
-                No patient consultations currently checked in for store [{selectedStore}].
+            {/* Filter Tabs: Waiting / Active vs Completed Today vs All */}
+            <div className="flex items-center space-x-1.5 mt-3 p-1 bg-slate-100 rounded-xl text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => setQueueFilter('active')}
+                className={`flex-1 py-1.5 px-2 rounded-lg transition-all text-center flex items-center justify-center space-x-1 ${
+                  queueFilter === 'active'
+                    ? 'bg-white text-sky-800 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <span>Waiting ({activeVisits.length})</span>
+                {activeVisits.length > 0 && (
+                  <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setQueueFilter('done')}
+                className={`flex-1 py-1.5 px-2 rounded-lg transition-all text-center flex items-center justify-center space-x-1 ${
+                  queueFilter === 'done'
+                    ? 'bg-white text-emerald-800 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <span>Completed ({doneVisits.length})</span>
+                {doneVisits.length > 0 && (
+                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setQueueFilter('all')}
+                className={`py-1.5 px-3 rounded-lg transition-all text-center ${
+                  queueFilter === 'all'
+                    ? 'bg-white text-slate-800 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <span>All ({visits.length})</span>
+              </button>
+            </div>
+
+            {displayedVisits.length === 0 ? (
+              <div className="py-12 text-center text-slate-500 text-sm">
+                {queueFilter === 'active'
+                  ? `No patients currently waiting for consultation in store [${selectedStore}].`
+                  : queueFilter === 'done'
+                  ? `No consultations completed yet today for store [${selectedStore}].`
+                  : `No patient consultations found for store [${selectedStore}].`}
               </div>
             ) : (
-              <div className="space-y-2.5 mt-3 max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
-                {visits.map((v) => {
+              <div className="space-y-3 mt-3.5 max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
+                {displayedVisits.map((v) => {
                   const isSelected = selectedVisit?._id === v._id || selectedVisit?.visitId === v.visitId;
                   return (
                     <div
                       key={v._id || v.visitId}
                       onClick={() => handleOpenPatient(v)}
-                      className={`p-3.5 rounded-xl border transition-all cursor-pointer flex flex-col space-y-2 ${
+                      className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col space-y-2.5 ${
                         isSelected
-                          ? 'border-sky-500 bg-sky-50/60 shadow-xs ring-1 ring-sky-400'
+                          ? 'border-sky-500 bg-sky-50/70 shadow-xs ring-1 ring-sky-400'
                           : 'border-slate-200 hover:border-sky-300 bg-white'
                       }`}
                     >
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <div className="w-8 h-8 rounded-full bg-slate-900 text-white font-bold text-xs flex items-center justify-center">
+                        <div className="flex items-center space-x-2.5">
+                          <div className="w-9 h-9 rounded-full bg-slate-900 text-white font-bold text-sm flex items-center justify-center">
                             {v.patientName.charAt(0)}
                           </div>
                           <div>
-                            <h4 className="font-bold text-slate-900 text-xs">{v.patientName}</h4>
-                            <span className="text-[10px] text-slate-400 font-mono">{v.patientId}</span>
+                            <h4 className="font-bold text-slate-900 text-sm">{v.patientName}</h4>
+                            <span className="text-xs text-slate-500 font-mono font-medium">{v.patientId}</span>
                           </div>
                         </div>
 
-                        <span
-                          className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
-                            v.status === 'Waiting'
-                              ? 'bg-amber-100 text-amber-800 animate-pulse'
-                              : v.status === 'In consultation'
-                              ? 'bg-purple-100 text-purple-800 font-semibold'
-                              : 'bg-emerald-100 text-emerald-800'
-                          }`}
-                        >
-                          {v.status}
-                        </span>
+                        <div className="flex items-center space-x-1.5">
+                          <span
+                            className={`text-xs font-bold px-3 py-0.5 rounded-full ${
+                              v.status === 'Waiting'
+                                ? 'bg-amber-100 text-amber-800 animate-pulse'
+                                : v.status === 'In consultation'
+                                ? 'bg-purple-100 text-purple-800 font-semibold'
+                                : 'bg-emerald-100 text-emerald-800'
+                            }`}
+                          >
+                            {v.status === 'Done' ? '✓ Completed' : v.status}
+                          </span>
+                          {v.billId && (
+                            <span className="text-[10px] font-mono bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200" title={`Bill: ${v.billId}`}>
+                              Billed
+                            </span>
+                          )}
+                        </div>
                       </div>
 
-                      <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-100">
+                      <div className="flex items-center justify-between text-xs text-slate-600 pt-1.5 border-t border-slate-100 font-medium">
                         <span className="flex items-center">
-                          <Phone className="w-3 h-3 mr-1 text-slate-400" />
+                          <Phone className="w-3.5 h-3.5 mr-1 text-slate-400" />
                           {v.patientPhone}
                         </span>
-                        <span className="text-sky-600 font-semibold flex items-center text-xs">
-                          <span>{isSelected ? 'Consulting Now' : 'Open Case'}</span>
-                          <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                        <span className="text-sky-700 font-bold flex items-center text-xs">
+                          <span>
+                            {isSelected
+                              ? v.status === 'Done'
+                                ? 'Reviewing Notes'
+                                : 'Consulting Now'
+                              : v.status === 'Done'
+                              ? 'View Notes & Rx'
+                              : 'Open Case'}
+                          </span>
+                          <ArrowRight className="w-4 h-4 ml-1" />
                         </span>
                       </div>
                     </div>
@@ -600,6 +678,23 @@ export default function DoctorPanelPage() {
                 </div>
 
                 {/* Submit Consultation (BR-03 compliant: No price input or billing ticket shown) */}
+                {selectedVisit.status === 'Done' && (
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-xs text-emerald-800">
+                    <div className="flex items-center space-x-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <div>
+                        <span className="font-bold">Consultation Finished & Dispatched</span>
+                        {selectedVisit.billId && (
+                          <span className="ml-2 font-mono text-[11px] bg-emerald-100 text-emerald-900 px-2 py-0.5 rounded font-bold">
+                            Invoice: {selectedVisit.billId}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <span className="text-[11px] text-emerald-700 font-medium">Billed at Reception POS</span>
+                  </div>
+                )}
+
                 <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
                   <div className="text-[11px] text-slate-400">
                     Rule BR-03: Billing fee is auto-billed to Reception Quick Sale upon submit.
@@ -610,7 +705,13 @@ export default function DoctorPanelPage() {
                     className="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center space-x-2 disabled:opacity-50"
                   >
                     <Check className="w-4 h-4" />
-                    <span>{submitting ? 'Submitting...' : 'Complete Consultation & Dispatch Bill'}</span>
+                    <span>
+                      {submitting
+                        ? 'Saving...'
+                        : selectedVisit.status === 'Done'
+                        ? 'Update Consultation Record'
+                        : 'Complete Consultation & Dispatch Bill'}
+                    </span>
                   </button>
                 </div>
               </form>

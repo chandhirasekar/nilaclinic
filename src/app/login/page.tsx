@@ -122,67 +122,67 @@ export default function LoginPage() {
           <div className="text-center mb-6">
             <img src="/logo.png" alt="Nila Clinic Logo" className="h-12 w-auto mx-auto mb-2 object-contain" />
             <h1 className="text-2xl font-black text-slate-900 tracking-tight">Login to Nila Clinic</h1>
-            <p className="text-xs text-slate-500 mt-1 font-medium">
+            <p className="text-sm text-slate-600 mt-1 font-medium">
               Select your role below or enter your registered clinic credentials
             </p>
           </div>
 
           {/* Role Tabs for Crystal Clear Guidance (Fixes Bug 4, 7, 10) */}
           <div className="mb-5">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2 text-center">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2 text-center">
               Choose Role to Sign In:
             </span>
             <div className="grid grid-cols-3 gap-2 bg-slate-100 p-1.5 rounded-2xl">
               <button
                 type="button"
                 onClick={() => handleSelectRoleTab('admin')}
-                className={`py-2 px-3 rounded-xl font-bold text-xs flex flex-col items-center justify-center space-y-1 transition-all ${
+                className={`py-2 px-3 rounded-xl font-bold text-sm flex flex-col items-center justify-center space-y-1 transition-all ${
                   activeRoleTab === 'admin'
                     ? 'bg-emerald-600 text-white shadow-md'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
                 }`}
               >
-                <ShieldCheck className="w-4 h-4" />
+                <ShieldCheck className="w-5 h-5" />
                 <span>Admin</span>
               </button>
               <button
                 type="button"
                 onClick={() => handleSelectRoleTab('doctor')}
-                className={`py-2 px-3 rounded-xl font-bold text-xs flex flex-col items-center justify-center space-y-1 transition-all ${
+                className={`py-2 px-3 rounded-xl font-bold text-sm flex flex-col items-center justify-center space-y-1 transition-all ${
                   activeRoleTab === 'doctor'
                     ? 'bg-sky-600 text-white shadow-md'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
                 }`}
               >
-                <Stethoscope className="w-4 h-4" />
+                <Stethoscope className="w-5 h-5" />
                 <span>Doctor</span>
               </button>
               <button
                 type="button"
                 onClick={() => handleSelectRoleTab('staff')}
-                className={`py-2 px-3 rounded-xl font-bold text-xs flex flex-col items-center justify-center space-y-1 transition-all ${
+                className={`py-2 px-3 rounded-xl font-bold text-sm flex flex-col items-center justify-center space-y-1 transition-all ${
                   activeRoleTab === 'staff'
                     ? 'bg-teal-600 text-white shadow-md'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
                 }`}
               >
-                <Users className="w-4 h-4" />
+                <Users className="w-5 h-5" />
                 <span>Staff / Frontdesk</span>
               </button>
             </div>
           </div>
 
           {/* Quick Demo Fill Card */}
-          <div className="mb-5 p-3.5 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between text-xs">
+          <div className="mb-5 p-3.5 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between text-sm">
             <div>
               <div className="flex items-center space-x-1.5">
                 <span className="font-bold text-slate-800">{currentPreset.title}</span>
-                <span className="text-[10px] font-semibold bg-slate-200 text-slate-700 px-2 py-0.2 rounded-full">
+                <span className="text-xs font-semibold bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full">
                   {currentPreset.badge}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500 mt-0.5">
-                Preset: <code className="font-mono text-slate-700">{currentPreset.email}</code> / <code className="font-mono text-slate-700">{currentPreset.password}</code>
+              <p className="text-xs text-slate-600 mt-0.5 font-medium">
+                Preset: <code className="font-mono text-slate-800">{currentPreset.email}</code> / <code className="font-mono text-slate-800">{currentPreset.password}</code>
               </p>
             </div>
             <button
@@ -192,20 +192,20 @@ export default function LoginPage() {
                 setPassword(currentPreset.password);
                 handleLogin();
               }}
-              className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition shadow-xs whitespace-nowrap"
+              className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs sm:text-sm font-bold transition shadow-xs whitespace-nowrap"
             >
               1-Click Sign In
             </button>
           </div>
 
           {error && (
-            <div className="mb-4 p-3 text-xs text-red-700 bg-red-50 border border-red-200 rounded-xl font-medium">
+            <div className="mb-4 p-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl font-medium">
               {error}
             </div>
           )}
 
           {/* Custom Credentials Form (Works for Chandru, Custom Staff, or Admin) */}
-          <form onSubmit={handleLogin} className="space-y-4 text-xs">
+          <form onSubmit={handleLogin} className="space-y-4 text-sm">
             <div>
               <label className="block font-bold text-slate-700 mb-1">
                 Email Address or Username <span className="text-emerald-600">*</span>
@@ -215,7 +215,7 @@ export default function LoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white text-slate-800 text-xs font-medium outline-none transition"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white text-slate-800 text-sm font-medium outline-none transition"
                 placeholder="e.g. chandru@gmail.com or admin@nilaclinic.com"
               />
             </div>
@@ -230,7 +230,7 @@ export default function LoginPage() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white text-slate-800 text-xs font-medium outline-none transition pr-10"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white text-slate-800 text-sm font-medium outline-none transition pr-10"
                   placeholder="Enter password"
                 />
                 <button
@@ -246,7 +246,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md transition-all active:scale-[0.99] disabled:opacity-60 flex items-center justify-center space-x-2"
+              className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm sm:text-base rounded-xl shadow-md transition-all active:scale-[0.99] disabled:opacity-60 flex items-center justify-center space-x-2"
             >
               {loading ? (
                 <span>Signing in...</span>
@@ -260,14 +260,14 @@ export default function LoginPage() {
           </form>
 
           {/* Role Feature Guide */}
-          <div className="mt-5 pt-4 border-t border-slate-100 text-[11px] text-slate-500 space-y-1.5">
-            <span className="font-bold text-slate-700 uppercase tracking-wider block text-[10px]">
+          <div className="mt-5 pt-4 border-t border-slate-100 text-xs text-slate-600 space-y-1.5 font-medium">
+            <span className="font-bold text-slate-800 uppercase tracking-wider block text-xs">
               Access scope for this role:
             </span>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
               {currentPreset.features.map((feat, i) => (
                 <div key={i} className="flex items-center space-x-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                   <span>{feat}</span>
                 </div>
               ))}
@@ -276,7 +276,7 @@ export default function LoginPage() {
         </div>
       </main>
 
-      <footer className="p-4 text-center text-[11px] text-slate-400 border-t border-slate-200">
+      <footer className="p-4 text-center text-xs text-slate-500 font-medium border-t border-slate-200">
         Nila Clinic Management Portal • Dermatology, Aesthetic & Hair Care
       </footer>
     </div>

@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { connectToDatabase } from '@/lib/db';
 import Store from '@/lib/models/Store';
 import User from '@/lib/models/User';
@@ -1131,9 +1132,10 @@ class ClinicService {
           .select('name code address phone email gstin workingHours invoicePrefix nextInvoiceNumber isActive')
           .sort({ createdAt: 1 })
           .lean();
-        if (docs && docs.length > 0) {
+        if (docs) {
           return docs.map((d: any) => ({ ...d, _id: d._id?.toString() }));
         }
+        return [];
       }
     } catch (e) { }
     return this.stores;
@@ -1208,11 +1210,37 @@ class ClinicService {
       store = this.stores[0];
     }
 
-    const currentSeq = store.nextInvoiceNumber || 1001;
     const prefix = store.invoicePrefix || `${store.code}-`;
-    const invoiceNo = `${prefix}${currentSeq}`;
+    let seq = store.nextInvoiceNumber || 1001;
 
-    await this.updateStore(store.code, { nextInvoiceNumber: currentSeq + 1 });
+    // Check MongoDB for the true highest invoice sequence number for this store prefix
+    try {
+      const db = await connectToDatabase();
+      if (db) {
+        const escapedPrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const docs = await (Invoice as any).find(
+          { invoiceNo: new RegExp(`^${escapedPrefix}\\d+`) },
+          { invoiceNo: 1 }
+        ).lean();
+
+        let maxDbSeq = 0;
+        for (const doc of docs) {
+          const numPart = parseInt((doc.invoiceNo || '').replace(prefix, ''), 10);
+          if (!isNaN(numPart) && numPart > maxDbSeq) {
+            maxDbSeq = numPart;
+          }
+        }
+
+        if (maxDbSeq >= seq) {
+          seq = maxDbSeq + 1;
+        }
+      }
+    } catch (e) {
+      console.error('Error finding max invoice sequence from DB:', e);
+    }
+
+    const invoiceNo = `${prefix}${seq}`;
+    await this.updateStore(store.code, { nextInvoiceNumber: seq + 1 });
     return invoiceNo;
   }
 
@@ -1223,18 +1251,30 @@ class ClinicService {
       if (db) {
         const query: any = {};
         if (storeCode && storeCode !== 'ALL') {
-          query.assignedStoreIds = { $in: [storeCode.toUpperCase(), storeCode.replace('NILA-', '')] };
+          const aliases = getStoreAliases(storeCode);
+          query.$or = [
+            { assignedStoreIds: { $in: aliases } },
+            { primaryStoreId: { $in: aliases } },
+            { assignedStoreIds: 'ALL' },
+            { assignedStoreIds: { $size: 0 } },
+            { assignedStoreIds: { $exists: false } }
+          ];
         }
-        const docs = await (User as any).find(query).lean();
-        if (docs && docs.length > 0) {
+        const docs = await (User as any).find(query).sort({ name: 1 }).lean();
+        if (docs) {
           return docs.map((d: any) => ({ ...d, _id: d._id?.toString() }));
         }
+        return [];
       }
     } catch (e) { }
 
     if (!storeCode || storeCode === 'ALL') return this.users;
+    const aliases = getStoreAliases(storeCode).map(a => a.toUpperCase());
     return this.users.filter(u =>
-      u.assignedStoreIds.some(s => s.toUpperCase() === storeCode.toUpperCase() || s.toUpperCase() === storeCode.replace('NILA-', ''))
+      !u.assignedStoreIds ||
+      u.assignedStoreIds.length === 0 ||
+      u.assignedStoreIds.includes('ALL') ||
+      u.assignedStoreIds.some(s => aliases.includes(s.toUpperCase()))
     );
   }
 
@@ -1271,11 +1311,42 @@ class ClinicService {
         const doc = await (User as any).create({ ...userData, username: userData.email });
         const saved = doc.toObject();
         saved._id = saved._id.toString();
+
+        // If the user is a doctor or staff, automatically sync/ensure corresponding Staff record exists
+        if (saved.role === 'doctor' || saved.role === 'staff') {
+          try {
+            const existingStaff = await (Staff as any).findOne({
+              $or: [
+                { email: saved.email.toLowerCase() },
+                { name: saved.name }
+              ]
+            });
+            if (!existingStaff) {
+              await (Staff as any).create({
+                name: saved.name,
+                mobile: saved.phone || '+91 98450 00000',
+                email: saved.email,
+                designation: saved.role === 'doctor' ? 'Doctor' : 'Front desk',
+                stores: saved.assignedStoreIds || ['NILA-TH'],
+                workingHours: { start: '09:00 AM', end: '08:00 PM' },
+                calendarColour: saved.role === 'doctor' ? '#0284c7' : '#059669',
+                showInAppointmentCalendar: true,
+                hasLogin: true,
+                loginRole: saved.role === 'doctor' ? 'Doctor' : 'Staff',
+                isActive: saved.isActive !== false,
+              });
+            }
+          } catch (stErr) {
+            console.error('Error auto-syncing staff record:', stErr);
+          }
+        }
+
         this.users.push(saved);
         return saved;
       }
     } catch (e) {
       console.error('Error creating user in MongoDB:', e);
+      throw e;
     }
 
     this.users.push(newUser);
@@ -1310,17 +1381,69 @@ class ClinicService {
       if (db) {
         const query: any = {};
         if (storeCode && storeCode !== 'ALL') {
-          query.stores = { $in: [storeCode.toUpperCase(), storeCode.replace('NILA-', '')] };
+          const aliases = getStoreAliases(storeCode);
+          query.$or = [
+            { stores: { $in: aliases } },
+            { stores: 'ALL' },
+            { stores: { $size: 0 } },
+            { stores: { $exists: false } }
+          ];
         }
         const docs = await (Staff as any).find(query).sort({ name: 1 }).lean();
-        if (docs && docs.length > 0) {
-          return docs.map((d: any) => ({ ...d, _id: d._id?.toString() }));
+        const staffList: IStaff[] = docs ? docs.map((d: any) => ({ ...d, _id: d._id?.toString() })) : [];
+
+        // Also ensure Doctors from User collection are included in staff if not already present
+        const docQuery: any = { role: 'doctor' };
+        if (storeCode && storeCode !== 'ALL') {
+          const aliases = getStoreAliases(storeCode);
+          docQuery.$or = [
+            { assignedStoreIds: { $in: aliases } },
+            { primaryStoreId: { $in: aliases } },
+            { assignedStoreIds: 'ALL' },
+            { assignedStoreIds: { $size: 0 } },
+            { assignedStoreIds: { $exists: false } }
+          ];
         }
+        const docUsers = await (User as any).find(docQuery).lean();
+        if (docUsers && docUsers.length > 0) {
+          for (const du of docUsers) {
+            const duName = (du.name || '').trim().toLowerCase();
+            const duEmail = (du.email || '').trim().toLowerCase();
+            const exists = staffList.some(s =>
+              (s.email && s.email.trim().toLowerCase() === duEmail) ||
+              (s.name && s.name.trim().toLowerCase() === duName)
+            );
+            if (!exists) {
+              staffList.push({
+                _id: String(du._id),
+                name: du.name || 'Doctor',
+                mobile: du.phone || '+91 98450 00000',
+                email: du.email,
+                designation: 'Doctor',
+                stores: du.assignedStoreIds?.length ? du.assignedStoreIds : (storeCode && storeCode !== 'ALL' ? [storeCode] : ['NILA-TH']),
+                workingHours: { start: '09:00 AM', end: '08:00 PM' },
+                calendarColour: '#0284c7',
+                showInAppointmentCalendar: true,
+                hasLogin: true,
+                loginRole: 'Doctor',
+                isActive: du.isActive !== false,
+              } as any);
+            }
+          }
+        }
+
+        if (staffList.length > 0) return staffList;
       }
     } catch (e) { }
 
     if (!storeCode || storeCode === 'ALL') return this.staff;
-    return this.staff.filter(st => st.stores.map(s => s.toUpperCase()).includes(storeCode.toUpperCase()));
+    const aliases = getStoreAliases(storeCode).map(s => s.toUpperCase());
+    return this.staff.filter(st =>
+      !st.stores ||
+      st.stores.length === 0 ||
+      st.stores.includes('ALL') ||
+      st.stores.some(s => aliases.includes(s.toUpperCase()))
+    );
   }
 
   async createStaff(data: Partial<IStaff>): Promise<IStaff> {
@@ -1346,11 +1469,38 @@ class ClinicService {
         const doc = await (Staff as any).create(staffData);
         const saved = doc.toObject();
         saved._id = saved._id.toString();
+
+        // If staff has login enabled or is a doctor, ensure a corresponding User account exists
+        if (saved.hasLogin || saved.designation === 'Doctor') {
+          try {
+            const role = saved.designation === 'Doctor' ? 'doctor' : (saved.loginRole?.toLowerCase() === 'admin' ? 'admin' : 'staff');
+            const email = (saved.email || `staff.${saved.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@nilaclinic.com`).toLowerCase();
+            const existingUser = await (User as any).findOne({ email });
+            if (!existingUser) {
+              await (User as any).create({
+                name: saved.name,
+                email,
+                username: email,
+                password: (data as any).password || (role === 'doctor' ? 'doctor' : 'staff'),
+                role,
+                phone: saved.mobile,
+                assignedStoreIds: saved.stores,
+                primaryStoreId: saved.stores?.[0] || 'NILA-TH',
+                specialization: saved.designation === 'Doctor' ? 'Consultant Doctor' : undefined,
+                isActive: saved.isActive !== false,
+              });
+            }
+          } catch (uErr) {
+            console.error('Error auto-syncing User for staff:', uErr);
+          }
+        }
+
         this.staff.push(saved);
         return saved;
       }
     } catch (e) {
       console.error('Error creating staff in MongoDB:', e);
+      throw e;
     }
 
     this.staff.push(newStaff);
@@ -2064,21 +2214,57 @@ class ClinicService {
 
     // Deduct specific service if found
     if (pkg.servicesRemaining && pkg.servicesRemaining.length > 0) {
-      const sItem = pkg.servicesRemaining.find(
-        s => s.serviceName.toLowerCase() === serviceName.toLowerCase() && s.remainingCount > 0
+      const cleanTarget = (serviceName || '')
+        .replace(/\s*\(From Package:.*$/i, '')
+        .replace(/\)$/, '')
+        .trim()
+        .toLowerCase();
+
+      // 1. Exact match (trimmed, case-insensitive)
+      let sItem = pkg.servicesRemaining.find(
+        s => s.serviceName.trim().toLowerCase() === cleanTarget && s.remainingCount > 0
       );
+
+      // 2. Substring match
+      if (!sItem && cleanTarget) {
+        sItem = pkg.servicesRemaining.find(
+          s => (cleanTarget.includes(s.serviceName.toLowerCase()) || s.serviceName.toLowerCase().includes(cleanTarget)) && s.remainingCount > 0
+        );
+      }
+
+      // 3. Fallback: if only 1 service in package has remaining balance, use it
+      if (!sItem) {
+        const remainingList = pkg.servicesRemaining.filter(s => s.remainingCount > 0);
+        if (remainingList.length === 1) {
+          sItem = remainingList[0];
+        }
+      }
+
       if (sItem) {
-        sItem.usedCount += 1;
-        sItem.remainingCount -= 1;
+        sItem.usedCount = (sItem.usedCount || 0) + 1;
+        sItem.remainingCount = Math.max(0, sItem.remainingCount - 1);
       }
     }
 
     try {
       const db = await connectToDatabase();
       if (db) {
-        await (CustomerPackage as any).findByIdAndUpdate(customerPackageId, pkg);
+        await (CustomerPackage as any).findByIdAndUpdate(
+          customerPackageId,
+          {
+            $set: {
+              usedSittings: pkg.usedSittings,
+              remainingSittings: pkg.remainingSittings,
+              status: pkg.status,
+              servicesRemaining: pkg.servicesRemaining,
+            }
+          },
+          { new: true }
+        );
       }
-    } catch (e) { }
+    } catch (e) {
+      console.error('Error updating CustomerPackage in DB:', e);
+    }
 
     const idx = this.customerPackages.findIndex(cp => cp._id === customerPackageId);
     if (idx !== -1) {
@@ -2316,16 +2502,51 @@ class ClinicService {
         if (storeCode && storeCode !== 'ALL') {
           query.storeId = { $in: [storeCode.toUpperCase(), storeCode.replace('NILA-', '')] };
         }
-        if (doctorId) query.doctorId = doctorId;
+        if (doctorId) {
+          const docIdTrim = String(doctorId).trim();
+          const docIds = [docIdTrim];
+          const docNames: string[] = [];
+
+          // Fast-path known doctor aliases without extra DB roundtrip
+          if (docIdTrim === 'user-doc-1' || docIdTrim.toLowerCase().includes('anitha')) {
+            docIds.push('user-doc-1', '6afaf14cb00b4600f4042892', '6afaf14db00b4600f4042897', '6b0296ec8be796595c91e0b2');
+            docNames.push('Dr. Anitha Ramachandran', 'Anitha R.');
+          } else if (docIdTrim === 'user-doc-2' || docIdTrim.toLowerCase().includes('rajesh')) {
+            docIds.push('user-doc-2');
+            docNames.push('Dr. Rajesh Varma', 'Rajesh Varma');
+          } else if (docIdTrim === 'user-doc-3' || docIdTrim.toLowerCase().includes('priya')) {
+            docIds.push('user-doc-3');
+            docNames.push('Dr. Priya Dharshini', 'Priya Dharshini');
+          } else {
+            try {
+              const isValidOid = mongoose.isValidObjectId ? mongoose.isValidObjectId(docIdTrim) : false;
+              const docUser = await (User as any).findOne({
+                $or: [
+                  ...(isValidOid ? [{ _id: docIdTrim }] : []),
+                  { email: docIdTrim },
+                  { name: docIdTrim },
+                ],
+              }).lean();
+
+              if (docUser) {
+                if (docUser._id) docIds.push(docUser._id.toString());
+                if (docUser.email) docIds.push(docUser.email);
+                if (docUser.name) docNames.push(docUser.name);
+              }
+            } catch (_) {}
+          }
+
+          query.$or = [
+            { doctorId: { $in: docIds } },
+            ...(docNames.length > 0 ? [{ doctorName: { $in: docNames } }] : []),
+          ];
+        }
         if (status) query.status = status;
         const docs = await (Visit as any).find(query).sort({ createdAt: -1 }).lean();
         if (docs && docs.length > 0) {
           return docs.map((d: any) => ({ ...d, _id: d._id?.toString() }));
         }
-        const totalVisitsCount = await (Visit as any).countDocuments();
-        if (totalVisitsCount > 0) {
-          return [];
-        }
+        return [];
       }
     } catch (e) {
       console.error('getVisits error:', e);
@@ -2340,7 +2561,13 @@ class ClinicService {
       );
     }
     if (doctorId) {
-      res = res.filter(v => v.doctorId === doctorId);
+      const docIdTrim = String(doctorId).toLowerCase();
+      res = res.filter(v =>
+        v.doctorId === doctorId ||
+        (v.doctorName && v.doctorName.toLowerCase().includes('anitha') && (docIdTrim.includes('anitha') || docIdTrim === 'user-doc-1')) ||
+        (v.doctorName && v.doctorName.toLowerCase().includes('rajesh') && (docIdTrim.includes('rajesh') || docIdTrim === 'user-doc-2')) ||
+        (v.doctorName && v.doctorName.toLowerCase().includes('priya') && (docIdTrim.includes('priya') || docIdTrim === 'user-doc-3'))
+      );
     }
     if (status) {
       res = res.filter(v => v.status === status);
@@ -2497,7 +2724,7 @@ class ClinicService {
         }
         if (status) query.status = status;
 
-        const projection = options?.selectFields || 'invoiceNo storeId customerId customerName customerMobile customerPhone date items subtotal discount tax grandTotal payableAmount paidAmount paymentMethod status staffName visitId createdAt paidAt';
+        const projection = options?.selectFields || 'invoiceNo storeId customerId customerName customerMobile customerPhone date items subtotal discount tax grandTotal payableAmount paidAmount payments changeAmount tipAmount tipStaffName rowDiscountTotal billDiscountType billDiscountValue paymentMethod status staffName visitId remarks createdAt paidAt';
 
         const docs = await (Invoice as any)
           .find(query)
@@ -2507,9 +2734,10 @@ class ClinicService {
           .limit(limit)
           .lean();
 
-        if (docs && docs.length > 0) {
+        if (docs) {
           return docs.map((d: any) => ({ ...d, _id: d._id?.toString() }));
         }
+        return [];
       }
     } catch (e) { }
 
@@ -2744,12 +2972,16 @@ class ClinicService {
     try {
       const db = await connectToDatabase();
       if (db) {
-        const doc = await (Invoice as any).findOne({
-          $or: [{ invoiceNo: invoiceNoOrId }, { _id: invoiceNoOrId }]
-        }).lean();
-        if (doc) return doc as any;
+        const isValidOid = mongoose.isValidObjectId(invoiceNoOrId);
+        const query = isValidOid
+          ? { $or: [{ invoiceNo: invoiceNoOrId }, { _id: invoiceNoOrId }] }
+          : { invoiceNo: invoiceNoOrId };
+        const doc = await (Invoice as any).findOne(query).lean();
+        if (doc) return { ...doc, _id: doc._id?.toString() } as any;
       }
-    } catch (e) { }
+    } catch (e) {
+      console.error('getInvoiceById error:', e);
+    }
 
     return this.invoices.find(i => i.invoiceNo === invoiceNoOrId || i._id === invoiceNoOrId) || null;
   }
@@ -2758,18 +2990,68 @@ class ClinicService {
     try {
       const db = await connectToDatabase();
       if (db) {
+        const isValidOid = mongoose.isValidObjectId(invoiceId);
+        const query = isValidOid
+          ? { $or: [{ invoiceNo: invoiceId }, { _id: invoiceId }] }
+          : { invoiceNo: invoiceId };
+
+        // If marking as Paid, ensure payments breakdown and paidAt are properly set
+        if (updates.status === 'Paid') {
+          if (!updates.paidAt) updates.paidAt = new Date().toISOString();
+          if (updates.paidAmount === undefined) {
+            const existing = await (Invoice as any).findOne(query).lean();
+            if (existing) {
+              updates.paidAmount = existing.payableAmount || existing.grandTotal || 0;
+            }
+          }
+          if (!updates.payments || updates.payments.length === 0) {
+            updates.payments = [
+              {
+                mode: updates.paymentMethod || 'Cash',
+                amount: updates.paidAmount || 0,
+                type: (updates.paymentMethod || 'Cash') === 'Cash' ? 'cash' : 'non-cash',
+              }
+            ];
+          }
+        }
+
         const doc = await (Invoice as any).findOneAndUpdate(
-          { $or: [{ invoiceNo: invoiceId }, { _id: invoiceId }] },
-          updates,
+          query,
+          { $set: updates },
           { new: true }
         ).lean();
+
         if (doc) {
+          const saved = { ...doc, _id: doc._id?.toString() };
           const idx = this.invoices.findIndex(i => i._id === invoiceId || i.invoiceNo === invoiceId);
           if (idx !== -1) this.invoices[idx] = { ...this.invoices[idx], ...updates };
-          return doc as any;
+
+          // Complete linked visit
+          if (doc.status === 'Paid' && doc.visitId) {
+            try {
+              await (Visit as any).findOneAndUpdate(
+                { visitId: doc.visitId },
+                { $set: { status: 'Done', billId: doc.invoiceNo } }
+              );
+            } catch (_) {}
+          }
+
+          // Update customer visit stats
+          if (doc.status === 'Paid' && doc.customerId && updates.status === 'Paid') {
+            try {
+              await (Customer as any).findOneAndUpdate(
+                { $or: [{ customerId: doc.customerId }, { _id: doc.customerId }] },
+                { $inc: { visits: 1, totalSpent: doc.grandTotal || 0 } }
+              );
+            } catch (_) {}
+          }
+
+          return saved as any;
         }
       }
-    } catch (e) { }
+    } catch (e) {
+      console.error('updateInvoice error:', e);
+    }
 
     const idx = this.invoices.findIndex(i => i._id === invoiceId || i.invoiceNo === invoiceId);
     if (idx !== -1) {
@@ -2804,7 +3086,7 @@ class ClinicService {
       tipStaffName: data.tipStaffName || '',
       payableAmount: data.payableAmount || data.grandTotal || 0,
       payments: data.payments || [],
-      paidAmount: data.paidAmount || data.payableAmount || 0,
+      paidAmount: data.status === 'Paid' ? (data.paidAmount ?? data.payableAmount ?? data.grandTotal ?? 0) : (data.paidAmount ?? 0),
       changeAmount: data.changeAmount || 0,
       paymentMethod: data.paymentMethod || 'Cash',
       remarks: data.remarks || '',
@@ -2845,7 +3127,7 @@ class ClinicService {
     if (newInv.status === 'Paid') {
       for (const item of newInv.items) {
         if (item.isFromPackage && item.packageId) {
-          const rawServiceName = item.name.replace(/\(From Package:.*?\)/, '').trim();
+          const rawServiceName = item.packageServiceName || item.name.replace(/\s*\(From Package:.*$/i, '').trim();
           await this.redeemPackageSitting(item.packageId, rawServiceName, targetStore);
         }
       }
@@ -2855,10 +3137,38 @@ class ClinicService {
       const db = await connectToDatabase();
       if (db) {
         const { _id, ...invData } = newInv;
-        const doc = await (Invoice as any).create(invData);
+        let doc: any;
+        try {
+          doc = await (Invoice as any).create(invData);
+        } catch (createErr: any) {
+          // If invoice sequence collision occurs (E11000 duplicate key), auto-heal sequence and retry
+          if (createErr?.code === 11000 || createErr?.message?.includes('duplicate key error')) {
+            console.warn(`Duplicate invoice ${newInv.invoiceNo} encountered. Regenerating next sequence...`);
+            const freshInvoiceNo = await this.getNextInvoiceNumber(targetStore);
+            newInv.invoiceNo = freshInvoiceNo;
+            invData.invoiceNo = freshInvoiceNo;
+            doc = await (Invoice as any).create(invData);
+          } else {
+            throw createErr;
+          }
+        }
+
         const saved = doc.toObject();
         saved._id = saved._id.toString();
         this.invoices.unshift(saved);
+
+        // Update customer totalSpent and visits in MongoDB
+        if (data.customerId) {
+          try {
+            await (Customer as any).findOneAndUpdate(
+              { $or: [{ customerId: data.customerId }, { _id: data.customerId }] },
+              { $inc: { visits: 1, totalSpent: newInv.grandTotal || 0 } }
+            );
+          } catch (custErr) {
+            console.error('Error updating customer visits in DB:', custErr);
+          }
+        }
+
         return saved;
       }
     } catch (e) {
@@ -2873,14 +3183,20 @@ class ClinicService {
     try {
       const db = await connectToDatabase();
       if (db) {
+        const isValidOid = mongoose.isValidObjectId(id);
+        const query = isValidOid
+          ? { $or: [{ _id: id }, { invoiceNo: id }] }
+          : { invoiceNo: id };
         const doc = await (Invoice as any).findOneAndUpdate(
-          { $or: [{ _id: id }, { invoiceNo: id }] },
-          { status: 'Cancelled', cancellationReason: reason },
+          query,
+          { $set: { status: 'Cancelled', cancellationReason: reason } },
           { new: true }
         ).lean();
-        if (doc) return doc as any;
+        if (doc) return { ...doc, _id: doc._id?.toString() } as any;
       }
-    } catch (e) { }
+    } catch (e) {
+      console.error('cancelInvoice error:', e);
+    }
 
     const idx = this.invoices.findIndex(i => i._id === id || i.invoiceNo === id);
     if (idx !== -1) {

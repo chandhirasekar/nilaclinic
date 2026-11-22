@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { UserCheck, Plus, Edit2, ShieldAlert, CheckCircle, XCircle, Phone, Mail, Stethoscope, Briefcase } from 'lucide-react';
+import { UserCheck, Plus, Edit2, ShieldAlert, CheckCircle, XCircle, Phone, Mail, Stethoscope, Briefcase, Search, Building2, Filter } from 'lucide-react';
 import { IUser, IStore } from '@/types';
 import { useClinic } from '@/context/ClinicContext';
 
@@ -11,6 +11,11 @@ export default function UsersManagementPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState<IUser | null>(null);
+
+  // Filters
+  const [branchFilter, setBranchFilter] = useState<string>('ALL');
+  const [roleFilter, setRoleFilter] = useState<string>('All');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -28,7 +33,8 @@ export default function UsersManagementPage() {
   const loadUsers = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/users?storeCode=${selectedStore}`);
+      const storeParam = branchFilter && branchFilter !== 'ALL' ? `?storeCode=${branchFilter}` : '?storeCode=ALL';
+      const res = await fetch(`/api/users${storeParam}`);
       const data = await res.json();
       if (data.success) {
         setUsers(data.data);
@@ -42,7 +48,7 @@ export default function UsersManagementPage() {
 
   useEffect(() => {
     loadUsers();
-  }, [selectedStore]);
+  }, [branchFilter]);
 
   if (user && user.role !== 'admin') {
     return (
@@ -58,6 +64,9 @@ export default function UsersManagementPage() {
 
   const handleOpenAdd = () => {
     setEditingUser(null);
+    const defaultBranch = branchFilter && branchFilter !== 'ALL'
+      ? branchFilter
+      : (selectedStore && selectedStore !== 'ALL' ? selectedStore : 'NILA-TH');
     setFormData({
       name: '',
       email: '',
@@ -65,7 +74,7 @@ export default function UsersManagementPage() {
       phone: '',
       role: 'doctor',
       specialization: '',
-      assignedStoreIds: [selectedStore || 'THN'],
+      assignedStoreIds: [defaultBranch],
     });
     setError('');
     setSuccess('');
@@ -139,8 +148,13 @@ export default function UsersManagementPage() {
         });
         const data = await res.json();
         if (data.success) {
-          setSuccess('User account created successfully!');
-          await loadUsers();
+          setSuccess('Doctor / User created successfully!');
+          // Switch to ALL so newly created user is guaranteed visible regardless of store filter
+          if (branchFilter !== 'ALL' && !formData.assignedStoreIds.includes(branchFilter)) {
+            setBranchFilter('ALL');
+          } else {
+            await loadUsers();
+          }
           setTimeout(() => setShowModal(false), 700);
         } else {
           setError(data.message || 'Failed to create user');
@@ -170,37 +184,123 @@ export default function UsersManagementPage() {
     }
   };
 
+  const filteredUsers = users.filter((u) => {
+    const matchesSearch =
+      u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (u.phone || '').includes(searchQuery) ||
+      (u.specialization || '').toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesRole =
+      roleFilter === 'All' || u.role.toLowerCase() === roleFilter.toLowerCase();
+    return matchesSearch && matchesRole;
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">User Accounts & Store Assignment</h1>
-          <p className="text-xs text-slate-500 mt-1">
+          <h1 className="text-2xl font-black text-slate-900">User Accounts & Store Assignment</h1>
+          <p className="text-sm text-slate-600 mt-1 font-medium">
             FR-06 & FR-07: Create Doctors & Staff, assign stores, and deactivate users (BR-06: deactivated users cannot log in).
           </p>
         </div>
         <button
           onClick={handleOpenAdd}
-          className="flex items-center space-x-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-xl shadow-md transition-all self-start sm:self-auto"
+          className="flex items-center space-x-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl shadow-md transition-all self-start sm:self-auto"
         >
           <Plus className="w-4 h-4" />
           <span>Add New Doctor / Staff</span>
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {users.map((u) => {
+      {/* Search and Branch/Role Filter Ribbon */}
+      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="relative w-full sm:w-80">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Search user by name, email, phone, specialization..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
+            />
+          </div>
+
+          {/* Role Filter Pills */}
+          <div className="flex items-center space-x-1.5 overflow-x-auto w-full sm:w-auto">
+            {['All', 'doctor', 'staff', 'admin'].map((r) => (
+              <button
+                key={r}
+                onClick={() => setRoleFilter(r)}
+                className={`px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-bold capitalize whitespace-nowrap transition-all ${
+                  roleFilter.toLowerCase() === r.toLowerCase()
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {r === 'All' ? `All Roles (${users.length})` : `${r}s (${users.filter(u => u.role === r).length})`}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Branch Filter Tabs */}
+        <div className="flex items-center space-x-1.5 overflow-x-auto pt-2 border-t border-slate-100 text-xs">
+          <span className="font-bold text-slate-500 whitespace-nowrap mr-1 flex items-center">
+            <Building2 className="w-3.5 h-3.5 mr-1" />
+            Branch Filter:
+          </span>
+          <button
+            onClick={() => setBranchFilter('ALL')}
+            className={`px-3 py-1 rounded-lg font-bold whitespace-nowrap transition-all ${
+              branchFilter === 'ALL'
+                ? 'bg-emerald-600 text-white shadow-xs'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            All Clinic Branches
+          </button>
+          {stores.map((st) => (
+            <button
+              key={st.code}
+              onClick={() => setBranchFilter(st.code)}
+              className={`px-3 py-1 rounded-lg font-bold whitespace-nowrap transition-all ${
+                branchFilter === st.code
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              [{st.code}] {st.name.replace('Nila Clinic - ', '').replace('Nila Clinic ', '')}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {filteredUsers.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center space-y-3">
+          <div className="w-12 h-12 bg-slate-100 text-slate-500 rounded-full flex items-center justify-center mx-auto">
+            <UserCheck className="w-6 h-6" />
+          </div>
+          <h3 className="text-base font-bold text-slate-800">No users found</h3>
+          <p className="text-sm text-slate-500 max-w-sm mx-auto">
+            No doctors or staff match the current search or branch filter criteria.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredUsers.map((u) => {
           return (
             <div
               key={u._id || u.email}
               className={`bg-white rounded-2xl border p-5 shadow-xs transition-all flex flex-col justify-between ${
-                u.isActive ? 'border-slate-200' : 'border-red-200 bg-red-50/20 opacity-80'
+                u.isActive ? 'border-slate-200 hover:border-slate-300' : 'border-red-200 bg-red-50/20 opacity-80'
               }`}
             >
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <span
-                    className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full flex items-center space-x-1 ${
+                    className={`text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-full flex items-center space-x-1 ${
                       u.role === 'admin'
                         ? 'bg-purple-100 text-purple-800'
                         : u.role === 'doctor'
@@ -208,12 +308,12 @@ export default function UsersManagementPage() {
                         : 'bg-emerald-100 text-emerald-800'
                     }`}
                   >
-                    {u.role === 'doctor' ? <Stethoscope className="w-3 h-3 mr-1" /> : <Briefcase className="w-3 h-3 mr-1" />}
+                    {u.role === 'doctor' ? <Stethoscope className="w-3.5 h-3.5 mr-1" /> : <Briefcase className="w-3.5 h-3.5 mr-1" />}
                     <span>{u.role}</span>
                   </span>
 
                   <span
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                    className={`text-xs font-bold px-2.5 py-1 rounded-full ${
                       u.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-700'
                     }`}
                   >
@@ -221,12 +321,12 @@ export default function UsersManagementPage() {
                   </span>
                 </div>
 
-                <h3 className="font-bold text-slate-900 text-base">{u.name}</h3>
+                <h3 className="font-bold text-slate-900 text-lg">{u.name}</h3>
                 {u.specialization && (
-                  <p className="text-xs text-emerald-700 font-medium mt-0.5">{u.specialization}</p>
+                  <p className="text-sm text-emerald-800 font-bold mt-0.5">{u.specialization}</p>
                 )}
 
-                <div className="space-y-1 text-xs text-slate-500 mt-3 pt-3 border-t border-slate-100">
+                <div className="space-y-1.5 text-xs text-slate-700 mt-3 pt-3 border-t border-slate-100 font-medium">
                   <div className="flex items-center space-x-2">
                     <Mail className="w-3.5 h-3.5 text-slate-400" />
                     <span>{u.email}</span>
@@ -241,7 +341,7 @@ export default function UsersManagementPage() {
 
                 {/* Assigned Stores Tags */}
                 <div className="mt-4 pt-3 border-t border-slate-100">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1.5">
+                  <span className="text-xs uppercase font-bold text-slate-500 block mb-1.5">
                     Assigned Clinic Stores:
                   </span>
                   <div className="flex flex-wrap gap-1.5">
@@ -249,13 +349,13 @@ export default function UsersManagementPage() {
                       u.assignedStoreIds.map((stCode) => (
                         <span
                           key={stCode}
-                          className="text-[10px] font-bold px-2 py-0.5 bg-slate-100 border border-slate-200 text-slate-700 rounded-md"
+                          className="text-xs font-bold px-2.5 py-0.5 bg-slate-100 border border-slate-200 text-slate-800 rounded-md"
                         >
                           {stCode}
                         </span>
                       ))
                     ) : (
-                      <span className="text-[10px] text-red-500">No store assigned</span>
+                      <span className="text-xs font-medium text-red-500">No store assigned</span>
                     )}
                   </div>
                 </div>
@@ -265,7 +365,7 @@ export default function UsersManagementPage() {
               <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between">
                 <button
                   onClick={() => toggleUserActive(u)}
-                  className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-all ${
+                  className={`text-xs sm:text-sm font-bold px-3 py-1.5 rounded-lg transition-all ${
                     u.isActive
                       ? 'bg-red-50 text-red-700 hover:bg-red-100'
                       : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
@@ -276,7 +376,7 @@ export default function UsersManagementPage() {
 
                 <button
                   onClick={() => handleOpenEdit(u)}
-                  className="p-1.5 text-slate-500 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-colors flex items-center space-x-1 text-xs font-semibold"
+                  className="p-1.5 text-slate-600 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-colors flex items-center space-x-1 text-xs sm:text-sm font-bold"
                 >
                   <Edit2 className="w-3.5 h-3.5" />
                   <span>Edit</span>
@@ -286,37 +386,38 @@ export default function UsersManagementPage() {
           );
         })}
       </div>
+      )}
 
       {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-100 p-6 relative">
-            <h3 className="font-bold text-slate-900 text-base mb-1">
+            <h3 className="font-black text-slate-900 text-lg mb-1">
               {editingUser ? 'Edit User Account' : 'Register New User'}
             </h3>
-            <p className="text-xs text-slate-500 mb-4">
+            <p className="text-sm text-slate-600 mb-4 font-medium">
               Set role, credentials, and store branch assignment.
             </p>
 
-            {error && <div className="mb-3 p-2 bg-red-50 text-red-600 rounded-lg text-xs">{error}</div>}
-            {success && <div className="mb-3 p-2 bg-emerald-50 text-emerald-600 rounded-lg text-xs">{success}</div>}
+            {error && <div className="mb-3 p-2 bg-red-50 text-red-600 rounded-lg text-sm font-medium">{error}</div>}
+            {success && <div className="mb-3 p-2 bg-emerald-50 text-emerald-600 rounded-lg text-sm font-medium">{success}</div>}
 
-            <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
+            <form onSubmit={handleSubmit} className="space-y-3.5 text-sm">
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Full Name *</label>
+                <label className="block font-bold text-slate-700 mb-1">Full Name *</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Dr. Rajesh Varma"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-medium"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Email (Login ID) *</label>
+                  <label className="block font-bold text-slate-700 mb-1">Email (Login ID) *</label>
                   <input
                     type="email"
                     required
@@ -324,11 +425,11 @@ export default function UsersManagementPage() {
                     placeholder="doctor@nilaclinic.com"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none disabled:opacity-60"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none disabled:opacity-60 text-sm font-medium"
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
+                  <label className="block font-bold text-slate-700 mb-1">
                     {editingUser ? 'New Password (Optional)' : 'Password *'}
                   </label>
                   <input
@@ -337,18 +438,18 @@ export default function UsersManagementPage() {
                     placeholder="••••••••"
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-medium"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Role *</label>
+                  <label className="block font-bold text-slate-700 mb-1">Role *</label>
                   <select
                     value={formData.role}
                     onChange={(e) => setFormData({ ...formData, role: e.target.value as any })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer text-sm font-medium"
                   >
                     <option value="doctor">Doctor</option>
                     <option value="staff">Staff (Frontdesk / Billing)</option>
@@ -356,33 +457,33 @@ export default function UsersManagementPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Phone Number</label>
+                  <label className="block font-bold text-slate-700 mb-1">Phone Number</label>
                   <input
                     type="text"
                     placeholder="+91 98450 00000"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-medium"
                   />
                 </div>
               </div>
 
               {formData.role === 'doctor' && (
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Specialization / Department</label>
+                  <label className="block font-bold text-slate-700 mb-1">Specialization / Department</label>
                   <input
                     type="text"
                     placeholder="e.g. Senior Dermatologist"
                     value={formData.specialization}
                     onChange={(e) => setFormData({ ...formData, specialization: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-medium"
                   />
                 </div>
               )}
 
               {/* Assign Stores Multi-select (FR-07) */}
               <div>
-                <label className="block font-semibold text-slate-700 mb-1.5">
+                <label className="block font-bold text-slate-700 mb-1.5">
                   Assign to Store Branches * (Check all that apply)
                 </label>
                 <div className="grid grid-cols-2 gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
@@ -396,7 +497,7 @@ export default function UsersManagementPage() {
                           onChange={() => handleStoreToggle(st.code)}
                           className="h-4 w-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500"
                         />
-                        <span className="text-xs font-semibold text-slate-800">
+                        <span className="text-sm font-bold text-slate-800">
                           [{st.code}] {st.name.replace('Nila Clinic - ', '')}
                         </span>
                       </label>
@@ -409,13 +510,13 @@ export default function UsersManagementPage() {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 text-slate-600 font-semibold hover:bg-slate-100 rounded-xl"
+                  className="px-4 py-2 text-slate-600 font-bold hover:bg-slate-100 rounded-xl text-sm"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl shadow-xs"
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-xs text-sm"
                 >
                   {editingUser ? 'Save User' : 'Create User'}
                 </button>

@@ -43,21 +43,37 @@ export async function PUT(req: Request) {
       return NextResponse.json({ success: false, message: 'Invoice ID is required' }, { status: 400 });
     }
 
-    const changeAmount = paymentMethod === 'Cash' && paidAmount && paidAmount > grandTotal ? paidAmount - grandTotal : 0;
+    const changeAmount = paymentMethod === 'Cash' && paidAmount && grandTotal && paidAmount > grandTotal ? paidAmount - grandTotal : 0;
 
-    const updates: any = {
-      items,
-      subtotal,
-      discount,
-      tax,
-      grandTotal,
-      paidAmount: paidAmount || grandTotal,
-      changeAmount,
-      paymentMethod: paymentMethod || 'Cash',
-      status: status || 'Paid',
-      staffName,
-      paidAt: status === 'Paid' ? new Date().toISOString() : undefined,
-    };
+    const updates: any = {};
+    if (items !== undefined) updates.items = items;
+    if (subtotal !== undefined) updates.subtotal = subtotal;
+    if (discount !== undefined) updates.discount = discount;
+    if (tax !== undefined) updates.tax = tax;
+    if (grandTotal !== undefined) updates.grandTotal = grandTotal;
+    if (paidAmount !== undefined) updates.paidAmount = paidAmount;
+    if (changeAmount !== undefined) updates.changeAmount = changeAmount;
+    if (paymentMethod !== undefined) updates.paymentMethod = paymentMethod;
+    if (status !== undefined) updates.status = status;
+    if (staffName !== undefined) updates.staffName = staffName;
+    if (status === 'Paid') {
+      updates.paidAt = new Date().toISOString();
+      if (updates.paidAmount === undefined && grandTotal !== undefined) {
+        updates.paidAmount = grandTotal;
+      }
+      if (updates.payableAmount === undefined && grandTotal !== undefined) {
+        updates.payableAmount = grandTotal;
+      }
+      if (!updates.payments || updates.payments.length === 0) {
+        updates.payments = [
+          {
+            mode: paymentMethod || 'Cash',
+            amount: updates.paidAmount || grandTotal || 500,
+            type: (paymentMethod || 'Cash') === 'Cash' ? 'cash' : 'non-cash',
+          }
+        ];
+      }
+    }
 
     const updated = await clinicService.updateInvoice(invoiceId, updates);
     if (!updated) {

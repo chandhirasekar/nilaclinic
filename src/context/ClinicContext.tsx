@@ -22,8 +22,10 @@ const ClinicContext = createContext<ClinicContextType | undefined>(undefined);
 export function ClinicProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<IUser | null>(null);
   const [selectedStore, setSelectedStoreState] = useState<string>('NILA-TH');
+
   const [stores, setStores] = useState<IStore[]>([]);
   const [unreadDoctorVisits, setUnreadDoctorVisits] = useState<number>(0);
+  const isAlertFetchingRef = React.useRef(false);
 
   const refreshStores = async () => {
     try {
@@ -38,52 +40,59 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
   };
 
   const refreshDoctorAlerts = async () => {
-    if (!user || user.role !== 'doctor') return;
+    if (!user || user.role !== 'doctor' || isAlertFetchingRef.current) return;
+    isAlertFetchingRef.current = true;
     try {
       const res = await fetch(`/api/visits?storeCode=${selectedStore}&doctorId=${user._id || user.email}&status=Waiting`);
       const data = await res.json();
       if (data.success) {
         setUnreadDoctorVisits(data.unreadCount || 0);
       }
-    } catch (err) {}
+    } catch (err) {
+    } finally {
+      isAlertFetchingRef.current = false;
+    }
   };
 
   useEffect(() => {
     refreshStores();
 
-    // Load user from storage
-    const saved = localStorage.getItem('nilaclinic_user') || localStorage.getItem('miosalon_user');
-    if (saved) {
-      try {
+    // Client-side hydration of user and store from localStorage
+    try {
+      const saved = localStorage.getItem('nilaclinic_user') || localStorage.getItem('miosalon_user');
+      if (saved) {
         const parsed = JSON.parse(saved);
         setUser(parsed);
         const store = parsed.primaryStoreId || parsed.assignedStoreIds?.[0] || 'NILA-TH';
         setSelectedStoreState(canonicalStoreCode(store));
-      } catch (e) {}
-    } else {
-      // Default initial mock admin user for immediate seamless access
-      const defaultUser: IUser = {
-        _id: 'user-admin-1',
-        email: 'admin@nilaclinic.com',
-        name: 'Mohan Raj (Admin)',
-        role: 'admin',
-        assignedStoreIds: ['NILA-TH', 'NILA-MD', 'NILA-CH', 'NILA-CB', 'NILA-TR', 'NILA-PUD', 'THN', 'MDU', 'CHN'],
-        primaryStoreId: 'NILA-TH',
-        isActive: true,
-      };
-      setUser(defaultUser);
+        return;
+      }
+    } catch (e) {}
+
+    // Default initial mock admin user for immediate seamless access
+    const defaultUser: IUser = {
+      _id: 'user-admin-1',
+      email: 'admin@nilaclinic.com',
+      name: 'Mohan Raj (Admin)',
+      role: 'admin',
+      assignedStoreIds: ['NILA-TH', 'NILA-MD', 'NILA-CH', 'NILA-CB', 'NILA-TR', 'NILA-PUD', 'THN', 'MDU', 'CHN'],
+      primaryStoreId: 'NILA-TH',
+      isActive: true,
+    };
+    setUser(defaultUser);
+    try {
       localStorage.setItem('nilaclinic_user', JSON.stringify(defaultUser));
-    }
+    } catch (e) {}
   }, []);
 
-  // Poll notifications for doctor every 6 seconds (NFR-05: auto-refresh every few seconds)
+  // Poll notifications for doctor every 20 seconds cleanly (NFR-05)
   useEffect(() => {
     if (user?.role === 'doctor') {
       refreshDoctorAlerts();
-      const interval = setInterval(refreshDoctorAlerts, 6000);
+      const interval = setInterval(refreshDoctorAlerts, 20000);
       return () => clearInterval(interval);
     }
-  }, [user, selectedStore]);
+  }, [user?._id, selectedStore]);
 
   const setSelectedStore = (code: string) => {
     // If not admin, restrict switching to assigned stores only (BR-04)
