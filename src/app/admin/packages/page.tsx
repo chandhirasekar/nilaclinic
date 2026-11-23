@@ -492,7 +492,7 @@ export default function PackagesPage() {
                           <tr key={idx} className="hover:bg-slate-50/50">
                             <td className="p-2.5 font-medium text-slate-800">{s.serviceName}</td>
                             <td className="p-2.5 text-center text-slate-600">{s.totalCount}</td>
-                            <td className="p-2.5 text-center text-slate-600">{s.usedCount}</td>
+                            <td className="p-2.5 text-center text-slate-600 font-semibold">{s.usedCount ?? Math.max(0, s.totalCount - s.remainingCount)}</td>
                             <td className="p-2.5 text-center font-bold text-indigo-600">
                               {s.remainingCount} sittings
                             </td>

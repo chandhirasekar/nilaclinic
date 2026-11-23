@@ -164,6 +164,7 @@ function QuickSalePOSContent() {
               setSearchMobile(inv.customerMobile || inv.customerPhone || '');
             }
             if (inv.remarks) setRemarks(inv.remarks);
+            if (inv.visitId) setSelectedVisitId(inv.visitId);
             const billTotal = inv.payableAmount || inv.grandTotal || 0;
             if (billTotal > 0) {
               setPayments({ Cash: billTotal });

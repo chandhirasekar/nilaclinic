@@ -43,6 +43,7 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
 
   const refreshDoctorAlerts = async () => {
     if (!user || user.role !== 'doctor' || isAlertFetchingRef.current) return;
+    if (typeof document !== 'undefined' && document.hidden) return;
     isAlertFetchingRef.current = true;
     try {
       const res = await fetch(`/api/visits?storeCode=${selectedStore}&doctorId=${user._id || user.email}&status=Waiting`);
@@ -89,12 +90,19 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
     setIsInitialized(true);
   }, []);
 
-  // Poll notifications for doctor every 20 seconds cleanly (NFR-05)
+  // Poll notifications for doctor every 30 seconds cleanly with visibility detection (NFR-05)
   useEffect(() => {
     if (user?.role === 'doctor') {
       refreshDoctorAlerts();
-      const interval = setInterval(refreshDoctorAlerts, 20000);
-      return () => clearInterval(interval);
+      const interval = setInterval(refreshDoctorAlerts, 30000);
+      const handleVis = () => {
+        if (!document.hidden) refreshDoctorAlerts();
+      };
+      document.addEventListener('visibilitychange', handleVis);
+      return () => {
+        clearInterval(interval);
+        document.removeEventListener('visibilitychange', handleVis);
+      };
     }
   }, [user?._id, selectedStore]);
 

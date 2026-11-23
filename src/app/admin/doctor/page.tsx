@@ -61,6 +61,7 @@ export default function DoctorPanelPage() {
   // Poll doctor visits cleanly without overlapping requests or race conditions (NFR-05)
   const fetchVisits = async () => {
     if (!isInitialized || isFetchingVisitsRef.current) return;
+    if (typeof document !== 'undefined' && document.hidden) return;
     isFetchingVisitsRef.current = true;
     const currentReqId = ++latestRequestIdRef.current;
 
@@ -84,13 +85,17 @@ export default function DoctorPanelPage() {
   };
 
   useEffect(() => {
-    if (isInitialized) {
-      fetchVisits();
-      const interval = setInterval(() => {
-        fetchVisits();
-      }, 10000);
-      return () => clearInterval(interval);
-    }
+    if (!isInitialized) return;
+    fetchVisits();
+    const interval = setInterval(fetchVisits, 25000);
+    const handleVisibility = () => {
+      if (!document.hidden) fetchVisits();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, [selectedStore, user?._id, user?.role, isInitialized]);
 
   // Open patient details and mark 'In consultation' (BUG-05: Reload all saved data accurately)

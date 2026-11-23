@@ -120,20 +120,19 @@ export async function POST(req: Request) {
         });
 
         // If package items were sold or redeemed, process them
-        if (customerId) {
-          for (const item of (items || [])) {
-            if (item.type === 'package' && item.itemId) {
-              await clinicService.sellCustomerPackage({
-                customerId,
-                packageId: item.itemId,
-                storeSold: storeId || existing.storeId,
-                invoiceNo: existing.invoiceNo,
-              });
-            }
-            if (item.isFromPackage && item.packageId) {
-              const rawServiceName = item.packageServiceName || item.name.replace(/\s*\(From Package:.*$/i, '').trim();
-              await clinicService.redeemPackageSitting(item.packageId, rawServiceName, storeId || existing.storeId);
-            }
+        const targetCustId = customerId || existing.customerId;
+        for (const item of (items || [])) {
+          if (item.type === 'package' && item.itemId && targetCustId) {
+            await clinicService.sellCustomerPackage({
+              customerId: targetCustId,
+              packageId: item.itemId,
+              storeSold: storeId || existing.storeId,
+              invoiceNo: existing.invoiceNo,
+            });
+          }
+          if (item.isFromPackage && item.packageId) {
+            const rawServiceName = item.packageServiceName || item.name.replace(/\s*\(From Package:.*$/i, '').trim();
+            await clinicService.redeemPackageSitting(item.packageId, rawServiceName, storeId || existing.storeId);
           }
         }
       }

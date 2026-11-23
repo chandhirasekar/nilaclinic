@@ -14,6 +14,7 @@ const InvoiceItemSchema: Schema = new Schema({
   discountPercent: { type: Number, default: 0 },
   total: { type: Number, required: true },
   packageId: { type: String },
+  packageServiceName: { type: String },
   isFromPackage: { type: Boolean, default: false },
 }, { _id: false });
 

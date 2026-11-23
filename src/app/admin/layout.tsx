@@ -166,19 +166,24 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
               <span>Active Clinic Store</span>
               <Building2 className="w-4 h-4 text-emerald-400" />
             </div>
-            <select
-              value={selectedStore}
-              onChange={(e) => setSelectedStore(e.target.value)}
-              disabled={mounted && userRole !== 'admin' && selectableStores.length <= 1}
-              suppressHydrationWarning
-              className="w-full mt-2 bg-slate-900 border border-slate-700 text-sm font-medium text-white rounded-lg px-2.5 py-2 focus:outline-none focus:border-emerald-500 cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
-            >
-              {selectableStores.map((st) => (
-                <option key={st.code} value={st.code}>
-                  [{st.code}] {(st.name || '').replace('Nila Clinic - ', '')}
-                </option>
-              ))}
-            </select>
+            {mounted ? (
+              <select
+                value={selectedStore}
+                onChange={(e) => setSelectedStore(e.target.value)}
+                disabled={userRole !== 'admin' && selectableStores.length <= 1}
+                className="w-full mt-2 bg-slate-900 border border-slate-700 text-sm font-medium text-white rounded-lg px-2.5 py-2 focus:outline-none focus:border-emerald-500 cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
+              >
+                {selectableStores.map((st) => (
+                  <option key={st.code} value={st.code}>
+                    [{st.code}] {(st.name || '').replace('Nila Clinic - ', '')}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div className="w-full mt-2 bg-slate-900 border border-slate-700 text-sm font-medium text-slate-300 rounded-lg px-2.5 py-2">
+                [{selectedStore || 'NILA-TH'}] Active Store
+              </div>
+            )}
             {mounted && userRole !== 'admin' && (
               <span className="text-xs text-slate-300 block mt-1.5 font-medium">Locked to assigned store ({selectedStore})</span>
             )}
