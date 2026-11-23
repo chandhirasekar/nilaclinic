@@ -10,6 +10,7 @@ interface ClinicContextType {
   stores: IStore[];
   currentStoreObj: IStore | null;
   unreadDoctorVisits: number;
+  isInitialized: boolean;
   setSelectedStore: (code: string) => void;
   setUser: (user: IUser | null) => void;
   refreshStores: () => Promise<void>;
@@ -22,6 +23,7 @@ const ClinicContext = createContext<ClinicContextType | undefined>(undefined);
 export function ClinicProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<IUser | null>(null);
   const [selectedStore, setSelectedStoreState] = useState<string>('NILA-TH');
+  const [isInitialized, setIsInitialized] = useState<boolean>(false);
 
   const [stores, setStores] = useState<IStore[]>([]);
   const [unreadDoctorVisits, setUnreadDoctorVisits] = useState<number>(0);
@@ -65,6 +67,7 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
         setUser(parsed);
         const store = parsed.primaryStoreId || parsed.assignedStoreIds?.[0] || 'NILA-TH';
         setSelectedStoreState(canonicalStoreCode(store));
+        setIsInitialized(true);
         return;
       }
     } catch (e) {}
@@ -83,6 +86,7 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
     try {
       localStorage.setItem('nilaclinic_user', JSON.stringify(defaultUser));
     } catch (e) {}
+    setIsInitialized(true);
   }, []);
 
   // Poll notifications for doctor every 20 seconds cleanly (NFR-05)
@@ -138,6 +142,7 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
         stores,
         currentStoreObj,
         unreadDoctorVisits,
+        isInitialized,
         setSelectedStore,
         setUser,
         refreshStores,

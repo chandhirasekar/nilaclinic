@@ -1,16 +1,17 @@
 import { NextResponse } from 'next/server';
-import clinicService from '@/lib/clinicService';
+import clinicService, { getLocalDateString } from '@/lib/clinicService';
 
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const storeCode = searchParams.get('storeCode') || 'ALL';
-    const dateRange = searchParams.get('dateRange') || 'today'; // 'today' | 'week' | 'month'
+    const dateRange = searchParams.get('dateRange') || 'today'; // 'today' | 'week' | 'month' | 'custom'
+    const customDate = searchParams.get('customDate') || undefined;
 
     const targetStore = storeCode !== 'ALL' ? storeCode.toUpperCase() : undefined;
 
     // Fast Path: Try MongoDB Aggregation Pipeline First (Zero Hydration / Sub-25ms)
-    const aggregated = await clinicService.getReportAggregates(targetStore, dateRange);
+    const aggregated = await clinicService.getReportAggregates(targetStore, dateRange, customDate);
     if (aggregated) {
       const salesTrend = [
         { day: 'Mon', revenue: Math.round(aggregated.totalRevenue * 0.12) },
@@ -62,22 +63,40 @@ export async function GET(req: Request) {
 
     // Filter by date range
     const now = new Date();
-    const todayYMD = now.toISOString().split('T')[0];
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayYMD = getLocalDateString(now);
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - now.getDay());
     startOfWeek.setHours(0, 0, 0, 0);
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
 
     const filterDate = (createdStr?: string, dateStr?: string) => {
-      if (dateStr === todayYMD) return true;
-      const targetStr = createdStr || dateStr;
-      if (!targetStr) return true;
-      const d = new Date(targetStr);
-      if (isNaN(d.getTime())) return true;
-      if (dateRange === 'today') return d >= startOfToday || targetStr.startsWith(todayYMD);
-      if (dateRange === 'week') return d >= startOfWeek;
-      if (dateRange === 'month') return d >= startOfMonth;
+      if (customDate) {
+        if (dateStr === customDate) return true;
+        if (!createdStr) return false;
+        const d = new Date(createdStr);
+        if (isNaN(d.getTime())) return false;
+        const [y, m, day] = customDate.split('-').map(Number);
+        const dayStart = new Date(y, m - 1, day, 0, 0, 0, 0);
+        const dayEnd = new Date(y, m - 1, day, 23, 59, 59, 999);
+        return d >= dayStart && d <= dayEnd;
+      }
+      if (dateRange === 'today') {
+        if (dateStr === todayYMD) return true;
+        if (!createdStr) return false;
+        const d = new Date(createdStr);
+        if (isNaN(d.getTime())) return false;
+        return d >= startOfToday && d <= endOfToday;
+      }
+      if (dateRange === 'week') {
+        const d = new Date(createdStr || dateStr || '');
+        return !isNaN(d.getTime()) && d >= startOfWeek;
+      }
+      if (dateRange === 'month') {
+        const d = new Date(createdStr || dateStr || '');
+        return !isNaN(d.getTime()) && d >= startOfMonth;
+      }
       return true;
     };
 

@@ -34,7 +34,7 @@ interface IPrescriptionRow {
 }
 
 export default function DoctorPanelPage() {
-  const { user, selectedStore, refreshDoctorAlerts } = useClinic();
+  const { user, selectedStore, refreshDoctorAlerts, isInitialized } = useClinic();
   const [visits, setVisits] = useState<IVisit[]>([]);
   const [selectedVisit, setSelectedVisit] = useState<IVisit | null>(null);
   const [patientProfile, setPatientProfile] = useState<ICustomer | null>(null);
@@ -60,7 +60,7 @@ export default function DoctorPanelPage() {
 
   // Poll doctor visits cleanly without overlapping requests or race conditions (NFR-05)
   const fetchVisits = async () => {
-    if (isFetchingVisitsRef.current) return;
+    if (!isInitialized || isFetchingVisitsRef.current) return;
     isFetchingVisitsRef.current = true;
     const currentReqId = ++latestRequestIdRef.current;
 
@@ -84,21 +84,79 @@ export default function DoctorPanelPage() {
   };
 
   useEffect(() => {
-    fetchVisits();
-    const interval = setInterval(() => {
+    if (isInitialized) {
       fetchVisits();
-    }, 10000);
-    return () => clearInterval(interval);
-  }, [selectedStore, user?._id, user?.role]);
+      const interval = setInterval(() => {
+        fetchVisits();
+      }, 10000);
+      return () => clearInterval(interval);
+    }
+  }, [selectedStore, user?._id, user?.role, isInitialized]);
 
-  // Open patient details and mark 'In consultation' (FR-15, Section 7 lifecycle)
+  // Open patient details and mark 'In consultation' (BUG-05: Reload all saved data accurately)
   const handleOpenPatient = async (visit: IVisit) => {
     setSelectedVisit(visit);
-    setChiefComplaints(visit.caseNotes || '');
-    setPrescriptionNotes(visit.prescriptionText || '');
-    setPrescriptionImage(visit.prescriptionImage || '');
     setCompletedSuccess(false);
     setFileError('');
+
+    // Parse caseNotes into diagnosis & clinical findings
+    let loadedDiag = '';
+    let loadedFindings = visit.caseNotes || '';
+    if (loadedFindings.includes('DIAGNOSIS:')) {
+      const matchDiag = loadedFindings.match(/DIAGNOSIS:\s*([^\n]+)/i);
+      if (matchDiag) {
+        loadedDiag = matchDiag[1].trim();
+      }
+      if (loadedFindings.includes('CLINICAL FINDINGS:')) {
+        const parts = loadedFindings.split(/CLINICAL FINDINGS:\s*/i);
+        loadedFindings = parts[1]?.trim() || '';
+      } else {
+        loadedFindings = loadedFindings.replace(/DIAGNOSIS:\s*[^\n]+/i, '').trim();
+      }
+    }
+    setDiagnosis(loadedDiag);
+    setChiefComplaints(loadedFindings);
+
+    // Parse prescriptionText into structured medicine rows & notes
+    const loadedMeds: IPrescriptionRow[] = [];
+    let loadedNotes = '';
+    let loadedFollowUp = '';
+    const pText = visit.prescriptionText || '';
+
+    if (pText.includes('MEDICATIONS:')) {
+      const medsSection = pText.split(/SPECIAL INSTRUCTIONS:|FOLLOW-UP & LIFESTYLE:/i)[0];
+      const lines = medsSection.replace('MEDICATIONS:', '').trim().split('\n');
+      for (const line of lines) {
+        const match = line.match(/^\d+\.\s*([^\[]+)\[(.*?)\]\s*[—-]\s*(.*?)\s+for\s+(.*?)\s*\((.*?)\)/);
+        if (match) {
+          loadedMeds.push({
+            medicineName: match[1].trim(),
+            dosage: match[2].trim(),
+            frequency: match[3].trim(),
+            duration: match[4].trim(),
+            instructions: match[5].trim(),
+          });
+        }
+      }
+    }
+    if (pText.includes('SPECIAL INSTRUCTIONS:')) {
+      const afterSpecial = pText.split(/SPECIAL INSTRUCTIONS:\s*/i)[1];
+      loadedNotes = afterSpecial ? afterSpecial.split(/FOLLOW-UP & LIFESTYLE:/i)[0].trim() : '';
+    }
+    if (pText.includes('FOLLOW-UP & LIFESTYLE:')) {
+      loadedFollowUp = pText.split(/FOLLOW-UP & LIFESTYLE:\s*/i)[1]?.trim() || '';
+    }
+
+    if (loadedMeds.length > 0) {
+      setPrescriptionRows(loadedMeds);
+    } else {
+      setPrescriptionRows([
+        { medicineName: '', dosage: '', frequency: '1-0-1', duration: '5 days', instructions: 'After food' },
+      ]);
+    }
+    setPrescriptionNotes(loadedNotes);
+    setFollowUpAdvice(loadedFollowUp);
+    setPrescriptionImage(visit.prescriptionImage || '');
 
     // Fetch client full profile & cross-store history
     try {
@@ -259,6 +317,20 @@ export default function DoctorPanelPage() {
       ? doneVisits
       : visits;
 
+  const isReadOnly = selectedVisit?.status === 'Done' || completedSuccess;
+
+  if (!isInitialized || (loading && visits.length === 0)) {
+    return (
+      <div className="space-y-6 animate-pulse">
+        <div className="h-28 bg-slate-200 rounded-2xl w-full" />
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="lg:col-span-5 h-96 bg-slate-200 rounded-2xl" />
+          <div className="lg:col-span-7 h-96 bg-slate-200 rounded-2xl" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Top Banner with Alert Notification (FR-14) */}
@@ -364,7 +436,21 @@ export default function DoctorPanelPage() {
               <div className="space-y-3 mt-3.5 max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
                 {displayedVisits.map((v) => {
                   const isSelected = selectedVisit?._id === v._id || selectedVisit?.visitId === v.visitId;
-                  return (
+                  const isReadOnly = selectedVisit?.status === 'Done' || completedSuccess;
+
+  if (!isInitialized || (loading && visits.length === 0)) {
+    return (
+      <div className="space-y-6 animate-pulse">
+        <div className="h-28 bg-slate-200 rounded-2xl w-full" />
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="lg:col-span-5 h-96 bg-slate-200 rounded-2xl" />
+          <div className="lg:col-span-7 h-96 bg-slate-200 rounded-2xl" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
                     <div
                       key={v._id || v.visitId}
                       onClick={() => handleOpenPatient(v)}
@@ -528,10 +614,11 @@ export default function DoctorPanelPage() {
                   <input
                     type="text"
                     required
+                    disabled={isReadOnly}
                     placeholder="e.g. Acne Vulgaris Grade II, Androgenetic Alopecia Grade 3, Melasma epidermal..."
                     value={diagnosis}
                     onChange={(e) => setDiagnosis(e.target.value)}
-                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-sky-500 outline-none text-xs font-semibold text-slate-800"
+                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-sky-500 outline-none text-xs font-semibold text-slate-800 disabled:bg-slate-100 disabled:text-slate-800 disabled:cursor-not-allowed"
                   />
                 </div>
 
@@ -544,10 +631,11 @@ export default function DoctorPanelPage() {
                   <textarea
                     required
                     rows={3}
+                    disabled={isReadOnly}
                     placeholder="Enter examination findings, Wood's lamp / dermatoscope results, procedure instructions..."
                     value={chiefComplaints}
                     onChange={(e) => setChiefComplaints(e.target.value)}
-                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-sky-500 outline-none text-xs text-slate-800"
+                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-sky-500 outline-none text-xs text-slate-800 disabled:bg-slate-100 disabled:text-slate-800 disabled:cursor-not-allowed"
                   />
                 </div>
 
@@ -555,14 +643,16 @@ export default function DoctorPanelPage() {
                 <div className="space-y-2 pt-2 border-t border-slate-100">
                   <div className="flex justify-between items-center">
                     <label className="font-semibold text-slate-800 block">Medications & Prescriptions</label>
-                    <button
-                      type="button"
-                      onClick={handleAddMedicineRow}
-                      className="text-sky-600 hover:text-sky-700 font-bold flex items-center space-x-1"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Add Medicine</span>
-                    </button>
+                    {!isReadOnly && (
+                      <button
+                        type="button"
+                        onClick={handleAddMedicineRow}
+                        className="text-sky-600 hover:text-sky-700 font-bold flex items-center space-x-1"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Add Medicine</span>
+                      </button>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -570,22 +660,25 @@ export default function DoctorPanelPage() {
                       <div key={idx} className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200">
                         <input
                           type="text"
+                          disabled={isReadOnly}
                           placeholder="Medicine Name (e.g. Clindamycin Gel)"
                           value={row.medicineName}
                           onChange={(e) => handleUpdateMedicineRow(idx, 'medicineName', e.target.value)}
-                          className="flex-1 p-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                          className="flex-1 p-1.5 bg-white border border-slate-200 rounded-lg text-xs disabled:bg-slate-100 disabled:text-slate-800"
                         />
                         <input
                           type="text"
+                          disabled={isReadOnly}
                           placeholder="Dosage (e.g. 500mg)"
                           value={row.dosage}
                           onChange={(e) => handleUpdateMedicineRow(idx, 'dosage', e.target.value)}
-                          className="w-24 p-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                          className="w-24 p-1.5 bg-white border border-slate-200 rounded-lg text-xs disabled:bg-slate-100 disabled:text-slate-800"
                         />
                         <select
+                          disabled={isReadOnly}
                           value={row.frequency}
                           onChange={(e) => handleUpdateMedicineRow(idx, 'frequency', e.target.value)}
-                          className="w-24 p-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                          className="w-24 p-1.5 bg-white border border-slate-200 rounded-lg text-xs disabled:bg-slate-100 disabled:text-slate-800"
                         >
                           <option value="1-0-1">1-0-1</option>
                           <option value="1-0-0">1-0-0</option>
@@ -595,19 +688,21 @@ export default function DoctorPanelPage() {
                         </select>
                         <input
                           type="text"
+                          disabled={isReadOnly}
                           placeholder="Duration"
                           value={row.duration}
                           onChange={(e) => handleUpdateMedicineRow(idx, 'duration', e.target.value)}
-                          className="w-20 p-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                          className="w-20 p-1.5 bg-white border border-slate-200 rounded-lg text-xs disabled:bg-slate-100 disabled:text-slate-800"
                         />
                         <input
                           type="text"
+                          disabled={isReadOnly}
                           placeholder="Instructions (e.g. After food)"
                           value={row.instructions}
                           onChange={(e) => handleUpdateMedicineRow(idx, 'instructions', e.target.value)}
-                          className="w-28 p-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                          className="w-28 p-1.5 bg-white border border-slate-200 rounded-lg text-xs disabled:bg-slate-100 disabled:text-slate-800"
                         />
-                        {prescriptionRows.length > 1 && (
+                        {!isReadOnly && prescriptionRows.length > 1 && (
                           <button
                             type="button"
                             onClick={() => handleRemoveMedicineRow(idx)}
@@ -623,10 +718,11 @@ export default function DoctorPanelPage() {
                   {/* Free-text advice */}
                   <textarea
                     rows={2}
+                    disabled={isReadOnly}
                     placeholder="Additional dietary advice, sunscreen application guidelines, skincare routine..."
                     value={prescriptionNotes}
                     onChange={(e) => setPrescriptionNotes(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-sky-500 font-mono"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-sky-500 font-mono disabled:bg-slate-100 disabled:text-slate-800 disabled:cursor-not-allowed"
                   />
                 </div>
 
@@ -635,7 +731,7 @@ export default function DoctorPanelPage() {
                   <label className="block font-semibold text-slate-800 mb-1">
                     Handwritten Prescription Scan or Clinical Photo (Optional)
                   </label>
-                  <div className="border-2 border-dashed border-slate-200 hover:border-sky-400 rounded-xl p-3 bg-slate-50 text-center transition-colors">
+                  <div className="border-2 border-dashed border-slate-200 rounded-xl p-3 bg-slate-50 text-center transition-colors">
                     {prescriptionImage ? (
                       <div className="space-y-2">
                         <div className="relative inline-block">
@@ -644,18 +740,22 @@ export default function DoctorPanelPage() {
                             alt="Prescription Preview"
                             className="max-h-40 rounded-lg shadow-xs border border-slate-200 object-contain mx-auto"
                           />
-                          <button
-                            type="button"
-                            onClick={() => setPrescriptionImage('')}
-                            className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 shadow"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
+                          {!isReadOnly && (
+                            <button
+                              type="button"
+                              onClick={() => setPrescriptionImage('')}
+                              className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 shadow"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          )}
                         </div>
                         <p className="text-[10px] text-emerald-600 font-semibold">
                           Image uploaded and encrypted in record.
                         </p>
                       </div>
+                    ) : isReadOnly ? (
+                      <p className="text-slate-400 text-xs italic py-2">No clinical image attached</p>
                     ) : (
                       <div>
                         <Upload className="w-5 h-5 text-slate-400 mx-auto mb-1" />
@@ -677,42 +777,59 @@ export default function DoctorPanelPage() {
                   {fileError && <p className="text-red-500 text-[11px] mt-1">{fileError}</p>}
                 </div>
 
-                {/* Submit Consultation (BR-03 compliant: No price input or billing ticket shown) */}
+                {/* Status indicator banner */}
                 {selectedVisit.status === 'Done' && (
                   <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-xs text-emerald-800">
                     <div className="flex items-center space-x-2">
                       <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                       <div>
-                        <span className="font-bold">Consultation Finished & Dispatched</span>
-                        {selectedVisit.billId && (
+                        <span className="font-bold">Consultation Finished</span>
+                        {selectedVisit.billId ? (
                           <span className="ml-2 font-mono text-[11px] bg-emerald-100 text-emerald-900 px-2 py-0.5 rounded font-bold">
                             Invoice: {selectedVisit.billId}
+                          </span>
+                        ) : (
+                          <span className="ml-2 text-[11px] bg-amber-100 text-amber-900 px-2 py-0.5 rounded font-bold">
+                            Pending POS Settlement
                           </span>
                         )}
                       </div>
                     </div>
-                    <span className="text-[11px] text-emerald-700 font-medium">Billed at Reception POS</span>
+                    <span className="text-[11px] text-emerald-700 font-medium">
+                      {selectedVisit.billId ? 'Billed at Reception POS' : 'Ready for Counter Billing'}
+                    </span>
                   </div>
                 )}
 
+                {/* Bottom action bar */}
                 <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                  <div className="text-[11px] text-slate-400">
-                    Rule BR-03: Billing fee is auto-billed to Reception Quick Sale upon submit.
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center space-x-2 disabled:opacity-50"
-                  >
-                    <Check className="w-4 h-4" />
-                    <span>
-                      {submitting
-                        ? 'Saving...'
-                        : selectedVisit.status === 'Done'
-                        ? 'Update Consultation Record'
-                        : 'Complete Consultation & Dispatch Bill'}
-                    </span>
-                  </button>
+                  {isReadOnly ? (
+                    <div className="w-full flex items-center justify-between">
+                      <div className="flex items-center space-x-2 text-emerald-800 bg-emerald-50 px-3 py-2 rounded-xl border border-emerald-200 font-bold text-xs">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                        <span>Prescription & Consultation Completed (Read-only)</span>
+                      </div>
+                      <span className="text-xs text-slate-500 font-medium">
+                        {selectedVisit.billId ? `Billed at POS: ${selectedVisit.billId}` : 'Awaiting settlement at POS counter'}
+                      </span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="text-[11px] text-slate-400">
+                        Rule BR-03: Consultation record is queued for Reception POS billing upon submit.
+                      </div>
+                      <button
+                        type="submit"
+                        disabled={submitting}
+                        className="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center space-x-2 disabled:opacity-50"
+                      >
+                        <Check className="w-4 h-4" />
+                        <span>
+                          {submitting ? 'Saving...' : 'Complete Consultation & Queue for Billing'}
+                        </span>
+                      </button>
+                    </>
+                  )}
                 </div>
               </form>
             </div>

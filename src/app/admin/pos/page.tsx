@@ -104,6 +104,25 @@ function QuickSalePOSContent() {
   const [recentBillFilter, setRecentBillFilter] = useState<'ALL' | 'services' | 'products' | 'packages'>('ALL');
   const [schedulingPackage, setSchedulingPackage] = useState<ICustomerPackage | null>(null);
 
+  // BUG-08: Recent Activity (Consultation Done Patients)
+  const [recentConsultations, setRecentConsultations] = useState<any[]>([]);
+  const [showRecentActivity, setShowRecentActivity] = useState(false);
+  const [selectedVisitId, setSelectedVisitId] = useState<string | null>(null);
+
+  // Load recent consultations awaiting billing
+  useEffect(() => {
+    if (selectedStore) {
+      fetch(`/api/visits?storeCode=${selectedStore}&status=Done`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && Array.isArray(data.data)) {
+            setRecentConsultations(data.data.filter((v: any) => !v.billId));
+          }
+        })
+        .catch(() => {});
+    }
+  }, [selectedStore]);
+
   // BR-03: Doctor restricted from seeing billing amounts or bills
   if (user && user.role === 'doctor') {
     return (
@@ -306,11 +325,18 @@ function QuickSalePOSContent() {
     const updated = [...items];
     (updated[index] as any)[field] = value;
 
-    // Recalculate row total
-    const qty = Number(updated[index].quantity) || 1;
-    const price = Number(updated[index].price) || 0;
-    const discPct = Number(updated[index].discountPercent) || 0;
-    const lineTotal = Math.round(qty * price * (1 - discPct / 100));
+    // Recalculate row total (BUG-16: Zero qty gives ₹0; BUG-17: clamp discount & prices)
+    const rawQty = Number(updated[index].quantity);
+    const qty = isNaN(rawQty) || rawQty < 0 ? 0 : rawQty;
+    const price = Math.max(0, Number(updated[index].price) || 0);
+    const rawDisc = Number(updated[index].discountPercent) || 0;
+    const maxAllowedDisc = user?.role === 'admin' ? 100 : (settings?.maxStaffDiscountPercent || 10);
+    const discPct = Math.min(maxAllowedDisc, Math.max(0, rawDisc));
+
+    updated[index].quantity = qty;
+    updated[index].price = price;
+    updated[index].discountPercent = discPct;
+    const lineTotal = Math.max(0, Math.round(qty * price * (1 - discPct / 100)));
     updated[index].total = lineTotal;
 
     setItems(updated);
@@ -321,14 +347,17 @@ function QuickSalePOSContent() {
   };
 
   // calculations (Section 10 Calculation Rules)
-  const subtotal = items.reduce((sum, it) => sum + (it.total || 0), 0);
+  const subtotal = Math.max(0, items.reduce((sum, it) => sum + (it.total || 0), 0));
 
-  // Bill discount
+  // Bill discount (BUG-17: clamp discount within staff limits and reject negatives)
   let billDiscountAmount = 0;
+  const maxStaffDisc = user?.role === 'admin' ? 100 : (settings?.maxStaffDiscountPercent || 10);
+  const safeDiscountVal = Math.max(0, Number(discountValue) || 0);
   if (discountType === 'percent') {
-    billDiscountAmount = Math.round((subtotal * (discountValue || 0)) / 100);
+    const clampedPct = Math.min(maxStaffDisc, safeDiscountVal);
+    billDiscountAmount = Math.round((subtotal * clampedPct) / 100);
   } else {
-    billDiscountAmount = Number(discountValue) || 0;
+    billDiscountAmount = Math.min(subtotal, safeDiscountVal);
   }
   if (billDiscountAmount > subtotal) billDiscountAmount = subtotal;
 
@@ -417,6 +446,18 @@ function QuickSalePOSContent() {
       return;
     }
 
+    // BUG-16: Enforce minimum quantity 1
+    if (items.some((it) => (Number(it.quantity) || 0) <= 0)) {
+      alert('All line items must have a minimum quantity of 1.');
+      return;
+    }
+
+    // BUG-17: Block negative totals
+    if (subtotal < 0 || payableAmount < 0) {
+      alert('Payable amount cannot be negative.');
+      return;
+    }
+
     let finalPayments = { ...payments };
     const nonZeroModes = Object.entries(finalPayments).filter(([_, amt]) => Number(amt) > 0);
 
@@ -480,6 +521,7 @@ function QuickSalePOSContent() {
       staffName: user?.name || 'Front Desk Staff',
       staffRole: user?.role || 'staff',
       status: 'Paid',
+      visitId: selectedVisitId || undefined,
     };
 
     try {
@@ -510,6 +552,7 @@ function QuickSalePOSContent() {
 
   const handleReset = () => {
     setActiveInvoiceNo(null);
+    setSelectedVisitId(null);
     setItems([]);
     setSelectedCustomer(null);
     setSearchMobile('');
@@ -655,6 +698,90 @@ function QuickSalePOSContent() {
                 <Plus className="w-4 h-4" />
                 <span>Add Client</span>
               </button>
+
+              {/* BUG-08: Recent Activity button for consultation-done patients */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowRecentActivity(!showRecentActivity)}
+                  className={`px-3.5 py-2 rounded-xl text-sm font-bold flex items-center space-x-1.5 whitespace-nowrap transition-all shadow-xs ${
+                    recentConsultations.length > 0
+                      ? 'bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200'
+                  }`}
+                  title="Load completed doctor consultations"
+                >
+                  <Clock className="w-4 h-4 text-amber-700" />
+                  <span>Recent Activity</span>
+                  {recentConsultations.length > 0 && (
+                    <span className="bg-amber-600 text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold ml-1">
+                      {recentConsultations.length}
+                    </span>
+                  )}
+                </button>
+
+                {showRecentActivity && (
+                  <div className="absolute left-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 p-3 z-30 space-y-2">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-100 text-xs font-bold text-slate-800">
+                      <span>Completed Consultations ({recentConsultations.length})</span>
+                      <button onClick={() => setShowRecentActivity(false)} className="text-slate-400 hover:text-slate-600">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {recentConsultations.length === 0 ? (
+                      <div className="py-4 text-center text-slate-400 text-xs">
+                        No pending consultations waiting for billing.
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5 max-h-56 overflow-y-auto">
+                        {recentConsultations.map((v) => (
+                          <div
+                            key={v._id || v.visitId}
+                            onClick={() => {
+                              setSelectedCustomer({
+                                customerId: v.patientId,
+                                name: v.patientName,
+                                mobile: v.patientPhone,
+                                gender: 'Female',
+                              } as any);
+                              setSearchMobile(v.patientPhone || '');
+                              setSelectedVisitId(v.visitId || v._id);
+
+                              // Add doctor consultation item
+                              const consultItem: IQuickSaleItem = {
+                                type: 'service',
+                                itemId: 'svc-5',
+                                name: `Doctor Consultation (${v.doctorName || 'Doctor'})`,
+                                staffName: v.doctorName || 'Doctor',
+                                quantity: 1,
+                                price: 500,
+                                discountPercent: 0,
+                                total: 500,
+                              };
+                              setItems((prev) => {
+                                if (prev.some((it) => it.name.includes('Doctor Consultation'))) return prev;
+                                return [...prev, consultItem];
+                              });
+                              setShowRecentActivity(false);
+                            }}
+                            className="p-2 hover:bg-amber-50 rounded-xl border border-slate-100 cursor-pointer text-xs space-y-1 transition"
+                          >
+                            <div className="flex items-center justify-between font-bold text-slate-900">
+                              <span>{v.patientName}</span>
+                              <span className="text-emerald-700 font-mono">₹500</span>
+                            </div>
+                            <div className="flex items-center justify-between text-[11px] text-slate-500">
+                              <span>{v.patientPhone}</span>
+                              <span>Dr. {v.doctorName}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Inline Add Client Form (FR-22) */}
@@ -760,16 +887,17 @@ function QuickSalePOSContent() {
                             type="number"
                             min="1"
                             value={it.quantity}
-                            onChange={(e) => updateItemField(idx, 'quantity', Number(e.target.value))}
+                            onChange={(e) => updateItemField(idx, 'quantity', Math.max(0, parseInt(e.target.value) || 0))}
                             className="w-14 text-center bg-slate-50 border border-slate-200 rounded-lg py-1 font-bold text-sm"
                           />
                         </td>
                         <td className="px-3.5 py-2.5 text-right">
                           <input
                             type="number"
+                            min="0"
                             disabled={!settings?.staffCanEditPrice && user?.role !== 'admin'}
                             value={it.price}
-                            onChange={(e) => updateItemField(idx, 'price', Number(e.target.value))}
+                            onChange={(e) => updateItemField(idx, 'price', Math.max(0, Number(e.target.value) || 0))}
                             className="w-24 text-right bg-slate-50 border border-slate-200 rounded-lg py-1 font-bold text-sm disabled:opacity-60"
                           />
                         </td>
@@ -777,9 +905,13 @@ function QuickSalePOSContent() {
                           <input
                             type="number"
                             min="0"
-                            max="100"
+                            max={user?.role === 'admin' ? 100 : (settings?.maxStaffDiscountPercent || 10)}
                             value={it.discountPercent || 0}
-                            onChange={(e) => updateItemField(idx, 'discountPercent', Number(e.target.value))}
+                            onChange={(e) => {
+                              const raw = Math.max(0, parseFloat(e.target.value) || 0);
+                              const maxAllowed = user?.role === 'admin' ? 100 : (settings?.maxStaffDiscountPercent || 10);
+                              updateItemField(idx, 'discountPercent', Math.min(maxAllowed, raw));
+                            }}
                             className="w-16 text-center bg-slate-50 border border-slate-200 rounded-lg py-1 text-sm font-semibold"
                           />
                         </td>
@@ -873,9 +1005,18 @@ function QuickSalePOSContent() {
                 <input
                   type="number"
                   min="0"
+                  max={discountType === 'percent' ? (user?.role === 'admin' ? 100 : (settings?.maxStaffDiscountPercent || 10)) : subtotal}
                   value={discountValue || ''}
                   placeholder={discountType === 'percent' ? 'e.g. 10%' : 'e.g. ₹500'}
-                  onChange={(e) => setDiscountValue(Number(e.target.value))}
+                  onChange={(e) => {
+                    const val = Math.max(0, Number(e.target.value) || 0);
+                    if (discountType === 'percent') {
+                      const maxLimit = user?.role === 'admin' ? 100 : (settings?.maxStaffDiscountPercent || 10);
+                      setDiscountValue(Math.min(maxLimit, val));
+                    } else {
+                      setDiscountValue(Math.min(subtotal, val));
+                    }
+                  }}
                   className="w-32 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-bold text-sm"
                 />
               </div>

@@ -61,11 +61,17 @@ function AppointmentsCalendarContent() {
   const [inlineName, setInlineName] = useState('');
 
   // Booking Form State
+  const [bookingDate, setBookingDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [bookingService, setBookingService] = useState<string>('');
   const [bookingStaff, setBookingStaff] = useState<string>('');
   const [bookingTime, setBookingTime] = useState<string>('10:00 AM');
   const [bookingDuration, setBookingDuration] = useState<number>(30);
   const [bookingNotes, setBookingNotes] = useState<string>('');
+  const [selectedSittingKey, setSelectedSittingKey] = useState<string | null>(null);
+  const [isMultiSittingMode, setIsMultiSittingMode] = useState(false);
+  const [packageSittingsSchedule, setPackageSittingsSchedule] = useState<
+    { sittingNum: number; serviceName: string; date: string; time: string; staffName: string }[]
+  >([]);
 
   // Double Booking Warning Modal (FR-61)
   const [conflictWarning, setConflictWarning] = useState<string | null>(null);
@@ -135,7 +141,15 @@ function AppointmentsCalendarContent() {
 
       if (apptData.success) setAppointments(apptData.data || []);
       if (staffData.success) {
-        const calStaff = (staffData.data || []).filter((s: IStaff) => s.showInAppointmentCalendar !== false);
+        // BUG-20: Show only doctors in the appointment calendar columns and filter
+        const calStaff = (staffData.data || []).filter(
+          (s: IStaff) =>
+            s.showInAppointmentCalendar !== false &&
+            ((s.designation && s.designation.toLowerCase().includes('doc')) ||
+              (s.loginRole && s.loginRole.toLowerCase() === 'doctor') ||
+              (s.role && (s.role as string).toLowerCase() === 'doctor') ||
+              (s.name && s.name.toLowerCase().startsWith('dr.')))
+        );
         setStaffMembers(calStaff);
         if (calStaff.length > 0 && !bookingStaff) {
           setBookingStaff(calStaff[0].name);
@@ -227,6 +241,49 @@ function AppointmentsCalendarContent() {
 
     const assignedStaffObj = staffMembers.find((s) => s.name === bookingStaff);
 
+    // BUG-18: Multi-sitting package booking workflow
+    if (isMultiSittingMode && packageSittingsSchedule.length > 0) {
+      try {
+        for (const sitting of packageSittingsSchedule) {
+          const sStaff = staffMembers.find((s) => s.name === (sitting.staffName || bookingStaff));
+          await fetch('/api/appointments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              customerId: selectedClient?.customerId || (selectedClient as any)?._id,
+              customerName: clientName,
+              customerPhone: clientPhone,
+              serviceName: sitting.serviceName,
+              staffName: sitting.staffName || bookingStaff,
+              staffId: sStaff?._id,
+              doctorId: sStaff?.designation === 'Doctor' ? sStaff._id : undefined,
+              doctorName: sStaff?.designation === 'Doctor' ? sStaff.name : undefined,
+              storeId: selectedStore,
+              date: sitting.date,
+              startTime: sitting.time,
+              durationMins: bookingDuration,
+              notes: `${bookingNotes} (Sitting ${sitting.sittingNum})`,
+              force: true,
+            }),
+          });
+        }
+        setShowBookingModal(false);
+        setIsMultiSittingMode(false);
+        setPackageSittingsSchedule([]);
+        setSelectedSittingKey(null);
+        setSelectedClient(null);
+        setClientSearchMobile('');
+        setInlineName('');
+        setBookingNotes('');
+        loadAppointmentsAndMasters();
+        alert(`Successfully scheduled all ${packageSittingsSchedule.length} package sittings!`);
+        return;
+      } catch (err) {
+        alert('Failed to schedule some package sittings');
+        return;
+      }
+    }
+
     const payload = {
       customerId: selectedClient?.customerId || (selectedClient as any)?._id,
       customerName: clientName,
@@ -237,7 +294,7 @@ function AppointmentsCalendarContent() {
       doctorId: assignedStaffObj?.designation === 'Doctor' ? assignedStaffObj._id : undefined,
       doctorName: assignedStaffObj?.designation === 'Doctor' ? assignedStaffObj.name : undefined,
       storeId: selectedStore,
-      date: selectedDate,
+      date: bookingDate || selectedDate,
       startTime: bookingTime,
       durationMins: bookingDuration,
       notes: bookingNotes,
@@ -546,7 +603,7 @@ function AppointmentsCalendarContent() {
             onChange={(e) => setSelectedStaffFilter(e.target.value)}
             className="p-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-800"
           >
-            <option value="ALL">All Staff & Doctors ({staffMembers.length})</option>
+            <option value="ALL">All Doctors ({staffMembers.length})</option>
             {staffMembers.map((st) => (
               <option key={st._id} value={st.name}>
                 {st.name} ({st.designation})
@@ -1088,7 +1145,7 @@ function AppointmentsCalendarContent() {
                 )}
               </div>
 
-              {/* ⭐ Active Package Sittings Selector (When Customer has remaining sittings) */}
+              {/* Active Package Sittings Selector (BUG-18 & BUG-19) */}
               {clientPackages.filter((p) => (p.remainingSittings || 0) > 0).length > 0 && (
                 <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl space-y-2">
                   <div className="flex items-center justify-between text-xs font-bold text-purple-900">
@@ -1102,29 +1159,84 @@ function AppointmentsCalendarContent() {
                     {clientPackages.map((cp) =>
                       (cp.servicesRemaining || [])
                         .filter((s) => s.remainingCount > 0)
-                        .map((s, idx) => (
-                          <div
-                            key={idx}
-                            className="flex items-center justify-between bg-white p-2 rounded-lg border border-purple-100 text-xs"
-                          >
-                            <div className="truncate pr-2">
-                              <span className="font-bold text-slate-800 block truncate">{s.serviceName}</span>
-                              <span className="text-[10px] text-purple-700">
-                                {cp.packageName} • {s.remainingCount} sittings left
-                              </span>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setBookingService(s.serviceName);
-                                setBookingNotes(`[Package: ${cp.packageName}] Sitting ${s.usedCount + 1} of ${s.totalCount}`);
-                              }}
-                              className="px-2.5 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold text-[11px] shadow-2xs shrink-0"
+                        .map((s, idx) => {
+                          const sittingKey = `${cp._id}-${idx}`;
+                          const isSelected = selectedSittingKey === sittingKey;
+                          return (
+                            <div
+                              key={idx}
+                              className={`flex items-center justify-between p-2 rounded-lg border text-xs transition-all ${
+                                isSelected
+                                  ? 'bg-emerald-50 border-emerald-300 ring-1 ring-emerald-300'
+                                  : 'bg-white border-purple-100'
+                              }`}
                             >
-                              Use Sitting
-                            </button>
-                          </div>
-                        ))
+                              <div className="truncate pr-2">
+                                <span className="font-bold text-slate-800 block truncate">{s.serviceName}</span>
+                                <span className="text-[10px] text-purple-700">
+                                  {cp.packageName} • {s.remainingCount} sittings left
+                                </span>
+                              </div>
+                              <div className="flex items-center space-x-1.5 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (isSelected) {
+                                      setSelectedSittingKey(null);
+                                      setBookingNotes('');
+                                    } else {
+                                      setSelectedSittingKey(sittingKey);
+                                      setBookingService(s.serviceName);
+                                      setBookingNotes(`[Package: ${cp.packageName}] Sitting ${s.usedCount + 1} of ${s.totalCount}`);
+                                    }
+                                  }}
+                                  className={`px-2.5 py-1 rounded-lg font-bold text-[11px] shadow-2xs transition-all flex items-center space-x-1 ${
+                                    isSelected
+                                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                                      : 'bg-purple-600 hover:bg-purple-700 text-white'
+                                  }`}
+                                >
+                                  {isSelected ? (
+                                    <>
+                                      <CheckCircle2 className="w-3.5 h-3.5" />
+                                      <span>✓ Selected</span>
+                                    </>
+                                  ) : (
+                                    <span>Use Sitting</span>
+                                  )}
+                                </button>
+                                {s.remainingCount > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const now = new Date();
+                                      const scheduleList = [];
+                                      for (let i = 0; i < s.remainingCount; i++) {
+                                        const d = new Date(now);
+                                        d.setDate(d.getDate() + i * 7);
+                                        scheduleList.push({
+                                          sittingNum: s.usedCount + i + 1,
+                                          serviceName: s.serviceName,
+                                          date: d.toISOString().split('T')[0],
+                                          time: bookingTime || '10:00 AM',
+                                          staffName: bookingStaff,
+                                        });
+                                      }
+                                      setPackageSittingsSchedule(scheduleList);
+                                      setIsMultiSittingMode(true);
+                                      setBookingService(s.serviceName);
+                                      setBookingNotes(`[Package: ${cp.packageName}] Sittings 1 to ${s.remainingCount}`);
+                                    }}
+                                    className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-[10px] font-bold"
+                                    title="Schedule all remaining sittings with Date & Time"
+                                  >
+                                    Schedule All ({s.remainingCount})
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })
                     )}
                   </div>
                 </div>
@@ -1166,37 +1278,92 @@ function AppointmentsCalendarContent() {
                 </div>
               </div>
 
-              {/* Time & Duration */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Start Time (15m slot) *</label>
-                  <select
-                    value={bookingTime}
-                    onChange={(e) => setBookingTime(e.target.value)}
-                    className="w-full p-2.5 border border-slate-300 rounded-xl bg-white font-bold"
-                  >
-                    {bookingTimeSlots.map((ts) => (
-                      <option key={ts} value={ts}>
-                        {ts}
-                      </option>
+              {/* Date, Time & Duration (BUG-18) */}
+              {isMultiSittingMode && packageSittingsSchedule.length > 0 ? (
+                <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-xl space-y-2.5">
+                  <div className="flex items-center justify-between text-xs font-bold text-indigo-900">
+                    <span>Schedule All {packageSittingsSchedule.length} Package Sittings</span>
+                    <button
+                      type="button"
+                      onClick={() => setIsMultiSittingMode(false)}
+                      className="text-xs text-indigo-600 hover:underline font-semibold"
+                    >
+                      Switch to single appointment
+                    </button>
+                  </div>
+                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                    {packageSittingsSchedule.map((st, i) => (
+                      <div key={i} className="flex items-center gap-2 bg-white p-2 rounded-lg border border-indigo-100 text-xs">
+                        <span className="font-bold text-indigo-900 w-16 shrink-0">Sitting #{st.sittingNum}</span>
+                        <input
+                          type="date"
+                          value={st.date}
+                          onChange={(e) => {
+                            const updated = [...packageSittingsSchedule];
+                            updated[i].date = e.target.value;
+                            setPackageSittingsSchedule(updated);
+                          }}
+                          className="p-1.5 border border-slate-300 rounded-lg font-bold text-xs"
+                        />
+                        <select
+                          value={st.time}
+                          onChange={(e) => {
+                            const updated = [...packageSittingsSchedule];
+                            updated[i].time = e.target.value;
+                            setPackageSittingsSchedule(updated);
+                          }}
+                          className="p-1.5 border border-slate-300 rounded-lg font-bold text-xs"
+                        >
+                          {bookingTimeSlots.map((ts) => (
+                            <option key={ts} value={ts}>{ts}</option>
+                          ))}
+                        </select>
+                      </div>
                     ))}
-                  </select>
+                  </div>
                 </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Duration (Minutes)</label>
-                  <select
-                    value={bookingDuration}
-                    onChange={(e) => setBookingDuration(Number(e.target.value))}
-                    className="w-full p-2.5 border border-slate-300 rounded-xl bg-white font-bold"
-                  >
-                    <option value={15}>15 Minutes</option>
-                    <option value={30}>30 Minutes</option>
-                    <option value={45}>45 Minutes</option>
-                    <option value={60}>60 Minutes</option>
-                    <option value={90}>90 Minutes</option>
-                  </select>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Appointment Date *</label>
+                    <input
+                      type="date"
+                      required
+                      value={bookingDate}
+                      onChange={(e) => setBookingDate(e.target.value)}
+                      className="w-full p-2.5 border border-slate-300 rounded-xl bg-white font-bold text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Start Time (15m slot) *</label>
+                    <select
+                      value={bookingTime}
+                      onChange={(e) => setBookingTime(e.target.value)}
+                      className="w-full p-2.5 border border-slate-300 rounded-xl bg-white font-bold text-xs"
+                    >
+                      {bookingTimeSlots.map((ts) => (
+                        <option key={ts} value={ts}>
+                          {ts}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Duration (Minutes)</label>
+                    <select
+                      value={bookingDuration}
+                      onChange={(e) => setBookingDuration(Number(e.target.value))}
+                      className="w-full p-2.5 border border-slate-300 rounded-xl bg-white font-bold text-xs"
+                    >
+                      <option value={15}>15 Minutes</option>
+                      <option value={30}>30 Minutes</option>
+                      <option value={45}>45 Minutes</option>
+                      <option value={60}>60 Minutes</option>
+                      <option value={90}>90 Minutes</option>
+                    </select>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">Clinical Notes / Requests</label>

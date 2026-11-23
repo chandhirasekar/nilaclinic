@@ -66,31 +66,8 @@ export default function TreatmentCard({ treatment }: { treatment: TreatmentItem 
         </div>
       </div>
 
-      {/* Bottom Pricing & Action Section */}
+      {/* Bottom Action Section (BUG-01: price block removed) */}
       <div className="p-5 pt-3 bg-slate-50/80 border-t border-slate-100">
-        <div className="flex items-baseline justify-between mb-3.5">
-          <div>
-            <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
-              Single Session
-            </span>
-            <div className="flex items-baseline space-x-1">
-              <span className="font-mono text-lg font-bold text-slate-900">₹{treatment.priceINR.toLocaleString('en-IN')}</span>
-              <span className="text-[10px] text-slate-500">+18% GST</span>
-            </div>
-          </div>
-
-          {treatment.packagePriceINR && (
-            <div className="text-right">
-              <span className="text-[10px] uppercase font-bold text-emerald-600 block tracking-wider">
-                Course Package
-              </span>
-              <span className="font-mono text-xs font-bold text-emerald-700">
-                ₹{treatment.packagePriceINR.toLocaleString('en-IN')}
-              </span>
-            </div>
-          )}
-        </div>
-
         <div className="grid grid-cols-2 gap-2 text-xs font-semibold">
           <Link
             href={`/treatments/${treatment.slug}`}

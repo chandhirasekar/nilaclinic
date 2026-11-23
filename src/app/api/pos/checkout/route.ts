@@ -196,6 +196,27 @@ export async function POST(req: Request) {
       } catch (err) {
         console.error('Error linking visit to invoice on POS checkout:', err);
       }
+
+      // BUG-21: Auto-update matching appointment status to "Arrived" once POS billing is done
+      try {
+        const checkDate = date || todayStr;
+        const appts = await clinicService.getAppointments(storeId || 'NILA-TH', checkDate);
+        const matchingAppt = appts.find(
+          (a) =>
+            a.status === 'Booked' &&
+            ((customerId && (a.customerId === customerId || (a as any).patientId === customerId)) ||
+              (customerMobile && a.customerPhone === customerMobile) ||
+              (customerPhone && a.customerPhone === customerPhone) ||
+              (customerName && a.customerName?.toLowerCase() === customerName?.toLowerCase()))
+        );
+        if (matchingAppt) {
+          await clinicService.updateAppointment(matchingAppt._id || (matchingAppt as any).appointmentId, {
+            status: 'Arrived',
+          });
+        }
+      } catch (apptErr) {
+        console.error('Error auto-updating appointment to Arrived on POS billing:', apptErr);
+      }
     }
 
     return NextResponse.json({ success: true, data: invoice });

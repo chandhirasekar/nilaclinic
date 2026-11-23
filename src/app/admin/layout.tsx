@@ -76,9 +76,9 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
       ? [{ name: 'Packages & Sittings', href: '/admin/packages', icon: Package }]
       : []),
 
-    // Store Master: Admin ONLY (FR-01)
+    // Branch Master: Admin ONLY (BUG-11, FR-01)
     ...(userRole === 'admin'
-      ? [{ name: 'Store Master', href: '/admin/stores', icon: StoreIcon }]
+      ? [{ name: 'Branch Master', href: '/admin/stores', icon: StoreIcon }]
       : []),
 
     // Users & Store Assignment: Admin ONLY (FR-06, FR-07)

@@ -142,6 +142,32 @@ export async function POST(req: Request) {
 
     const targetStore = storeId.toUpperCase();
 
+    // Check if patient already has an active visit in Waiting or In consultation
+    // Rule: Never create a duplicate queue record — only reassign the existing active visit!
+    const existingVisits = await clinicService.getVisits(targetStore);
+    const existingActiveVisit = existingVisits.find(
+      (v) =>
+        (v.patientId === patientId || (patientPhone && v.patientPhone === patientPhone)) &&
+        (v.status === 'Waiting' || v.status === 'In consultation')
+    );
+
+    if (existingActiveVisit) {
+      const updatedVisit = await clinicService.updateVisit(
+        existingActiveVisit._id || existingActiveVisit.visitId,
+        {
+          doctorId: doctor._id || doctor.email,
+          doctorName: doctor.name,
+          isReadByDoctor: false,
+        }
+      );
+      return NextResponse.json({
+        success: true,
+        data: updatedVisit,
+        reassigned: true,
+        message: `Patient ${patientName} reassigned to ${doctor.name} in existing visit (no duplicate created)`
+      });
+    }
+
     // Create visit in 'Waiting' status
     const visit = await clinicService.createVisit({
       patientId,
@@ -166,10 +192,11 @@ export async function POST(req: Request) {
 // Doctor workflow updates:
 // 1. Doctor opens patient -> status: 'In consultation', isReadByDoctor: true (FR-14, FR-15)
 // 2. Doctor writes notes, prescription, prescriptionImage, clicks submit -> status: 'Done', auto-creates bill (FR-16, FR-17, FR-18, FR-19, BR-02, NFR-06)
+// 3. Receptionist reassigns doctor -> doctorId, doctorName updated without duplicate visit
 export async function PUT(req: Request) {
   try {
     const body = await req.json();
-    const { visitId, status, caseNotes, prescriptionText, prescriptionImage, consultationFee } = body;
+    const { visitId, status, caseNotes, prescriptionText, prescriptionImage, consultationFee, doctorId, doctorName } = body;
 
     if (!visitId) {
       return NextResponse.json({ success: false, message: 'Visit ID is required' }, { status: 400 });
@@ -179,6 +206,13 @@ export async function PUT(req: Request) {
     if (status) updates.status = status;
     if (caseNotes !== undefined) updates.caseNotes = caseNotes;
     if (prescriptionText !== undefined) updates.prescriptionText = prescriptionText;
+    if (doctorId !== undefined) {
+      updates.doctorId = doctorId;
+      updates.isReadByDoctor = false; // Reset so newly assigned doctor receives notification
+    }
+    if (doctorName !== undefined) {
+      updates.doctorName = doctorName;
+    }
     if (prescriptionImage !== undefined) {
       // NFR-03: Validate image format and size if provided
       if (prescriptionImage && prescriptionImage.startsWith('data:')) {
@@ -201,7 +235,6 @@ export async function PUT(req: Request) {
     }
 
     // If consultation is completed
-    let generatedBill = null;
     if (status === 'Done') {
       updates.isReadByDoctor = true;
       updates.consultedAt = new Date().toISOString();
@@ -211,14 +244,13 @@ export async function PUT(req: Request) {
         return NextResponse.json({ success: false, message: 'Visit not found' }, { status: 404 });
       }
 
-      // Auto-create bill (BR-02, NFR-06)
-      generatedBill = await clinicService.autoCreateBillForVisit(visitId, Number(consultationFee) || 500);
-
+      // BUG-06 & BUG-15: Do NOT auto-create a bill in MongoDB when consultation is submitted.
+      // Consultation completion simply marks the visit as Done. The bill will be generated manually
+      // at the POS counter when the receptionist collects payment.
       return NextResponse.json({
         success: true,
         data: updatedVisit,
-        bill: generatedBill,
-        message: 'Consultation marked Done and bill auto-generated for billing counter'
+        message: 'Consultation marked Done and ready for POS billing'
       });
     }
 

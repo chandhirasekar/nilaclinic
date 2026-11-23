@@ -52,6 +52,7 @@ export default function PatientEntryAndQueuePage() {
   const [selectedPatientForAssign, setSelectedPatientForAssign] = useState<IPatient | null>(null);
   const [selectedDoctorId, setSelectedDoctorId] = useState('');
   const [assignError, setAssignError] = useState('');
+  const [reassignVisitId, setReassignVisitId] = useState<string | null>(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -153,6 +154,7 @@ export default function PatientEntryAndQueuePage() {
         if (doctors.length > 0) {
           setSelectedDoctorId(String(doctors[0]._id || doctors[0].email));
         }
+        setReassignVisitId(null);
         setAssignError('');
         setShowAssignModal(true);
       } else {
@@ -194,26 +196,50 @@ export default function PatientEntryAndQueuePage() {
 
     setIsSubmittingAssign(true);
     try {
-      const targetStoreCode = selectedStore === 'ALL' ? (chosenDoctor?.assignedStoreIds?.[0] || 'NILA-TH') : selectedStore;
-      const res = await fetch('/api/visits', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          patientId: targetPatientId,
-          patientName: selectedPatientForAssign.name,
-          patientPhone: targetPhone,
-          storeId: targetStoreCode,
-          doctorId: activeDocId,
-          doctorName: activeDocName,
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setShowAssignModal(false);
-        setSelectedPatientForAssign(null);
-        await loadData();
+      if (reassignVisitId) {
+        // REASSIGN: Only reassign the existing visit — DO NOT create another visit!
+        const res = await fetch('/api/visits', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            visitId: reassignVisitId,
+            doctorId: activeDocId,
+            doctorName: activeDocName,
+          }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          setShowAssignModal(false);
+          setSelectedPatientForAssign(null);
+          setReassignVisitId(null);
+          await loadData();
+        } else {
+          setAssignError(data.message || 'Failed to reassign doctor');
+        }
       } else {
-        setAssignError(data.message || 'Failed to assign doctor');
+        // ASSIGN NEW VISIT
+        const targetStoreCode = selectedStore === 'ALL' ? (chosenDoctor?.assignedStoreIds?.[0] || 'NILA-TH') : selectedStore;
+        const res = await fetch('/api/visits', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            patientId: targetPatientId,
+            patientName: selectedPatientForAssign.name,
+            patientPhone: targetPhone,
+            storeId: targetStoreCode,
+            doctorId: activeDocId,
+            doctorName: activeDocName,
+          }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          setShowAssignModal(false);
+          setSelectedPatientForAssign(null);
+          setReassignVisitId(null);
+          await loadData();
+        } else {
+          setAssignError(data.message || 'Failed to assign doctor');
+        }
       }
     } catch (err: any) {
       setAssignError(err.message || 'Error occurred');
@@ -279,8 +305,31 @@ export default function PatientEntryAndQueuePage() {
                         {v.patientPhone}
                       </p>
                       <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
-                        <span className="text-sky-800 font-semibold">Assigned: {v.doctorName}</span>
-                        <span className="text-amber-700 font-bold">Waiting</span>
+                        <div className="flex flex-col">
+                          <span className="text-sky-800 font-semibold text-[11px] truncate max-w-[140px]">
+                            Dr: {v.doctorName}
+                          </span>
+                          <span className="text-amber-700 font-bold text-[10px]">Waiting</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedPatientForAssign({
+                              name: v.patientName,
+                              patientId: v.patientId,
+                              phone: v.patientPhone,
+                            } as any);
+                            setSelectedDoctorId(String(v.doctorId || ''));
+                            setReassignVisitId(String(v._id || v.visitId));
+                            setAssignError('');
+                            setShowAssignModal(true);
+                          }}
+                          className="px-2 py-1 text-[11px] font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-md transition-all cursor-pointer inline-flex items-center space-x-1"
+                          title="Reassign doctor without creating another visit"
+                        >
+                          <UserCheck className="w-3 h-3" />
+                          <span>Reassign</span>
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -328,7 +377,11 @@ export default function PatientEntryAndQueuePage() {
                     <div key={v._id || v.visitId} className="bg-white p-3.5 rounded-xl border border-emerald-100 shadow-2xs space-y-1.5">
                       <div className="flex items-center justify-between">
                         <span className="font-black text-sm text-slate-900">{v.patientName}</span>
-                        <span className="text-xs text-emerald-700 font-black">✓ Bill Created</span>
+                        {v.billId ? (
+                          <span className="text-xs text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">✓ Billed</span>
+                        ) : (
+                          <span className="text-[11px] text-amber-700 font-bold bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">Consultation Done – Pending Billing</span>
+                        )}
                       </div>
                       <p className="text-xs text-slate-600 line-clamp-1 font-medium">Dr. Notes: {v.caseNotes || 'Completed'}</p>
                       <div className="pt-1.5 flex items-center justify-between">
@@ -375,6 +428,7 @@ export default function PatientEntryAndQueuePage() {
                 <th className="px-4 py-3">Contact</th>
                 <th className="px-4 py-3">Gender / Age</th>
                 <th className="px-4 py-3">Store</th>
+                <th className="px-4 py-3">Assigned Doctor</th>
                 <th className="px-4 py-3">Notes</th>
                 <th className="px-4 py-3 text-right">Doctor Action</th>
               </tr>
@@ -388,55 +442,131 @@ export default function PatientEntryAndQueuePage() {
                     <td className="px-4 py-3"><div className="h-4 bg-slate-100 rounded w-24" /></td>
                     <td className="px-4 py-3"><div className="h-4 bg-slate-100 rounded w-16" /></td>
                     <td className="px-4 py-3"><div className="h-4 bg-slate-100 rounded w-12" /></td>
+                    <td className="px-4 py-3"><div className="h-4 bg-slate-100 rounded w-28" /></td>
                     <td className="px-4 py-3"><div className="h-4 bg-slate-100 rounded w-32" /></td>
                     <td className="px-4 py-3 text-right"><div className="h-6 bg-slate-200 rounded-lg w-24 ml-auto" /></td>
                   </tr>
                 ))
               ) : patients.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
+                  <td colSpan={8} className="px-4 py-8 text-center text-slate-400">
                     No patients registered yet. Click &quot;Register Patient&quot; above.
                   </td>
                 </tr>
               ) : (
                 patients.map((p) => {
-                const pid = p.patientId || (p as any).customerId || p._id;
-                const contact = p.phone || (p as any).mobile || '-';
-                return (
-                  <tr key={p._id || pid} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="px-4 py-3 font-mono font-bold text-slate-900">{pid}</td>
-                    <td className="px-4 py-3 font-semibold text-slate-900">{p.name}</td>
-                    <td className="px-4 py-3 font-medium text-slate-700">{contact}</td>
-                    <td className="px-4 py-3">{p.gender} / {p.age || '-'} yrs</td>
-                    <td className="px-4 py-3">
-                      <span className="bg-slate-100 text-slate-700 text-[10px] font-bold px-2 py-0.5 rounded">
-                        {canonicalStoreCode(p.storeId || (p as any).firstStoreId || selectedStore)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-slate-400 max-w-xs truncate">{p.notes || '-'}</td>
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => {
-                          setSelectedPatientForAssign({
-                            ...p,
-                            patientId: pid,
-                            phone: contact,
-                          });
-                          if (doctors.length > 0) {
-                            setSelectedDoctorId(String(doctors[0]._id || doctors[0].email));
-                          }
-                          setAssignError('');
-                          setShowAssignModal(true);
-                        }}
-                        className="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg font-semibold text-xs shadow-2xs transition-all inline-flex items-center space-x-1"
-                      >
-                        <Stethoscope className="w-3.5 h-3.5" />
-                        <span>Assign Doctor</span>
-                      </button>
-                    </td>
-                  </tr>
-                );
-              }))}
+                  const pid = p.patientId || (p as any).customerId || p._id;
+                  const contact = p.phone || (p as any).mobile || '-';
+                  const rawPhone = p.phone || (p as any).mobile || '';
+
+                  // Find active visit in Waiting or In consultation, or latest completed visit
+                  const activeVisit = visits.find(
+                    (v) =>
+                      (v.patientId === pid || (rawPhone && v.patientPhone === rawPhone)) &&
+                      (v.status === 'Waiting' || v.status === 'In consultation')
+                  );
+                  const doneVisit = !activeVisit
+                    ? visits.find(
+                        (v) =>
+                          (v.patientId === pid || (rawPhone && v.patientPhone === rawPhone)) &&
+                          v.status === 'Done'
+                      )
+                    : null;
+
+                  return (
+                    <tr key={p._id || pid} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="px-4 py-3 font-mono font-bold text-slate-900">{pid}</td>
+                      <td className="px-4 py-3 font-semibold text-slate-900">{p.name}</td>
+                      <td className="px-4 py-3 font-medium text-slate-700">{contact}</td>
+                      <td className="px-4 py-3">{p.gender} / {p.age || '-'} yrs</td>
+                      <td className="px-4 py-3">
+                        <span className="bg-slate-100 text-slate-700 text-[10px] font-bold px-2 py-0.5 rounded">
+                          {canonicalStoreCode(p.storeId || (p as any).firstStoreId || selectedStore)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {activeVisit ? (
+                          <div className="space-y-0.5">
+                            <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-900">
+                              <Stethoscope className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                              <span className="truncate max-w-[150px]">{activeVisit.doctorName}</span>
+                            </div>
+                            {activeVisit.status === 'Waiting' ? (
+                              <span className="inline-block px-1.5 py-0.5 text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 rounded">
+                                Waiting in Queue
+                              </span>
+                            ) : (
+                              <span className="inline-block px-1.5 py-0.5 text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200 rounded animate-pulse">
+                                In Consultation
+                              </span>
+                            )}
+                          </div>
+                        ) : doneVisit ? (
+                          <div className="space-y-0.5">
+                            <div className="flex items-center space-x-1.5 text-xs font-medium text-slate-700">
+                              <Stethoscope className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                              <span className="truncate max-w-[150px]">{doneVisit.doctorName}</span>
+                            </div>
+                            <span className="inline-block px-1.5 py-0.5 text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded">
+                              Consultation Done
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-400 italic flex items-center space-x-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                            <span>Not Assigned</span>
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-slate-400 max-w-xs truncate">{p.notes || '-'}</td>
+                      <td className="px-4 py-3 text-right">
+                        {activeVisit ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedPatientForAssign({
+                                ...p,
+                                patientId: pid,
+                                phone: rawPhone,
+                              });
+                              setSelectedDoctorId(String(activeVisit.doctorId || (doctors[0]?._id || doctors[0]?.email || '')));
+                              setReassignVisitId(String(activeVisit._id || activeVisit.visitId));
+                              setAssignError('');
+                              setShowAssignModal(true);
+                            }}
+                            className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-bold text-xs shadow-2xs transition-all inline-flex items-center space-x-1 cursor-pointer"
+                            title="Reassign to another active doctor (no duplicate visit created)"
+                          >
+                            <UserCheck className="w-3.5 h-3.5" />
+                            <span>Reassign</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedPatientForAssign({
+                                ...p,
+                                patientId: pid,
+                                phone: rawPhone,
+                              });
+                              if (doctors.length > 0) {
+                                setSelectedDoctorId(String(doctors[0]._id || doctors[0].email));
+                              }
+                              setReassignVisitId(null);
+                              setAssignError('');
+                              setShowAssignModal(true);
+                            }}
+                            className="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg font-bold text-xs shadow-2xs transition-all inline-flex items-center space-x-1 cursor-pointer"
+                            title="Assign doctor for consultation"
+                          >
+                            <Stethoscope className="w-3.5 h-3.5" />
+                            <span>Assign Doctor</span>
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                }))}
             </tbody>
           </table>
         </div>
@@ -581,9 +711,13 @@ export default function PatientEntryAndQueuePage() {
       {showAssignModal && selectedPatientForAssign && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl border border-slate-100 p-6 relative">
-            <h3 className="font-bold text-slate-900 text-base mb-1">Assign Doctor</h3>
+            <h3 className="font-bold text-slate-900 text-base mb-1">
+              {reassignVisitId ? 'Reassign Doctor' : 'Assign Doctor'}
+            </h3>
             <p className="text-xs text-slate-500 mb-3">
-              FR-12: Assign only active doctors belonging to store <strong>[{selectedStore}]</strong>.
+              {reassignVisitId
+                ? 'Update assigned doctor for the active visit without creating a duplicate record.'
+                : `FR-12: Assign only active doctors belonging to store [${selectedStore}].`}
             </p>
 
             <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 mb-3 text-xs space-y-0.5">
@@ -623,7 +757,10 @@ export default function PatientEntryAndQueuePage() {
               <div className="pt-3 flex justify-end space-x-2 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setShowAssignModal(false)}
+                  onClick={() => {
+                    setShowAssignModal(false);
+                    setReassignVisitId(null);
+                  }}
                   className="px-4 py-2 text-slate-600 font-semibold hover:bg-slate-100 rounded-xl"
                 >
                   Cancel
@@ -631,11 +768,15 @@ export default function PatientEntryAndQueuePage() {
                 <ButtonLoader
                   type="submit"
                   isLoading={isSubmittingAssign}
-                  loadingText="Placing in Queue..."
+                  loadingText={reassignVisitId ? "Reassigning..." : "Placing in Queue..."}
                   disabled={doctors.length === 0}
-                  className="px-5 py-2 bg-sky-600 hover:bg-sky-700 text-white font-semibold rounded-xl shadow-xs disabled:opacity-50"
+                  className={`px-5 py-2 text-white font-semibold rounded-xl shadow-xs disabled:opacity-50 ${
+                    reassignVisitId
+                      ? 'bg-amber-600 hover:bg-amber-700'
+                      : 'bg-sky-600 hover:bg-sky-700'
+                  }`}
                 >
-                  Place in Waiting Queue
+                  {reassignVisitId ? 'Save & Reassign Doctor' : 'Place in Waiting Queue'}
                 </ButtonLoader>
               </div>
             </form>

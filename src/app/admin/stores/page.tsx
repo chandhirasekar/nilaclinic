@@ -155,9 +155,9 @@ export default function StoreMasterPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-900">Multi-Store Master & Branches (M1)</h1>
+          <h1 className="text-2xl font-black text-slate-900">Branch Master & Locations (M1)</h1>
           <p className="text-sm text-slate-600 mt-1 font-medium">
-            FR-01: Admin can add, edit, and disable stores. Each store has an isolated invoice sequence (e.g. NILA-TH-) and operating hours.
+            FR-01: Admin can add, edit, and disable clinic branches. Each branch has an isolated invoice sequence (e.g. NILA-TH-) and operating hours.
           </p>
         </div>
         <button

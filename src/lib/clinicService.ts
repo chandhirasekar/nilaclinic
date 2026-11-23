@@ -32,6 +32,12 @@ import {
 import { getStoreAliases, canonicalStoreCode } from '@/lib/storeHelpers';
 export { getStoreAliases, canonicalStoreCode };
 
+// Helper for consistent local calendar dates (YYYY-MM-DD) avoiding UTC offset skew
+export function getLocalDateString(d: Date = new Date()): string {
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 class ClinicService {
   // In-memory initial seed state with 5 rich dummy data records for all entities
   private stores: IStore[] = [
@@ -1747,16 +1753,84 @@ class ClinicService {
           .lean();
 
         if (docs && docs.length > 0) {
-          return docs.map((d: any) => ({
-            ...d,
-            _id: d._id?.toString(),
-            customerId: d.customerId || d.patientId || d._id?.toString(),
-            patientId: d.patientId || d.customerId || d._id?.toString(),
-            phone: d.phone || d.mobile || '',
-            mobile: d.mobile || d.phone || '',
-            storeId: d.storeId || d.firstStoreId || 'NILA-TH',
-            firstStoreId: d.firstStoreId || d.storeId || 'NILA-TH',
-          }));
+          // Live aggregate visits and spending from Invoice and Visit collections (BUG-10)
+          const customerIds = docs.map((d: any) => d.customerId || d.patientId || d._id?.toString()).filter(Boolean);
+          const customerPhones = docs.map((d: any) => d.mobile || d.phone).filter(Boolean);
+
+          const [invoiceStats, visitStats] = await Promise.all([
+            (Invoice as any).aggregate([
+              {
+                $match: {
+                  status: 'Paid',
+                  $or: [
+                    { customerId: { $in: customerIds } },
+                    { customerMobile: { $in: customerPhones } },
+                    { customerPhone: { $in: customerPhones } },
+                  ],
+                },
+              },
+              {
+                $group: {
+                  _id: { $ifNull: ['$customerId', '$customerMobile'] },
+                  spent: { $sum: '$grandTotal' },
+                  paidBills: { $sum: 1 },
+                },
+              },
+            ]).catch(() => []),
+            (Visit as any).aggregate([
+              {
+                $match: {
+                  $or: [
+                    { patientId: { $in: customerIds } },
+                    { patientPhone: { $in: customerPhones } },
+                  ],
+                },
+              },
+              {
+                $group: {
+                  _id: { $ifNull: ['$patientId', '$patientPhone'] },
+                  visitCount: { $sum: 1 },
+                },
+              },
+            ]).catch(() => []),
+          ]);
+
+          const statsMap: Record<string, { spent: number; bills: number; visits: number }> = {};
+          for (const s of (invoiceStats || [])) {
+            if (s && s._id) {
+              statsMap[s._id] = { spent: s.spent || 0, bills: s.paidBills || 0, visits: s.paidBills || 0 };
+            }
+          }
+          for (const v of (visitStats || [])) {
+            if (v && v._id) {
+              if (!statsMap[v._id]) {
+                statsMap[v._id] = { spent: 0, bills: 0, visits: v.visitCount || 0 };
+              } else {
+                statsMap[v._id].visits = Math.max(statsMap[v._id].visits, v.visitCount || 0);
+              }
+            }
+          }
+
+          return docs.map((d: any) => {
+            const cid = d.customerId || d.patientId || d._id?.toString();
+            const phone = d.mobile || d.phone || '';
+            const stat = statsMap[cid] || statsMap[phone] || { spent: 0, visits: 0 };
+            const computedVisits = Math.max(d.visits || 0, stat.visits || 0);
+            const computedSpent = Math.max(d.totalSpent || 0, stat.spent || 0);
+
+            return {
+              ...d,
+              _id: d._id?.toString(),
+              customerId: cid,
+              patientId: cid,
+              phone,
+              mobile: phone,
+              storeId: d.storeId || d.firstStoreId || 'NILA-TH',
+              firstStoreId: d.firstStoreId || d.storeId || 'NILA-TH',
+              visits: computedVisits,
+              totalSpent: computedSpent,
+            };
+          });
         }
 
         // If docs is empty and DB has records, return empty array (do not leak in-memory fallback)
@@ -2756,35 +2830,88 @@ class ClinicService {
   }
 
   // High-performance MongoDB Aggregation Pipeline for Dashboard Analytics
-  async getReportAggregates(storeCode?: string, dateRange: string = 'today') {
+  async getReportAggregates(storeCode?: string, dateRange: string = 'today', customDate?: string) {
     const now = new Date();
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayStr = getLocalDateString(now);
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - now.getDay());
     startOfWeek.setHours(0, 0, 0, 0);
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    let startDate = startOfToday;
-    if (dateRange === 'week') startDate = startOfWeek;
-    if (dateRange === 'month') startDate = startOfMonth;
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
 
     try {
       const db = await connectToDatabase();
       if (db) {
-        const invoiceMatch: any = {
-          $or: [
-            { createdAt: { $gte: startDate } },
-            { date: { $gte: startDate.toISOString().split('T')[0] } },
-          ],
-        };
-        if (storeCode && storeCode !== 'ALL') {
-          invoiceMatch.storeId = { $in: [storeCode.toUpperCase(), storeCode.replace('NILA-', '')] };
+        let invoiceMatch: any;
+        let visitMatch: any;
+
+        if (customDate) {
+          const [y, m, d] = customDate.split('-').map(Number);
+          const selectedDayStart = new Date(y, m - 1, d, 0, 0, 0, 0);
+          const selectedDayEnd = new Date(y, m - 1, d, 23, 59, 59, 999);
+          invoiceMatch = {
+            $or: [
+              { date: customDate },
+              { createdAt: { $gte: selectedDayStart, $lte: selectedDayEnd } },
+            ],
+          };
+          visitMatch = {
+            $or: [
+              { date: customDate },
+              { createdAt: { $gte: selectedDayStart, $lte: selectedDayEnd } },
+            ],
+          };
+        } else if (dateRange === 'today') {
+          invoiceMatch = {
+            $or: [
+              { date: todayStr },
+              { createdAt: { $gte: startOfToday, $lte: endOfToday } },
+            ],
+          };
+          visitMatch = {
+            $or: [
+              { date: todayStr },
+              { createdAt: { $gte: startOfToday, $lte: endOfToday } },
+            ],
+          };
+        } else if (dateRange === 'week') {
+          const weekStartStr = getLocalDateString(startOfWeek);
+          invoiceMatch = {
+            $or: [
+              { date: { $gte: weekStartStr } },
+              { createdAt: { $gte: startOfWeek } },
+            ],
+          };
+          visitMatch = {
+            $or: [
+              { date: { $gte: weekStartStr } },
+              { createdAt: { $gte: startOfWeek } },
+            ],
+          };
+        } else if (dateRange === 'month') {
+          const monthStartStr = getLocalDateString(startOfMonth);
+          invoiceMatch = {
+            $or: [
+              { date: { $gte: monthStartStr } },
+              { createdAt: { $gte: startOfMonth } },
+            ],
+          };
+          visitMatch = {
+            $or: [
+              { date: { $gte: monthStartStr } },
+              { createdAt: { $gte: startOfMonth } },
+            ],
+          };
+        } else {
+          invoiceMatch = {};
+          visitMatch = {};
         }
 
-        const visitMatch: any = {
-          createdAt: { $gte: startDate },
-        };
         if (storeCode && storeCode !== 'ALL') {
+          invoiceMatch.storeId = { $in: [storeCode.toUpperCase(), storeCode.replace('NILA-', '')] };
           visitMatch.storeId = { $in: [storeCode.toUpperCase(), storeCode.replace('NILA-', '')] };
         }
 

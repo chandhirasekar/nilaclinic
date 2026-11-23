@@ -15,6 +15,8 @@ import {
   Building2,
   Stethoscope,
   Briefcase,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { IStaff, StaffDesignation } from '@/types';
 import { useClinic } from '@/context/ClinicContext';
@@ -26,6 +28,7 @@ export default function StaffMasterPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [designationFilter, setDesignationFilter] = useState('All');
   const [showModal, setShowModal] = useState(false);
+  const [showStaffPassword, setShowStaffPassword] = useState(false);
   const [editingStaff, setEditingStaff] = useState<IStaff | null>(null);
 
   const [formData, setFormData] = useState({
@@ -462,13 +465,24 @@ export default function StaffMasterPage() {
                     </div>
                     <div>
                       <label className="block font-bold text-slate-700 mb-1">Password</label>
-                      <input
-                        type="password"
-                        placeholder="••••••••"
-                        value={formData.password}
-                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                        className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-sm font-medium"
-                      />
+                      <div className="relative">
+                        <input
+                          type={showStaffPassword ? 'text' : 'password'}
+                          placeholder="••••••••"
+                          value={formData.password}
+                          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                          className="w-full px-2 py-1.5 pr-8 bg-white border border-slate-200 rounded-lg text-sm font-medium"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowStaffPassword(!showStaffPassword)}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+                          tabIndex={-1}
+                          title={showStaffPassword ? 'Hide password' : 'Show password'}
+                        >
+                          {showStaffPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}

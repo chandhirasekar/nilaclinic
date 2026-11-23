@@ -29,7 +29,8 @@ import TableSkeleton from '@/components/ui/skeletons/TableSkeleton';
 
 export default function ClinicDashboardPage() {
   const { user, selectedStore, setSelectedStore, stores } = useClinic();
-  const [dateRange, setDateRange] = useState<'today' | 'week' | 'month'>('today');
+  const [dateRange, setDateRange] = useState<'today' | 'week' | 'month' | 'custom'>('today');
+  const [customDate, setCustomDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [reportData, setReportData] = useState<any>(null);
   const [unpaidInvoices, setUnpaidInvoices] = useState<any[]>([]);
   const [todayAppointments, setTodayAppointments] = useState<any[]>([]);
@@ -42,10 +43,15 @@ export default function ClinicDashboardPage() {
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
+      const repUrl = dateRange === 'custom'
+        ? `/api/reports?storeCode=${selectedStore}&dateRange=custom&customDate=${customDate}`
+        : `/api/reports?storeCode=${selectedStore}&dateRange=${dateRange}`;
+      const apptDate = dateRange === 'custom' ? customDate : new Date().toISOString().split('T')[0];
+
       const [repRes, invRes, apptRes] = await Promise.all([
-        fetch(`/api/reports?storeCode=${selectedStore}&dateRange=${dateRange}`),
+        fetch(repUrl),
         fetch(`/api/invoices?storeCode=${selectedStore}&status=Unpaid`),
-        fetch(`/api/appointments?storeCode=${selectedStore}&date=${new Date().toISOString().split('T')[0]}`),
+        fetch(`/api/appointments?storeCode=${selectedStore}&date=${apptDate}`),
       ]);
 
       const repData = await repRes.json();
@@ -64,7 +70,7 @@ export default function ClinicDashboardPage() {
 
   useEffect(() => {
     fetchDashboardData();
-  }, [selectedStore, dateRange]);
+  }, [selectedStore, dateRange, customDate]);
 
   const [settlingAll, setSettlingAll] = useState(false);
 
@@ -318,12 +324,15 @@ export default function ClinicDashboardPage() {
             </div>
           )}
 
-          {/* Quick Date Switcher */}
+          {/* Quick Date Switcher with Date Picker (BUG-04) */}
           <div className="flex items-center bg-slate-100 p-1 rounded-xl text-sm font-bold">
             {(['today', 'week', 'month'] as const).map((r) => (
               <button
                 key={r}
-                onClick={() => setDateRange(r)}
+                onClick={() => {
+                  setDateRange(r);
+                  if (r === 'today') setCustomDate(new Date().toISOString().split('T')[0]);
+                }}
                 className={`px-3.5 py-1.5 rounded-lg capitalize transition-all ${
                   dateRange === r ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
                 }`}
@@ -331,6 +340,22 @@ export default function ClinicDashboardPage() {
                 {r === 'today' ? 'Today' : r === 'week' ? 'This Week' : 'This Month'}
               </button>
             ))}
+            <div className="flex items-center pl-1.5 ml-1 border-l border-slate-200">
+              <input
+                type="date"
+                value={customDate}
+                onChange={(e) => {
+                  setCustomDate(e.target.value);
+                  setDateRange('custom');
+                }}
+                className={`px-2 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                  dateRange === 'custom'
+                    ? 'bg-emerald-50 border-emerald-500 text-emerald-900 ring-1 ring-emerald-500'
+                    : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                }`}
+                title="Select specific date"
+              />
+            </div>
           </div>
 
           {/* Quick Action Shortcuts */}
@@ -666,37 +691,6 @@ export default function ClinicDashboardPage() {
                   ₹{(paymentModeTotals['Card']?.amount || 0).toLocaleString()}
                 </span>
               </div>
-            </div>
-          </div>
-
-          {/* Specialist & Doctor Activity */}
-          <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs p-5 space-y-3.5">
-            <h3 className="font-black text-slate-900 text-base">Specialist Consultations & Collections</h3>
-            <div className="space-y-2.5 text-sm">
-              {doctorCounts.slice(0, 4).map((doc: any) => (
-                <div key={doc.name} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
-                  <div>
-                    <h4 className="font-bold text-slate-900 text-sm">{doc.name}</h4>
-                    <p className="text-xs text-slate-500 font-medium">Doctor / Consulting Specialist</p>
-                  </div>
-                  <div className="text-right">
-                    <span className="font-bold text-slate-900 block text-sm">{doc.visits} Patient(s)</span>
-                    <span className="text-xs text-emerald-700 font-bold">{doc.completed} Completed</span>
-                  </div>
-                </div>
-              ))}
-              {staffCounts.slice(0, 3).map((st: any) => (
-                <div key={st.name} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
-                  <div>
-                    <h4 className="font-bold text-slate-900 text-sm">{st.name}</h4>
-                    <p className="text-xs text-slate-500 font-medium">{st.billsProcessed} Bills Processed</p>
-                  </div>
-                  <div className="text-right">
-                    <span className="font-black text-slate-900 text-sm">₹{st.revenueCollected}</span>
-                    <span className="text-xs text-emerald-700 font-bold block">Collected</span>
-                  </div>
-                </div>
-              ))}
             </div>
           </div>
 
