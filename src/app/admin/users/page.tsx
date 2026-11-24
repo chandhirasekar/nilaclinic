@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { UserCheck, Plus, Edit2, ShieldAlert, CheckCircle, XCircle, Phone, Mail, Stethoscope, Briefcase, Search, Building2, Filter, Eye, EyeOff } from 'lucide-react';
+import { UserCheck, Plus, Edit2, ShieldAlert, CheckCircle, XCircle, X, Phone, Mail, Stethoscope, Briefcase, Search, Building2, Filter, Eye, EyeOff, Upload } from 'lucide-react';
 import { IUser, IStore } from '@/types';
 import { useClinic } from '@/context/ClinicContext';
 
@@ -25,6 +25,11 @@ export default function UsersManagementPage() {
     phone: '',
     role: 'doctor' as 'admin' | 'staff' | 'doctor',
     specialization: '',
+    image: '',
+    qualification: '',
+    experience: '',
+    regNo: '',
+    focus: '',
     assignedStoreIds: [] as string[],
   });
 
@@ -57,11 +62,46 @@ export default function UsersManagementPage() {
         <ShieldAlert className="w-6 h-6 text-red-600" />
         <div>
           <h3 className="font-bold text-sm">Access Denied</h3>
-          <p className="text-xs">Only Clinic Administrators can manage users and store assignments (FR-06, FR-07).</p>
+          <p className="text-xs">Only Clinic Administrators can manage users and branch store assignments.</p>
         </div>
       </div>
     );
   }
+
+  const handleDoctorImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        const maxDim = 600;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressed = canvas.toDataURL('image/jpeg', 0.85);
+          setFormData((prev) => ({ ...prev, image: compressed }));
+        }
+      };
+      img.src = ev.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleOpenAdd = () => {
     setEditingUser(null);
@@ -75,6 +115,11 @@ export default function UsersManagementPage() {
       phone: '',
       role: 'doctor',
       specialization: '',
+      image: '',
+      qualification: '',
+      experience: '',
+      regNo: '',
+      focus: '',
       assignedStoreIds: [defaultBranch],
     });
     setError('');
@@ -91,6 +136,11 @@ export default function UsersManagementPage() {
       phone: u.phone || '',
       role: u.role,
       specialization: u.specialization || '',
+      image: u.image || '',
+      qualification: (u as any).qualification || '',
+      experience: (u as any).experience || '',
+      regNo: (u as any).regNo || '',
+      focus: (u as any).focus || '',
       assignedStoreIds: u.assignedStoreIds || [],
     });
     setError('');
@@ -200,9 +250,9 @@ export default function UsersManagementPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-900">User Accounts & Store Assignment</h1>
-          <p className="text-sm text-slate-600 mt-1 font-medium">
-            FR-06 & FR-07: Create Doctors & Staff, assign stores, and deactivate users (BR-06: deactivated users cannot log in).
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">User Accounts & Store Assignment</h1>
+          <p className="text-sm text-slate-500 mt-1 font-medium">
+            Manage user logins, access roles, clinic branch permissions, and doctor portal credentials.
           </p>
         </div>
         <button
@@ -289,7 +339,7 @@ export default function UsersManagementPage() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {filteredUsers.map((u) => {
           return (
             <div
@@ -322,9 +372,29 @@ export default function UsersManagementPage() {
                   </span>
                 </div>
 
-                <h3 className="font-bold text-slate-900 text-lg">{u.name}</h3>
-                {u.specialization && (
-                  <p className="text-sm text-emerald-800 font-bold mt-0.5">{u.specialization}</p>
+                <div className="flex items-center space-x-3 mb-2">
+                  {u.image ? (
+                    <img
+                      src={u.image}
+                      alt={u.name}
+                      className="w-12 h-12 rounded-full object-cover border-2 border-emerald-500 shadow-xs flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 font-bold text-base flex-shrink-0">
+                      {u.name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <h3 className="font-bold text-slate-900 text-lg leading-tight truncate">{u.name}</h3>
+                    {u.specialization ? (
+                      <p className="text-sm text-emerald-800 font-bold mt-0.5 truncate">{u.specialization}</p>
+                    ) : (
+                      <p className="text-xs text-slate-500 capitalize">{u.role}</p>
+                    )}
+                  </div>
+                </div>
+                {(u as any).qualification && (
+                  <p className="text-xs text-slate-500 font-medium mb-1 truncate">{(u as any).qualification}</p>
                 )}
 
                 <div className="space-y-1.5 text-xs text-slate-700 mt-3 pt-3 border-t border-slate-100 font-medium">
@@ -391,32 +461,83 @@ export default function UsersManagementPage() {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-100 p-6 relative">
-            <h3 className="font-black text-slate-900 text-lg mb-1">
-              {editingUser ? 'Edit User Account' : 'Register New User'}
-            </h3>
-            <p className="text-sm text-slate-600 mb-4 font-medium">
-              Set role, credentials, and store branch assignment.
-            </p>
-
-            {error && <div className="mb-3 p-2 bg-red-50 text-red-600 rounded-lg text-sm font-medium">{error}</div>}
-            {success && <div className="mb-3 p-2 bg-emerald-50 text-emerald-600 rounded-lg text-sm font-medium">{success}</div>}
-
-            <form onSubmit={handleSubmit} className="space-y-3.5 text-sm">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
+          <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl border border-slate-100 p-5 sm:p-7 relative my-auto max-h-[92vh] flex flex-col">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4 shrink-0">
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Full Name *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Dr. Rajesh Varma"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-medium"
-                />
+                <h3 className="font-black text-slate-900 text-lg">
+                  {editingUser ? 'Edit User Account' : 'Register New User'}
+                </h3>
+                <p className="text-xs text-slate-500 font-medium">
+                  Set role, credentials, and clinic branch store assignments.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+                title="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {error && <div className="mb-3 p-2.5 bg-red-50 text-red-600 rounded-xl text-xs font-semibold shrink-0">{error}</div>}
+            {success && <div className="mb-3 p-2.5 bg-emerald-50 text-emerald-600 rounded-xl text-xs font-semibold shrink-0">{success}</div>}
+
+            <form onSubmit={handleSubmit} className="space-y-4 text-sm overflow-y-auto pr-1 grow">
+              {/* Doctor / Profile Photo Banner */}
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center space-x-3">
+                  {formData.image ? (
+                    <div className="relative w-14 h-14 rounded-full overflow-hidden border-2 border-emerald-500 shadow-xs shrink-0 group">
+                      <img src={formData.image} alt={formData.name || 'Preview'} className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => setFormData((prev) => ({ ...prev, image: '' }))}
+                        className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[10px] font-bold transition-opacity"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="w-14 h-14 rounded-full border-2 border-dashed border-slate-300 bg-white flex flex-col items-center justify-center text-slate-400 shrink-0">
+                      <Upload className="w-4 h-4 mb-0.5" />
+                      <span className="text-[9px] font-semibold">No Photo</span>
+                    </div>
+                  )}
+                  <div>
+                    <span className="block font-bold text-slate-800 text-sm">Doctor / Staff Photo</span>
+                    <p className="text-[11px] text-slate-500">Auto-compressed for fast website & card display.</p>
+                  </div>
+                </div>
+                <div>
+                  <label className="inline-flex items-center space-x-2 px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 rounded-lg text-xs font-bold cursor-pointer transition-colors border border-slate-300 shadow-2xs">
+                    <Upload className="w-3.5 h-3.5 text-slate-500" />
+                    <span>{formData.image ? 'Change Photo' : 'Upload Photo'}</span>
+                    <input
+                      type="file"
+                      accept="image/png, image/jpeg, image/webp"
+                      onChange={handleDoctorImageUpload}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              {/* 3 Columns: Credentials (Full Name, Email, Password) */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Full Name *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Dr. Rajesh Varma"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-medium"
+                  />
+                </div>
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">Email (Login ID) *</label>
                   <input
@@ -455,7 +576,8 @@ export default function UsersManagementPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              {/* 3 Columns: Role, Phone, Specialization */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">Role *</label>
                   <select
@@ -478,9 +600,6 @@ export default function UsersManagementPage() {
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-medium"
                   />
                 </div>
-              </div>
-
-              {formData.role === 'doctor' && (
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">Specialization / Department</label>
                   <input
@@ -491,26 +610,98 @@ export default function UsersManagementPage() {
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-medium"
                   />
                 </div>
+              </div>
+
+              {formData.role === 'doctor' && (
+                <>
+                  {/* 3 Columns: Qualifications, Experience, Reg No */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">Qualifications</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. MBBS, MD - Dermatology"
+                        value={formData.qualification}
+                        onChange={(e) => setFormData({ ...formData, qualification: e.target.value })}
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-medium"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">Experience</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 10+ Years Experience"
+                        value={formData.experience}
+                        onChange={(e) => setFormData({ ...formData, experience: e.target.value })}
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-medium"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">Medical Reg. No</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. TNMC-84920"
+                        value={formData.regNo}
+                        onChange={(e) => setFormData({ ...formData, regNo: e.target.value })}
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-medium"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Clinical Focus / Specialties</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Laser Treatments, Hair Loss Therapies, Acne Protocol"
+                      value={formData.focus}
+                      onChange={(e) => setFormData({ ...formData, focus: e.target.value })}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-medium"
+                    />
+                  </div>
+                </>
               )}
 
-              {/* Assign Stores Multi-select (FR-07) */}
+              {/* Assign Stores Multi-select in THREE COLUMNS */}
               <div>
-                <label className="block font-bold text-slate-700 mb-1.5">
-                  Assign to Store Branches * (Check all that apply)
-                </label>
-                <div className="grid grid-cols-2 gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block font-bold text-slate-700">
+                    Assign to Store Branches * (Check all that apply)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (formData.assignedStoreIds.length === stores.length) {
+                        setFormData({ ...formData, assignedStoreIds: [] });
+                      } else {
+                        setFormData({ ...formData, assignedStoreIds: stores.map((s) => s.code) });
+                      }
+                    }}
+                    className="text-xs text-emerald-600 font-bold hover:underline"
+                  >
+                    {formData.assignedStoreIds.length === stores.length ? 'Clear All' : 'Select All Branches'}
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 p-3.5 bg-slate-50 rounded-xl border border-slate-200">
                   {stores.map((st) => {
                     const checked = formData.assignedStoreIds.includes(st.code);
                     return (
-                      <label key={st.code} className="flex items-center space-x-2 cursor-pointer select-none">
+                      <label
+                        key={st.code}
+                        className={`flex items-center space-x-2 p-2 rounded-lg border cursor-pointer select-none transition-all ${
+                          checked
+                            ? 'bg-emerald-50 border-emerald-300 text-emerald-950 font-bold shadow-2xs'
+                            : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                        }`}
+                      >
                         <input
                           type="checkbox"
                           checked={checked}
                           onChange={() => handleStoreToggle(st.code)}
                           className="h-4 w-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500"
                         />
-                        <span className="text-sm font-bold text-slate-800">
-                          [{st.code}] {st.name.replace('Nila Clinic - ', '')}
+                        <span className="text-xs truncate" title={st.name}>
+                          <strong className="text-emerald-700 mr-1">[{st.code}]</strong>
+                          {st.name.replace('Nila Clinic - ', '').replace('Nila Clinic ', '')}
                         </span>
                       </label>
                     );
@@ -518,7 +709,7 @@ export default function UsersManagementPage() {
                 </div>
               </div>
 
-              <div className="pt-3 flex justify-end space-x-2 border-t border-slate-100">
+              <div className="pt-3 flex justify-end space-x-2 border-t border-slate-100 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}

@@ -1,83 +1,36 @@
-'use client';
-
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   Calendar,
   Clock,
   Phone,
   MapPin,
-  CheckCircle2,
-  Sparkles,
   ArrowRight,
-  ShieldCheck,
-  Stethoscope,
-  Check,
-  Building2,
-  Zap,
 } from 'lucide-react';
 import Navbar from '@/components/public/Navbar';
 import Footer from '@/components/public/Footer';
-import TreatmentCard from '@/components/public/TreatmentCard';
-import { TREATMENTS_DATA } from '@/data/treatmentsData';
+import TreatmentFilterSection from '@/components/public/TreatmentFilterSection';
+import {
+  getPublicClinicBranches,
+  getPublicDoctors,
+  getPublicTreatments,
+} from '@/lib/publicData';
 
-export default function HomePage() {
-  const [activeCategory, setActiveCategory] = useState<string>('All');
+// Revalidate page cache every 60 seconds (Incremental Static Regeneration)
+export const revalidate = 60;
 
-  // Strictly Hair & Skin Treatments
-  const categories = ['All', 'Skin Treatments', 'Hair Treatments'];
-
-  const filteredTreatments = TREATMENTS_DATA.filter(
-    (t) => activeCategory === 'All' || t.category === activeCategory
-  );
-
-  const doctors = [
-    {
-      name: 'Dr. Anitha Ramachandran',
-      qualification: 'MBBS, MD - Dermatology, Venereology & Leprosy (DVL)',
-      regNo: 'TNMC Reg #89234',
-      experience: '12+ Years Experience',
-      role: 'Chief Dermatologist · Skin Specialist',
-      location: 'Theni Main Branch',
-      focus: 'Acne Scars, Pigmentation & Medical Peels',
-      initials: 'AR',
-      image: '/images/doctors/dr-anitha.jpg',
-    },
-    {
-      name: 'Dr. Rajesh Varma',
-      qualification: 'MBBS, Fellowship in Trichology & Hair Restoration (UK)',
-      regNo: 'TNMC Reg #94112',
-      experience: '9+ Years Experience',
-      role: 'Lead Trichologist · Hair Specialist',
-      location: 'Madurai City Outlet',
-      focus: 'Autologous PRP Therapy & Hair Fall Reversal',
-      initials: 'RV',
-      image: '/images/doctors/dr-rajesh.jpg',
-    },
-    {
-      name: 'Dr. Priya Dharshini',
-      qualification: 'MBBS, DVD, Fellowship in Aesthetic Lasers (ESCAD)',
-      regNo: 'TNMC Reg #103421',
-      experience: '8+ Years Experience',
-      role: 'Head of Laser Surgery · Skin & Hair',
-      location: 'Chennai Laser Hub',
-      focus: 'Laser Skin Toning & Diode Hair Reduction',
-      initials: 'PD',
-      image: '/images/doctors/dr-priya.jpg',
-    },
-  ];
-
-  const clinicBranches = [
-    { name: 'Theni (Main Branch)', address: '42, Theni Main Road', phone: '+91 98450 11223', hours: '9:00 AM - 8:00 PM' },
-    { name: 'Madurai City Outlet', address: '18, West Veli Street', phone: '+91 98450 44556', hours: '9:00 AM - 8:00 PM' },
-    { name: 'Chennai Laser Hub', address: '7, Anna Salai, Thousand Lights', phone: '+91 98450 77889', hours: '10:00 AM - 8:30 PM' },
-    { name: 'Coimbatore Center', address: '104, Avinashi Road, Peelamedu', phone: '+91 98450 88991', hours: '9:30 AM - 8:00 PM' },
-    { name: 'Trichy Clinical Center', address: '25, Thillai Nagar Main Road', phone: '+91 98450 99002', hours: '9:00 AM - 7:30 PM' },
-  ];
+export default async function HomePage() {
+  // Parallel fetch for optimal SSR performance
+  const [clinicBranches, doctors, treatments] = await Promise.all([
+    getPublicClinicBranches(),
+    getPublicDoctors(),
+    getPublicTreatments(),
+  ]);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans selection:bg-emerald-600 selection:text-white flex flex-col">
-      <Navbar />
+      <Navbar branches={clinicBranches} />
 
       <main className="grow">
         {/* HERO SECTION: Dynamic Skin & Hair Treatment Clips + Nila Clinic Title */}
@@ -87,6 +40,7 @@ export default function HomePage() {
             loop
             muted
             playsInline
+            preload="metadata"
             poster="/images/hero/nila-clinic-wall.jpg"
             className="w-full h-full object-cover object-center"
           >
@@ -101,7 +55,6 @@ export default function HomePage() {
           {/* Clean Tag, H1 & Responsive Content */}
           <div className="absolute bottom-4 sm:bottom-6 md:bottom-8 left-4 sm:left-8 lg:left-12 z-20 max-w-lg pointer-events-none pr-4">
             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 sm:py-1 rounded-full bg-emerald-600/90 backdrop-blur-xs text-white text-[10px] sm:text-xs font-bold uppercase tracking-wider shadow-sm mb-1 sm:mb-1.5">
-              {/* <span className="w-1.5 h-1.5 rounded-full bg-emerald-200 animate-pulse" /> */}
               Skin & Hair Clinic
             </span>
             <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-white tracking-tight leading-tight drop-shadow-md">
@@ -162,59 +115,12 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* CLINICAL SERVICES: STRICTLY SKIN & HAIR */}
+        {/* CLINICAL SERVICES: STRICTLY SKIN & HAIR (DYNAMIC FROM DB & EDITORIAL) */}
         <section className="py-16 px-4 sm:px-8 border-b border-slate-200 bg-slate-50">
-          <div className="max-w-7xl mx-auto">
-            <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
-              <div>
-                <span className="text-xs font-bold text-emerald-600 uppercase tracking-widest block mb-1">
-                  Our Treatments
-                </span>
-                <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-                  Targeted Skin & Hair Treatments
-                </h2>
-                <p className="text-slate-600 text-sm mt-1">
-                  Explore our doctor-supervised skin rejuvenation and follicular hair protocols.
-                </p>
-              </div>
-
-              {/* Category Filter Pills: Strictly Skin & Hair */}
-              <div className="flex items-center space-x-1.5 bg-slate-200/80 p-1.5 rounded-lg border border-slate-300 text-xs">
-                {categories.map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() => setActiveCategory(cat)}
-                    className={`px-4 py-2 rounded-xl font-semibold transition-all cursor-pointer ${activeCategory === cat
-                        ? 'bg-emerald-600 text-white shadow-xs'
-                        : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
-                      }`}
-                  >
-                    {cat}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Treatment Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredTreatments.map((treatment) => (
-                <TreatmentCard key={treatment.id} treatment={treatment} />
-              ))}
-            </div>
-
-            <div className="mt-10 text-center">
-              <Link
-                href="/treatments"
-                className="inline-flex items-center space-x-2 px-6 py-3 rounded-xl bg-white hover:bg-slate-100 border border-slate-300 text-xs font-bold uppercase tracking-wider text-slate-800 shadow-2xs transition-all"
-              >
-                <span>View Full Treatment Menu</span>
-                <ArrowRight className="w-4 h-4 text-slate-500" />
-              </Link>
-            </div>
-          </div>
+          <TreatmentFilterSection initialTreatments={treatments} />
         </section>
 
-        {/* MEDICAL FACULTY: SKIN & HAIR DOCTORS */}
+        {/* MEDICAL FACULTY: SKIN & HAIR DOCTORS (DYNAMIC) */}
         <section id="doctors" className="py-16 px-4 sm:px-8 border-b border-slate-200 bg-white">
           <div className="max-w-7xl mx-auto">
             <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
@@ -231,14 +137,14 @@ export default function HomePage() {
               </div>
 
               <Link
-                href="/about"
+                href="/about#doctors"
                 className="text-xs font-bold uppercase tracking-wider text-emerald-600 hover:underline flex items-center space-x-1"
               >
                 <span>View Doctor Profiles →</span>
               </Link>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {doctors.map((doc) => (
                 <div
                   key={doc.name}
@@ -246,13 +152,16 @@ export default function HomePage() {
                 >
                   <div>
                     <div className="relative h-56 w-full overflow-hidden bg-slate-200">
-                      <img
+                      <Image
                         src={doc.image}
                         alt={doc.name}
-                        className="w-full h-full object-cover object-top hover:scale-105 transition-transform duration-500"
+                        fill
+                        unoptimized={Boolean(doc.image && (doc.image.startsWith('data:') || doc.image.startsWith('http')))}
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        className="object-cover object-top hover:scale-105 transition-transform duration-500"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent pointer-events-none" />
-                      <div className="absolute bottom-3 left-4 right-4 text-white">
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent pointer-events-none z-10" />
+                      <div className="absolute bottom-3 left-4 right-4 text-white z-20">
                         <span className="text-[10px] uppercase font-bold text-emerald-400 block tracking-wider">
                           {doc.role}
                         </span>
@@ -284,7 +193,7 @@ export default function HomePage() {
                       href={`/book?doctor=${encodeURIComponent(doc.name)}`}
                       className="w-full py-2.5 rounded-xl bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 text-xs font-semibold text-center block transition-all shadow-2xs"
                     >
-                      Book OPD with {doc.name.split(' ')[1]}
+                      Book OPD with {doc.name.split(' ')[1] || doc.name}
                     </Link>
                   </div>
                 </div>
@@ -293,7 +202,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* 5 CLINIC LOCATIONS */}
+        {/* CLINIC LOCATIONS (DYNAMIC FROM DATABASE) */}
         <section className="py-16 px-4 sm:px-8 border-b border-slate-200 bg-slate-50">
           <div className="max-w-7xl mx-auto">
             <div className="text-center max-w-2xl mx-auto mb-10">
@@ -301,26 +210,31 @@ export default function HomePage() {
                 Regional Hubs
               </span>
               <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-                5 Centers Across Tamil Nadu
+                {clinicBranches.length} Centers Across Tamil Nadu & Puducherry
               </h2>
               <p className="text-slate-600 text-sm mt-1">
                 Identical medical standards, sterilizations, and pricing across all branches.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {clinicBranches.map((b) => (
                 <div
-                  key={b.name}
+                  key={b.code}
                   className="bg-white p-4 rounded-lg border border-slate-200 flex flex-col justify-between space-y-3 hover:shadow-xs transition-shadow"
                 >
                   <div className="space-y-1">
                     <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-800 border border-emerald-200 inline-block mb-1">
-                      Full Service
+                      {b.isMain ? 'Main Hospital Branch' : 'Full Service Clinic'}
                     </span>
                     <h3 className="font-bold text-slate-900 text-sm">{b.name}</h3>
-                    <p className="text-xs text-slate-500 leading-snug">{b.address}</p>
+                    <p className="text-xs text-slate-500 leading-snug line-clamp-2">{b.address}</p>
                     <p className="text-[11px] text-slate-400 font-mono mt-1">{b.hours}</p>
+                    {b.doctor && (
+                      <p className="text-[11px] text-emerald-700 font-semibold mt-1">
+                        Attending: {b.doctor}
+                      </p>
+                    )}
                   </div>
 
                   <div className="pt-2 border-t border-slate-100 space-y-1">
@@ -331,10 +245,10 @@ export default function HomePage() {
                       {b.phone}
                     </a>
                     <Link
-                      href="/contact"
-                      className="text-[11px] font-semibold text-slate-600 hover:text-slate-900 flex items-center space-x-1"
+                      href={`/book?branch=${b.code}`}
+                      className="text-[11px] font-semibold text-slate-600 hover:text-emerald-700 flex items-center justify-between"
                     >
-                      <span>Branch Details</span>
+                      <span>Book at this center</span>
                       <ArrowRight className="w-3 h-3 text-slate-400" />
                     </Link>
                   </div>
@@ -355,7 +269,7 @@ export default function HomePage() {
                 Schedule a Medical Skin or Hair Evaluation
               </h2>
               <p className="text-slate-300 text-xs sm:text-sm">
-                Receive an objective diagnostic assessment and customized treatment plan.
+                Receive an objective diagnostic assessment and customized treatment plan across our {clinicBranches.length} centers.
               </p>
             </div>
 
@@ -379,7 +293,7 @@ export default function HomePage() {
         </section>
       </main>
 
-      <Footer />
+      <Footer branches={clinicBranches} />
     </div>
   );
 }

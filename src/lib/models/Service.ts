@@ -12,6 +12,8 @@ const ServiceSchema: Schema = new Schema({
   availableStores: { type: [String], default: ['ALL'] },
   storeWisePrices: { type: Map, of: Number, default: {} },
   description: { type: String, default: '' },
+  image: { type: String, default: '' },
+  isFavorite: { type: Boolean, default: false },
   active: { type: Boolean, default: true },
   isActive: { type: Boolean, default: true },
   createdAt: { type: Date, default: Date.now },

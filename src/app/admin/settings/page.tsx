@@ -99,9 +99,9 @@ export default function SettingsMasterPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-900">Clinic Masters & System Rules (M2)</h1>
-          <p className="text-sm text-slate-600 mt-1 font-medium">
-            FR-13 to FR-16: Payment modes, bill print rules, discount thresholds, and cross-store policies.
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Clinic Settings & System Rules</h1>
+          <p className="text-sm text-slate-500 mt-1 font-medium">
+            Payment modes, receipt formatting, staff discount thresholds, and cross-store clinic policies.
           </p>
         </div>
 
@@ -118,7 +118,7 @@ export default function SettingsMasterPage() {
         <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
           <div className="flex items-center space-x-2 text-emerald-700 font-black border-b border-slate-100 pb-3 text-base">
             <Building2 className="w-5 h-5" />
-            <span>Clinic Identity & Bill Format Settings (FR-14)</span>
+            <span>Clinic Identity & Bill Format Settings</span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
@@ -176,7 +176,7 @@ export default function SettingsMasterPage() {
         <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
           <div className="flex items-center space-x-2 text-sky-700 font-black border-b border-slate-100 pb-3 text-base">
             <Sliders className="w-5 h-5" />
-            <span>Clinical Rules & Cross-Store Settings (FR-15 & FR-16)</span>
+            <span>Clinical Rules & Cross-Store Settings</span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
@@ -416,7 +416,7 @@ export default function SettingsMasterPage() {
         <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
           <div className="flex items-center space-x-2 text-purple-700 font-black border-b border-slate-100 pb-3 text-base">
             <CreditCard className="w-5 h-5" />
-            <span>Payment Modes Master (FR-13)</span>
+            <span>Payment Modes Master</span>
           </div>
 
           <p className="text-sm text-slate-600 font-medium">

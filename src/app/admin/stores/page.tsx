@@ -32,7 +32,7 @@ export default function StoreMasterPage() {
         <ShieldAlert className="w-6 h-6 text-red-600" />
         <div>
           <h3 className="font-bold text-sm">Access Denied</h3>
-          <p className="text-xs">Only Clinic Administrators have permission to manage store masters (FR-01).</p>
+          <p className="text-xs">Only Clinic Administrators have permission to manage clinic branch locations.</p>
         </div>
       </div>
     );
@@ -153,20 +153,48 @@ export default function StoreMasterPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-100">
         <div>
-          <h1 className="text-2xl font-black text-slate-900">Branch Master & Locations (M1)</h1>
-          <p className="text-sm text-slate-600 mt-1 font-medium">
-            FR-01: Admin can add, edit, and disable clinic branches. Each branch has an isolated invoice sequence (e.g. NILA-TH-) and operating hours.
+          <div className="flex items-center space-x-2 mb-1">
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+              Clinic Network
+            </span>
+            <span className="text-xs text-slate-400 font-medium">• Multi-Store Operations</span>
+          </div>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Clinic Branches & Locations</h1>
+          <p className="text-sm text-slate-500 mt-1 font-medium">
+            Manage branch profiles, operating schedules, invoice sequences, and multi-location clinic settings.
           </p>
         </div>
         <button
           onClick={handleOpenAdd}
-          className="flex items-center space-x-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl shadow-md transition-all self-start sm:self-auto"
+          className="flex items-center space-x-2 px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-sm rounded-xl shadow-md shadow-emerald-600/20 transition-all self-start sm:self-auto cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           <span>Add New Clinic Branch</span>
         </button>
+      </div>
+
+      {/* Network Stats Bar */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs">
+          <div className="text-xs text-slate-500 font-medium">Total Branches</div>
+          <div className="text-2xl font-black text-slate-900 mt-0.5">{stores.length} Clinics</div>
+        </div>
+        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs">
+          <div className="text-xs text-slate-500 font-medium">Active Locations</div>
+          <div className="text-2xl font-black text-emerald-700 mt-0.5">
+            {stores.filter((s) => s.isActive).length} Operational
+          </div>
+        </div>
+        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs">
+          <div className="text-xs text-slate-500 font-medium">Currently Selected Branch</div>
+          <div className="text-base font-bold text-slate-900 truncate mt-1 flex items-center space-x-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+            <span className="truncate">{stores.find((s) => s.code === selectedStore)?.name || selectedStore}</span>
+            <span className="text-xs font-mono text-slate-400 font-normal">[{selectedStore}]</span>
+          </div>
+        </div>
       </div>
 
       {/* Stores Grid */}
@@ -176,59 +204,92 @@ export default function StoreMasterPage() {
           return (
             <div
               key={st.code}
-              className={`bg-white rounded-2xl border p-5 shadow-xs transition-all relative flex flex-col justify-between ${
-                isSelected ? 'border-emerald-500 ring-2 ring-emerald-500/20' : 'border-slate-200 hover:border-slate-300'
+              className={`bg-white rounded-2xl border p-5 shadow-xs transition-all relative flex flex-col justify-between space-y-4 ${
+                isSelected
+                  ? 'border-emerald-500 ring-2 ring-emerald-500/20 shadow-md shadow-emerald-500/5'
+                  : 'border-slate-200/90 hover:border-slate-300 hover:shadow-md'
               }`}
             >
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-800 font-black text-sm flex items-center justify-center">
-                      {st.code}
+              <div className="space-y-3.5">
+                {/* Branch Header */}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start space-x-3">
+                    <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-teal-500/10 to-emerald-600/20 text-emerald-700 flex items-center justify-center shrink-0 border border-emerald-500/20 shadow-xs">
+                      <Building2 className="w-5 h-5" />
                     </div>
                     <div>
-                      <h3 className="font-bold text-slate-900 text-base">{st.name}</h3>
-                      <span className="text-xs text-slate-500 font-mono font-medium">Invoice Prefix: {st.invoicePrefix || `${st.code}-`}</span>
+                      <div className="flex items-center space-x-2">
+                        <span className="px-2.5 py-0.5 rounded-md text-[11px] font-mono font-bold bg-slate-100 text-slate-800 border border-slate-200/80 tracking-wide">
+                          {st.code}
+                        </span>
+                      </div>
+                      <h3 className="font-extrabold text-slate-900 text-base leading-snug tracking-tight mt-1">
+                        {st.name}
+                      </h3>
                     </div>
                   </div>
                   <span
-                    className={`text-xs font-bold px-2.5 py-1 rounded-full ${
-                      st.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-700'
+                    className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full shrink-0 ${
+                      st.isActive
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        : 'bg-rose-50 text-rose-700 border border-rose-200'
                     }`}
                   >
+                    <span className={`w-1.5 h-1.5 rounded-full ${st.isActive ? 'bg-emerald-500' : 'bg-rose-500'}`} />
                     {st.isActive ? 'Active' : 'Disabled'}
                   </span>
                 </div>
 
-                <div className="space-y-1.5 text-xs text-slate-700 mt-3 pt-3 border-t border-slate-100 font-medium">
-                  <div className="flex items-start space-x-2">
-                    <MapPin className="w-3.5 h-3.5 text-slate-400 mt-0.5 shrink-0" />
-                    <span className="text-xs leading-relaxed">{st.address}</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
+                {/* Address */}
+                <div className="flex items-start space-x-2 text-xs text-slate-600 bg-slate-50/70 p-2.5 rounded-xl border border-slate-100">
+                  <MapPin className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
+                  <span className="line-clamp-2 leading-relaxed font-medium">{st.address}</span>
+                </div>
+
+                {/* Contacts Row */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  <div className="flex items-center space-x-2 text-slate-700 font-medium truncate bg-slate-50/50 p-2 rounded-lg border border-slate-100">
                     <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span className="text-xs">{st.phone}</span>
+                    <span className="truncate">{st.phone}</span>
                   </div>
-                  {st.email && (
-                    <div className="flex items-center space-x-2">
-                      <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span className="text-xs">{st.email}</span>
-                    </div>
-                  )}
-                  <div className="flex items-center space-x-2 text-xs text-slate-600">
-                    <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span>
-                      {st.workingHours?.open || '09:00 AM'} - {st.workingHours?.close || '08:00 PM'} (Off: {st.workingHours?.weeklyOff || 'None'})
-                    </span>
-                  </div>
-                  <div className="text-xs text-slate-600">
-                    <strong className="text-slate-800">GSTIN:</strong> {st.gstin || '33ABCDE1234F1Z5'}
+                  <div className="flex items-center space-x-2 text-slate-700 font-medium truncate bg-slate-50/50 p-2 rounded-lg border border-slate-100">
+                    <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span className="truncate">{st.email || '—'}</span>
                   </div>
                 </div>
 
-                <div className="mt-4 p-3 bg-slate-50 rounded-xl flex items-center justify-between text-xs sm:text-sm">
-                  <span className="text-slate-600 font-medium">Next Invoice No:</span>
-                  <span className="font-mono font-bold text-emerald-700 text-base">
+                {/* Operating Hours & Tax Information */}
+                <div className="bg-slate-50/80 rounded-xl p-3 border border-slate-100 space-y-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-1.5 text-slate-600">
+                      <Clock className="w-3.5 h-3.5 text-emerald-600" />
+                      <span className="font-semibold text-slate-800">
+                        {st.workingHours?.open || '09:00 AM'} – {st.workingHours?.close || '08:00 PM'}
+                      </span>
+                    </div>
+                    <span className="text-[11px] font-semibold text-slate-500">
+                      Off: {st.workingHours?.weeklyOff || 'None'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between pt-1.5 border-t border-slate-200/60 text-[11px]">
+                    <span className="text-slate-500 font-medium">
+                      GSTIN: <span className="font-mono text-slate-700 font-semibold">{st.gstin || '33ABCDE1234F1Z5'}</span>
+                    </span>
+                    <span className="text-slate-500 font-medium">
+                      Prefix: <span className="font-mono text-slate-700 font-semibold">{st.invoicePrefix || `${st.code}-`}</span>
+                    </span>
+                  </div>
+                </div>
+
+                {/* Next Invoice Counter Card */}
+                <div className="p-3 bg-gradient-to-r from-emerald-50/70 to-teal-50/70 rounded-xl border border-emerald-100 flex items-center justify-between">
+                  <div>
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-900">
+                      Next Invoice Number
+                    </div>
+                    <div className="text-xs text-emerald-700/80 font-medium">Auto-incrementing billing sequence</div>
+                  </div>
+                  <span className="font-mono font-black text-emerald-800 text-sm sm:text-base bg-white px-3 py-1 rounded-lg border border-emerald-200/80 shadow-2xs">
                     {st.invoicePrefix || `${st.code}-`}
                     {st.nextInvoiceNumber || 1001}
                   </span>
@@ -236,34 +297,37 @@ export default function StoreMasterPage() {
               </div>
 
               {/* Action Buttons */}
-              <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between space-x-2">
-                <button
-                  onClick={() => setSelectedStore(st.code)}
-                  className={`text-sm font-bold px-3.5 py-1.5 rounded-lg transition-all ${
-                    isSelected
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                  }`}
-                >
-                  {isSelected ? 'Active Selection' : 'Switch Store'}
-                </button>
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between space-x-2">
+                {isSelected ? (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>Active Selection</span>
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => setSelectedStore(st.code)}
+                    className="text-xs font-bold px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white transition-all shadow-xs hover:shadow cursor-pointer"
+                  >
+                    Switch to Branch
+                  </button>
+                )}
 
                 <div className="flex items-center space-x-1">
                   <button
                     onClick={() => handleOpenEdit(st)}
-                    className="p-1.5 text-slate-500 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-colors"
-                    title="Edit Store"
+                    className="p-2 text-slate-500 hover:text-sky-700 hover:bg-sky-50 rounded-xl transition-colors border border-transparent hover:border-sky-200 cursor-pointer"
+                    title="Edit Store Profile"
                   >
                     <Edit2 className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => toggleStoreStatus(st)}
-                    className={`p-1.5 rounded-lg transition-colors ${
+                    className={`p-2 rounded-xl transition-colors border border-transparent cursor-pointer ${
                       st.isActive
-                        ? 'text-red-500 hover:bg-red-50'
-                        : 'text-emerald-600 hover:bg-emerald-50'
+                        ? 'text-rose-500 hover:bg-rose-50 hover:border-rose-200'
+                        : 'text-emerald-600 hover:bg-emerald-50 hover:border-emerald-200'
                     }`}
-                    title={st.isActive ? 'Disable Store' : 'Enable Store'}
+                    title={st.isActive ? 'Disable Branch' : 'Enable Branch'}
                   >
                     {st.isActive ? <XCircle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
                   </button>

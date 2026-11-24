@@ -15,39 +15,55 @@ import {
   Building2,
 } from 'lucide-react';
 
-export default function Footer() {
-  const branches = [
+import { PublicBranch } from '@/lib/publicData';
+
+interface FooterProps {
+  branches?: PublicBranch[];
+}
+
+export default function Footer({ branches: propBranches }: FooterProps) {
+  const defaultBranches = [
     {
-      id: 'theni',
+      code: 'theni',
       city: 'Theni (Main Branch)',
       address: '42, Theni Main Road, Opp. District Court, Theni - 625531',
       phone: '+91 98450 11223',
     },
     {
-      id: 'madurai',
+      code: 'madurai',
       city: 'Madurai City Hub',
       address: '18, West Veli Street, Near Junction, Madurai - 625001',
       phone: '+91 98450 44556',
     },
     {
-      id: 'chennai',
+      code: 'chennai',
       city: 'Chennai Laser Suite',
       address: '7, Anna Salai, Thousand Lights, Chennai - 600002',
       phone: '+91 98450 77889',
     },
     {
-      id: 'coimbatore',
+      code: 'coimbatore',
       city: 'Coimbatore Aesthetic Center',
       address: '104, Avinashi Road, Peelamedu, Coimbatore - 641004',
       phone: '+91 98450 88991',
     },
     {
-      id: 'trichy',
+      code: 'trichy',
       city: 'Trichy Clinical Center',
       address: '25, Thillai Nagar Main Road, Trichy - 620018',
       phone: '+91 98450 99002',
     },
   ];
+
+  const branches =
+    propBranches && propBranches.length > 0
+      ? propBranches.map((b) => ({
+          code: b.code,
+          city: b.name,
+          address: b.address,
+          phone: b.phone,
+        }))
+      : defaultBranches;
 
   return (
     <footer className="bg-[#070d17] text-slate-300 text-xs border-t border-slate-800/80 relative overflow-hidden">
@@ -268,13 +284,13 @@ export default function Footer() {
                 <Building2 className="w-3.5 h-3.5 text-emerald-400" />
                 <span>Our Clinic Locations</span>
               </span>
-              <span className="text-[10px] text-emerald-400 font-mono font-normal">5 Centers in TN</span>
+              <span className="text-[10px] text-emerald-400 font-mono font-normal">{branches.length} Centers</span>
             </h5>
 
             <div className="space-y-2">
               {branches.map((b) => (
                 <div
-                  key={b.id}
+                  key={b.code}
                   className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800/80 hover:border-emerald-500/30 transition-all text-xs group"
                 >
                   <div className="flex items-center justify-between">

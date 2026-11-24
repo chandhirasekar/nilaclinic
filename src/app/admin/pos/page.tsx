@@ -599,8 +599,8 @@ function QuickSalePOSContent() {
               Store: [{selectedStore}] {currentStoreObj?.name ? currentStoreObj.name.replace('Nila Clinic - ', '') : selectedStore}
             </span>
           </div>
-          <p className="text-sm text-slate-600 font-medium mt-1">
-            FR-40: Collect customer details, add services/products, apply discounts, take split payment, and print bill.
+          <p className="text-sm text-slate-500 font-medium mt-1">
+            Collect customer details, add treatments/products, apply discounts, take split payments, and print receipts.
           </p>
         </div>
 

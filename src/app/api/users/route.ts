@@ -34,6 +34,7 @@ export async function GET(req: Request) {
           email: safeEmail,
           role: roleAssigned,
           phone: ds.mobile || '',
+          image: ds.image || '',
           assignedStoreIds: ds.stores || (storeCode && storeCode !== 'ALL' ? [storeCode] : ['NILA-TH']),
           primaryStoreId: ds.stores?.[0] || (storeCode && storeCode !== 'ALL' ? storeCode : 'NILA-TH'),
           isActive: ds.isActive !== false,
@@ -60,7 +61,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { email, name, role, assignedStoreIds, phone, specialization, password } = body;
+    const { email, name, role, assignedStoreIds, phone, specialization, password, image, qualification, experience, regNo, focus } = body;
 
     if (!email || !name || !role) {
       return NextResponse.json({
@@ -85,6 +86,11 @@ export async function POST(req: Request) {
       primaryStoreId: assignedStoreIds?.[0] || 'THN',
       phone: phone || '+91 98000 00000',
       specialization,
+      image,
+      qualification,
+      experience,
+      regNo,
+      focus,
       password: password || 'Clinic@123',
       isActive: true,
     });
@@ -104,6 +110,10 @@ export async function PUT(req: Request) {
 
     if (!targetId) {
       return NextResponse.json({ success: false, message: 'User ID is required' }, { status: 400 });
+    }
+
+    if (updates.password === '' || updates.password === undefined) {
+      delete updates.password;
     }
 
     const updated = await clinicService.updateUser(targetId, updates);

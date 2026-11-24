@@ -12,6 +12,7 @@ const StaffSchema: Schema = new Schema({
     enum: ['Doctor', 'Therapist', 'Front desk', 'Customer care', 'Manager'],
     default: 'Therapist',
   },
+  image: { type: String, default: '' },
   stores: { type: [String], default: ['NILA-TH'] },
   workingHours: {
     start: { type: String, default: '09:00 AM' },

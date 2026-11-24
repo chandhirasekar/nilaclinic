@@ -1304,6 +1304,11 @@ class ClinicService {
       name: data.name || 'User',
       role: data.role || 'staff',
       phone: data.phone || '',
+      image: data.image || '',
+      qualification: data.qualification || '',
+      experience: data.experience || '',
+      regNo: data.regNo || '',
+      focus: data.focus || '',
       assignedStoreIds: data.assignedStoreIds || ['NILA-TH'],
       primaryStoreId: data.primaryStoreId || data.assignedStoreIds?.[0] || 'NILA-TH',
       specialization: data.specialization,
@@ -1541,7 +1546,7 @@ class ClinicService {
       if (db) {
         const docs = await (Service as any)
           .find({ isActive: true })
-          .select('name category duration price gstPercent availableStores description isActive')
+          .select('name category duration price gstPercent availableStores description isActive image isFavorite')
           .sort({ category: 1, name: 1 })
           .lean();
         if (docs && docs.length > 0) {
@@ -1570,6 +1575,8 @@ class ClinicService {
       gstPercent: data.gstPercent || 18,
       availableStores: data.availableStores || ['ALL'],
       description: data.description || '',
+      image: data.image || '',
+      isFavorite: Boolean(data.isFavorite),
       isActive: true,
     };
 

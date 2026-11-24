@@ -29,6 +29,7 @@ export interface IStaff {
   phone?: string; // alias
   designation: StaffDesignation;
   role?: string; // compatibility
+  image?: string;
   stores: string[]; // Store codes e.g. ['NILA-TH', 'NILA-MD']
   workingHours?: {
     start: string;
@@ -60,6 +61,8 @@ export interface IService {
   availableStores: string[]; // ['ALL'] or specific store codes
   storeWisePrices?: Record<string, number>;
   description?: string;
+  image?: string;
+  isFavorite?: boolean;
   active?: boolean;
   isActive?: boolean;
 }
@@ -258,6 +261,11 @@ export interface IUser {
   name: string;
   role: 'admin' | 'staff' | 'doctor';
   phone?: string;
+  image?: string;
+  qualification?: string;
+  experience?: string;
+  regNo?: string;
+  focus?: string;
   assignedStoreIds: string[];
   primaryStoreId?: string;
   isActive: boolean;

@@ -16,10 +16,11 @@ import {
 } from 'lucide-react';
 import Navbar from '@/components/public/Navbar';
 import Footer from '@/components/public/Footer';
-import { TREATMENTS_DATA } from '@/data/treatmentsData';
+import { getPublicTreatments, getPublicClinicBranches } from '@/lib/publicData';
 
-export function generateStaticParams() {
-  return TREATMENTS_DATA.map((treatment) => ({
+export async function generateStaticParams() {
+  const treatments = await getPublicTreatments();
+  return treatments.map((treatment) => ({
     slug: treatment.slug,
   }));
 }
@@ -30,7 +31,11 @@ interface PageProps {
 
 export default async function TreatmentDetailPage({ params }: PageProps) {
   const { slug } = await params;
-  const treatment = TREATMENTS_DATA.find((t) => t.slug === slug);
+  const [treatments, branches] = await Promise.all([
+    getPublicTreatments(),
+    getPublicClinicBranches(),
+  ]);
+  const treatment = treatments.find((t) => t.slug === slug);
 
   if (!treatment) {
     notFound();
@@ -46,7 +51,7 @@ export default async function TreatmentDetailPage({ params }: PageProps) {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans selection:bg-emerald-600 selection:text-white flex flex-col">
-      <Navbar />
+      <Navbar branches={branches} />
 
       <main className="grow">
         {/* Breadcrumb Bar */}
@@ -410,7 +415,8 @@ export default async function TreatmentDetailPage({ params }: PageProps) {
                   Other Clinical Protocols
                 </span>
                 <div className="space-y-2">
-                  {TREATMENTS_DATA.filter((t) => t.slug !== treatment.slug)
+                  {treatments
+                    .filter((t) => t.slug !== treatment.slug)
                     .slice(0, 4)
                     .map((t) => (
                       <Link
@@ -436,7 +442,7 @@ export default async function TreatmentDetailPage({ params }: PageProps) {
         </section>
       </main>
 
-      <Footer />
+      <Footer branches={branches} />
     </div>
   );
 }

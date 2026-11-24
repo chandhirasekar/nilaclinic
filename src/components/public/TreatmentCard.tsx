@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Clock, Calendar, ArrowRight } from 'lucide-react';
 import { TreatmentItem } from '@/data/treatmentsData';
 
@@ -11,13 +12,16 @@ export default function TreatmentCard({ treatment }: { treatment: TreatmentItem 
       <div>
         {/* Treatment Image Header */}
         <div className="relative h-44 w-full overflow-hidden bg-slate-100">
-          <img
+          <Image
             src={treatment.image}
             alt={treatment.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            fill
+            unoptimized={Boolean(treatment.image && (treatment.image.startsWith('data:') || treatment.image.startsWith('http')))}
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            className="object-cover group-hover:scale-105 transition-transform duration-300"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent" />
-          <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent z-10" />
+          <div className="absolute top-3 left-3 right-3 flex items-center justify-between z-20">
             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white/95 backdrop-blur-xs text-emerald-800 border border-white/60 shadow-xs">
               {treatment.category}
             </span>

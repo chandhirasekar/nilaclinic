@@ -185,9 +185,9 @@ export default function StaffMasterPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-900">Staff Master (M2)</h1>
-          <p className="text-sm text-slate-600 mt-1 font-medium">
-            FR-08 to FR-10: Doctors, Therapists, Front desk, and Managers. Configurable store assignments, calendar colours, and logins.
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Staff & Specialist Master</h1>
+          <p className="text-sm text-slate-500 mt-1 font-medium">
+            Doctors, Therapists, Front desk, and Managers with branch assignments, calendar color codes, and portal access.
           </p>
         </div>
         <button

@@ -86,9 +86,9 @@ export default function CustomersCRMPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-900">Patients & Customer CRM</h1>
-          <p className="text-sm text-slate-600 font-medium mt-1">
-            FR-19 to FR-28: Single unified customer master shared across all clinic stores with mobile lookup and cross-store history.
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Patients & Customer CRM</h1>
+          <p className="text-sm text-slate-500 font-medium mt-1">
+            Unified customer master shared across all clinic branches with instant mobile search and cross-store visit history.
           </p>
         </div>
         <button
@@ -205,7 +205,7 @@ export default function CustomersCRMPage() {
       {showModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-100 p-6 relative">
-            <h3 className="font-bold text-slate-900 text-base mb-1">Add New Client (FR-22)</h3>
+            <h3 className="font-bold text-slate-900 text-base mb-1">Add New Client</h3>
             <p className="text-xs text-slate-500 mb-3">
               One shared record for all stores. Registered under store [{selectedStore}].
             </p>

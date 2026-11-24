@@ -1,55 +1,22 @@
-'use client';
-
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
-  ShieldCheck,
   Building2,
-  Cpu,
-  FileCheck,
   Calendar,
-  MapPin,
   CheckCircle2,
 } from 'lucide-react';
 import Navbar from '@/components/public/Navbar';
 import Footer from '@/components/public/Footer';
+import { getPublicClinicBranches, getPublicDoctors } from '@/lib/publicData';
 
-export default function AboutPage() {
-  const doctors = [
-    {
-      name: 'Dr. Anitha Ramachandran',
-      role: 'Chief Dermatologist & Medical Director',
-      qualification: 'MBBS, MD - Dermatology, Venereology & Leprosy (Madras Medical College)',
-      councilReg: 'TNMC Reg #89234',
-      experience: '12+ Years Clinical Practice',
-      location: 'Theni Main Branch',
-      bio: 'Specialist in acne scar subcision, hyperpigmentation, melasma protocols, and medical chemical peels for South Asian phototypes.',
-      focusAreas: ['Acne Scar Subcision', 'Melasma & Pigmentation', 'Sequential Peels', 'General Dermatology'],
-      image: '/images/doctors/dr-anitha.jpg',
-    },
-    {
-      name: 'Dr. Rajesh Varma',
-      role: 'Consultant Trichologist & Hair Specialist',
-      qualification: 'MBBS, Fellowship in Clinical Trichology (UK)',
-      councilReg: 'TNMC Reg #94112',
-      experience: '9+ Years Follicular Medicine',
-      location: 'Madurai City Outlet',
-      bio: 'Dedicated to follicular preservation and platelet biology. Spearheaded our high-yield 3200 RPM double-spin PRP protocol for pattern hair loss.',
-      focusAreas: ['Androgenetic Alopecia', 'Autologous PRP', 'Digital Trichoscopy', 'Scalp Peptides'],
-      image: '/images/doctors/dr-rajesh.jpg',
-    },
-    {
-      name: 'Dr. Priya Dharshini',
-      role: 'Head of Laser Surgery · Skin & Hair',
-      qualification: 'MBBS, DVD, Fellowship in Aesthetic Lasers (ESCAD Europe)',
-      councilReg: 'TNMC Reg #103421',
-      experience: '8+ Years Laser Physics',
-      location: 'Chennai Laser Hub',
-      bio: 'Specialist in optical laser interactions with Indian skin. Calibrates our Class 4 Q-Switch and Diode lasers for safe clearance without burns.',
-      focusAreas: ['Q-Switch Laser Toning', 'Diode Laser Hair Reduction', 'Post-Acne Blemishes'],
-      image: '/images/doctors/dr-priya.jpg',
-    },
-  ];
+export const revalidate = 60;
+
+export default async function AboutPage() {
+  const [branches, doctors] = await Promise.all([
+    getPublicClinicBranches(),
+    getPublicDoctors(),
+  ]);
 
   const clinicFacilities = [
     {
@@ -74,22 +41,25 @@ export default function AboutPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans selection:bg-emerald-600 selection:text-white flex flex-col">
-      <Navbar />
+      <Navbar branches={branches} />
 
       <main className="grow">
         {/* About Hero with Real Clinic Background Image */}
         <section className="relative py-16 px-4 sm:px-8 border-b border-slate-800 overflow-hidden bg-slate-950 text-white">
           <div className="absolute inset-0">
-            <img
+            <Image
               src="/images/clinic/reception.jpg"
               alt="About Nila Clinic"
-              className="w-full h-full object-cover object-center"
+              fill
+              priority
+              sizes="100vw"
+              className="object-cover object-center"
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-slate-950/95 via-slate-950/85 to-slate-900/75" />
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-black/40" />
+            <div className="absolute inset-0 bg-gradient-to-r from-slate-950/95 via-slate-950/85 to-slate-900/75 z-10" />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-black/40 z-10" />
           </div>
 
-          <div className="relative z-10 max-w-7xl mx-auto">
+          <div className="relative z-20 max-w-7xl mx-auto">
             <div className="max-w-3xl space-y-3">
               <div className="inline-flex items-center space-x-2 px-3.5 py-1 rounded-full bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-xs font-bold backdrop-blur-xs">
                 <Building2 className="w-3.5 h-3.5 text-emerald-400" />
@@ -99,7 +69,7 @@ export default function AboutPage() {
                 About Nila Clinic
               </h1>
               <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
-                Dedicated exclusively to medical Skin & Hair treatments. Grounded in scientific diagnostic protocols, certified medical doctors, and transparent pricing across 5 centers in Tamil Nadu.
+                Dedicated exclusively to medical Skin & Hair treatments. Grounded in scientific diagnostic protocols, certified medical doctors, and transparent pricing across {branches.length} centers in Tamil Nadu & Puducherry.
               </p>
             </div>
           </div>
@@ -126,7 +96,7 @@ export default function AboutPage() {
 
               <div className="pt-2 grid grid-cols-3 gap-4 border-t border-slate-200 text-slate-800">
                 <div>
-                  <span className="font-mono text-xl sm:text-2xl font-bold block text-slate-900">5</span>
+                  <span className="font-mono text-xl sm:text-2xl font-bold block text-slate-900">{branches.length}</span>
                   <span className="text-[11px] text-slate-500 font-medium">Clinic Centers</span>
                 </div>
                 <div>
@@ -185,8 +155,14 @@ export default function AboutPage() {
               {clinicFacilities.map((fac) => (
                 <div key={fac.title} className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-xs flex flex-col justify-between">
                   <div className="relative h-52 w-full overflow-hidden bg-slate-200">
-                    <img src={fac.image} alt={fac.title} className="w-full h-full object-cover" />
-                    <div className="absolute top-3 left-3 bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full">
+                    <Image
+                      src={fac.image}
+                      alt={fac.title}
+                      fill
+                      sizes="(max-width: 768px) 100vw, 33vw"
+                      className="object-cover"
+                    />
+                    <div className="absolute top-3 left-3 bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full z-10">
                       {fac.tag}
                     </div>
                   </div>
@@ -195,7 +171,7 @@ export default function AboutPage() {
                     <p className="text-xs text-slate-600 leading-relaxed font-sans">{fac.description}</p>
                   </div>
                   <div className="px-5 pb-4 text-[11px] text-emerald-600 font-semibold border-t border-slate-100 pt-2">
-                    Standardized in all 5 centers
+                    Standardized across all {branches.length} centers
                   </div>
                 </div>
               ))}
@@ -218,8 +194,15 @@ export default function AboutPage() {
             <div className="space-y-6">
               {doctors.map((doc) => (
                 <div key={doc.name} className="bg-slate-50 rounded-lg border border-slate-200 p-6 sm:p-7 shadow-xs flex flex-col sm:flex-row gap-6 items-start">
-                  <div className="w-28 h-28 sm:w-36 sm:h-36 rounded-lg overflow-hidden border border-slate-200 shrink-0 bg-slate-200 shadow-xs">
-                    <img src={doc.image} alt={doc.name} className="w-full h-full object-cover object-top" />
+                  <div className="relative w-28 h-28 sm:w-36 sm:h-36 rounded-lg overflow-hidden border border-slate-200 shrink-0 bg-slate-200 shadow-xs">
+                    <Image
+                      src={doc.image}
+                      alt={doc.name}
+                      fill
+                      unoptimized={Boolean(doc.image && (doc.image.startsWith('data:') || doc.image.startsWith('http')))}
+                      sizes="(max-width: 640px) 112px, 144px"
+                      className="object-cover object-top"
+                    />
                   </div>
 
                   <div className="grow space-y-3">
@@ -229,19 +212,21 @@ export default function AboutPage() {
                         <span className="text-xs font-semibold text-emerald-600">{doc.role}</span>
                       </div>
                       <span className="px-2.5 py-0.5 rounded-full bg-white text-slate-700 text-xs font-mono font-medium border border-slate-200 self-start sm:self-center">
-                        {doc.councilReg}
+                        {doc.regNo}
                       </span>
                     </div>
 
-                    <p className="text-xs text-slate-600 leading-relaxed">{doc.bio}</p>
+                    <p className="text-xs text-slate-600 leading-relaxed">{doc.bio || doc.focus}</p>
 
-                    <div className="flex flex-wrap gap-1.5 pt-1">
-                      {doc.focusAreas.map((f) => (
-                        <span key={f} className="text-[11px] bg-white text-emerald-800 px-2.5 py-0.5 rounded-lg border border-slate-200 font-medium">
-                          {f}
-                        </span>
-                      ))}
-                    </div>
+                    {doc.focusAreas && doc.focusAreas.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {doc.focusAreas.map((f) => (
+                          <span key={f} className="text-[11px] bg-white text-emerald-800 px-2.5 py-0.5 rounded-lg border border-slate-200 font-medium">
+                            {f}
+                          </span>
+                        ))}
+                      </div>
+                    )}
 
                     <div className="pt-2">
                       <Link
@@ -249,7 +234,7 @@ export default function AboutPage() {
                         className="inline-flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold uppercase tracking-wider transition-all shadow-xs"
                       >
                         <Calendar className="w-3.5 h-3.5" />
-                        <span>Book OPD with {doc.name.split(' ')[1]}</span>
+                        <span>Book OPD with {doc.name.split(' ')[1] || doc.name}</span>
                       </Link>
                     </div>
                   </div>
@@ -260,7 +245,7 @@ export default function AboutPage() {
         </section>
       </main>
 
-      <Footer />
+      <Footer branches={branches} />
     </div>
   );
 }

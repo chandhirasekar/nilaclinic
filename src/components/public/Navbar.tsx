@@ -14,25 +14,30 @@ import {
   ArrowRight,
 } from 'lucide-react';
 
+import { PublicBranch } from '@/lib/publicData';
+
 interface NavbarProps {
   currentBranch?: string;
   onBranchChange?: (branch: string) => void;
+  branches?: PublicBranch[];
 }
 
-export default function Navbar({ currentBranch = 'Theni Main Branch', onBranchChange }: NavbarProps) {
+export default function Navbar({ currentBranch = 'Theni Main Branch', onBranchChange, branches: propBranches }: NavbarProps) {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [branchDropdownOpen, setBranchDropdownOpen] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState(currentBranch);
 
-  const branches = [
+  const defaultBranches = [
     { name: 'Theni Main Branch', address: 'Theni Main Rd', phone: '+91 98450 11223' },
     { name: 'Madurai City Outlet', address: 'West Veli St', phone: '+91 98450 44556' },
     { name: 'Chennai Laser Hub', address: 'Anna Salai, Thousand Lights', phone: '+91 98450 77889' },
     { name: 'Coimbatore Center', address: 'Avinashi Rd, Peelamedu', phone: '+91 98450 88991' },
     { name: 'Trichy Branch', address: 'Thillai Nagar Main Rd', phone: '+91 98450 99002' },
   ];
+
+  const branches = propBranches && propBranches.length > 0 ? propBranches : defaultBranches;
 
   useEffect(() => {
     const handleScroll = () => {
