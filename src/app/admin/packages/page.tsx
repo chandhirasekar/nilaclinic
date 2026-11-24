@@ -44,6 +44,8 @@ export default function PackagesPage() {
   const [availableStores, setAvailableStores] = useState<string[]>(['ALL']);
 
   // Customer Packages Tab
+  const [searchPackageQuery, setSearchPackageQuery] = useState('');
+  const [packageTypeFilter, setPackageTypeFilter] = useState<'ALL' | 'Fixed' | 'On-demand'>('ALL');
   const [searchMobile, setSearchMobile] = useState('');
   const [searchedCustomer, setSearchedCustomer] = useState<ICustomer | null>(null);
   const [customerPackages, setCustomerPackages] = useState<ICustomerPackage[]>([]);
@@ -92,6 +94,16 @@ export default function PackagesPage() {
   }, [selectedStore]);
 
   // Handle Customer Mobile Search
+  const filteredPackages = packages.filter((pkg) => {
+    const q = searchPackageQuery.toLowerCase().trim();
+    const matchesSearch =
+      !q ||
+      pkg.name.toLowerCase().includes(q) ||
+      (pkg.services || []).some((s) => s.serviceName.toLowerCase().includes(q));
+    const matchesType = packageTypeFilter === 'ALL' || pkg.type === packageTypeFilter;
+    return matchesSearch && matchesType;
+  });
+
   const handleCustomerSearch = async () => {
     if (!searchMobile.trim()) return;
     setIsSearchingClient(true);
@@ -267,89 +279,140 @@ export default function PackagesPage() {
 
       {/* TAB 1: PACKAGE CATALOG */}
       {activeTab === 'catalog' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {packages.map((pkg) => (
-            <div
-              key={pkg._id}
-              className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden flex flex-col justify-between hover:shadow-md transition-shadow"
-            >
-              <div className="p-5">
-                <div className="flex justify-between items-start mb-2">
-                  <span
-                    className={`text-xs uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full ${pkg.type === 'Fixed'
-                        ? 'bg-indigo-50 text-indigo-800 border border-indigo-200'
-                        : 'bg-amber-50 text-amber-900 border border-amber-200'
+        <div className="space-y-4">
+          {/* Search Bar & Filter for Package Catalog */}
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="relative w-full sm:w-96">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search packages by name or included treatment..."
+                value={searchPackageQuery}
+                onChange={(e) => setSearchPackageQuery(e.target.value)}
+                className="w-full pl-9 pr-9 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
+              />
+              {searchPackageQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchPackageQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <span className="text-xs font-semibold text-slate-500 mr-1">Type:</span>
+              {(['ALL', 'Fixed', 'On-demand'] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setPackageTypeFilter(t)}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                    packageTypeFilter === t
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {t === 'ALL' ? 'All Types' : `${t}`}
+                </button>
+              ))}
+              <span className="text-xs font-semibold text-slate-400 ml-2">
+                ({filteredPackages.length} of {packages.length})
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {filteredPackages.map((pkg) => (
+              <div
+                key={pkg._id}
+                className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden flex flex-col justify-between hover:shadow-md transition-shadow"
+              >
+                <div className="p-5">
+                  <div className="flex justify-between items-start mb-2">
+                    <span
+                      className={`text-xs uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full ${
+                        pkg.type === 'Fixed'
+                          ? 'bg-indigo-50 text-indigo-800 border border-indigo-200'
+                          : 'bg-amber-50 text-amber-900 border border-amber-200'
                       }`}
-                  >
-                    {pkg.type} Package
-                  </span>
-                  <span className="text-xs font-semibold text-slate-600">
-                    Validity: {pkg.validityDays} days
-                  </span>
-                </div>
-
-                <h3 className="font-black text-slate-900 text-lg mb-1">{pkg.name}</h3>
-                <div className="text-3xl font-black text-slate-900 mb-3">
-                  ₹{pkg.price.toLocaleString('en-IN')}
-                </div>
-
-                {/* Sittings & breakdown */}
-                <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200/80 space-y-2 mb-4">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-600 font-medium">Total Sittings:</span>
-                    <span className="font-bold text-slate-900">{pkg.totalSittings} Sessions</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-600 font-medium">Value / Sitting:</span>
-                    <span className="font-bold text-emerald-700">
-                      ₹{Math.round(pkg.valuePerSitting || pkg.price / pkg.totalSittings).toLocaleString('en-IN')}
+                    >
+                      {pkg.type} Package
                     </span>
+                    <span className="text-xs font-semibold text-slate-600">Validity: {pkg.validityDays} days</span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-600 font-medium">Store Availability:</span>
-                    <span className="font-semibold text-slate-800">
-                      {pkg.availableStores.includes('ALL') ? 'All Stores' : pkg.availableStores.join(', ')}
-                    </span>
+
+                  <h3 className="font-black text-slate-900 text-lg mb-1">{pkg.name}</h3>
+                  <div className="text-3xl font-black text-slate-900 mb-3">
+                    ₹{pkg.price.toLocaleString('en-IN')}
+                  </div>
+
+                  {/* Sittings & breakdown */}
+                  <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200/80 space-y-2 mb-4">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-600 font-medium">Total Sittings:</span>
+                      <span className="font-bold text-slate-900">{pkg.totalSittings} Sessions</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-600 font-medium">Value / Sitting:</span>
+                      <span className="font-bold text-emerald-700">
+                        ₹{Math.round(pkg.valuePerSitting || pkg.price / pkg.totalSittings).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-600 font-medium">Store Availability:</span>
+                      <span className="font-semibold text-slate-800">
+                        {pkg.availableStores.includes('ALL') ? 'All Stores' : pkg.availableStores.join(', ')}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Services included list */}
+                  <div>
+                    <div className="text-xs uppercase font-bold text-slate-500 tracking-wider mb-2">
+                      Included Treatments
+                    </div>
+                    <ul className="space-y-1.5">
+                      {pkg.services.map((s, idx) => (
+                        <li key={idx} className="flex items-center justify-between text-sm text-slate-800">
+                          <span className="truncate pr-2 font-medium flex items-center">
+                            <Sparkles className="w-3.5 h-3.5 text-indigo-600 mr-1.5 flex-shrink-0" />
+                            {s.serviceName}
+                          </span>
+                          <span className="bg-slate-200/70 text-slate-900 px-2.5 py-0.5 rounded-md font-bold text-xs">
+                            {s.count} sittings
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 </div>
 
-                {/* Services included list */}
-                <div>
-                  <div className="text-xs uppercase font-bold text-slate-500 tracking-wider mb-2">
-                    Included Treatments
-                  </div>
-                  <ul className="space-y-1.5">
-                    {pkg.services.map((s, idx) => (
-                      <li key={idx} className="flex items-center justify-between text-sm text-slate-800">
-                        <span className="truncate pr-2 font-medium flex items-center">
-                          <Sparkles className="w-3.5 h-3.5 text-indigo-600 mr-1.5 flex-shrink-0" />
-                          {s.serviceName}
-                        </span>
-                        <span className="bg-slate-200/70 text-slate-900 px-2.5 py-0.5 rounded-md font-bold text-xs">
-                          {s.count} sittings
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
+                <div className="bg-slate-50 p-3.5 border-t border-slate-100 flex items-center justify-between text-xs sm:text-sm text-slate-600 font-medium">
+                  <span>Active in POS Quick Sale</span>
+                  <span className="inline-flex items-center text-emerald-700 font-bold">
+                    <CheckCircle2 className="w-4 h-4 mr-1 text-emerald-600" /> Ready to Sell
+                  </span>
                 </div>
               </div>
+            ))}
 
-              <div className="bg-slate-50 p-3.5 border-t border-slate-100 flex items-center justify-between text-xs sm:text-sm text-slate-600 font-medium">
-                <span>Active in POS Quick Sale</span>
-                <span className="inline-flex items-center text-emerald-700 font-bold">
-                  <CheckCircle2 className="w-4 h-4 mr-1 text-emerald-600" /> Ready to Sell
-                </span>
+            {filteredPackages.length === 0 && !isLoading && (
+              <div className="col-span-full bg-white p-12 text-center rounded-2xl border border-slate-200">
+                <Package className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                <p className="text-base text-slate-700 font-semibold">
+                  {searchPackageQuery ? `No packages matching "${searchPackageQuery}"` : 'No packages configured yet'}
+                </p>
+                <p className="text-sm text-slate-500 mt-1">
+                  {searchPackageQuery
+                    ? 'Try clearing the search query or changing the type filter.'
+                    : 'Click "Create Package" to configure your first treatment plan.'}
+                </p>
               </div>
-            </div>
-          ))}
-
-          {packages.length === 0 && !isLoading && (
-            <div className="col-span-full bg-white p-12 text-center rounded-2xl border border-slate-200">
-              <Package className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-              <p className="text-base text-slate-700 font-semibold">No packages configured yet</p>
-              <p className="text-sm text-slate-500 mt-1">Click &quot;Create Package&quot; to configure your first treatment plan.</p>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       )}
 

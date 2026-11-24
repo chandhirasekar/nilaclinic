@@ -21,3 +21,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });
   }
 }
+
+export async function PUT(req: Request) {
+  try {
+    const body = await req.json();
+    const id = body.id || body._id;
+    if (!id) {
+      return NextResponse.json({ success: false, message: 'Treatment ID is required' }, { status: 400 });
+    }
+    const updated = await clinicService.updateService(id, body);
+    if (!updated) {
+      return NextResponse.json({ success: false, message: 'Treatment not found' }, { status: 404 });
+    }
+    return NextResponse.json({ success: true, data: updated, message: 'Treatment updated successfully' });
+  } catch (err: any) {
+    return NextResponse.json({ success: false, message: err.message }, { status: 500 });
+  }
+}

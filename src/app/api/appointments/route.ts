@@ -79,6 +79,29 @@ export async function POST(req: Request) {
       }
     }
 
+    const apptDate = date || new Date().toISOString().split('T')[0];
+
+    // BUG-02: Server-side duplicate appointment prevention (same patient, service, date, and time slot)
+    const existingAppointments = await clinicService.getAppointments();
+    const isDuplicate = existingAppointments.find(a =>
+      a.status !== 'Cancelled' &&
+      a.date === apptDate &&
+      (a.startTime === apptTime || a.time === apptTime) &&
+      a.serviceName?.toLowerCase().trim() === serviceName?.toLowerCase().trim() &&
+      ((customerPhone && a.customerPhone === customerPhone) ||
+       (client && (a.customerId === client._id || a.customerId === client.customerId)) ||
+       (customerId && a.customerId === customerId))
+    );
+
+    if (isDuplicate) {
+      return NextResponse.json({
+        success: true,
+        data: isDuplicate,
+        duplicatePrevented: true,
+        message: 'Appointment is already booked for this time slot.',
+      });
+    }
+
     const newAppt = await clinicService.createAppointment({
       customerId: client?.customerId || client?._id || customerId,
       customerName: customerName || client?.name || 'Client',

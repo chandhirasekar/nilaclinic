@@ -25,3 +25,23 @@ export async function POST(req: Request) {
   }
 }
 
+export async function PUT(req: Request) {
+  try {
+    const body = await req.json();
+    const id = body.id || body._id;
+    if (!id) {
+      return NextResponse.json({ success: false, message: 'Product ID is required' }, { status: 400 });
+    }
+    if (!body.name || body.price === undefined) {
+      return NextResponse.json({ success: false, message: 'Product name and price are required' }, { status: 400 });
+    }
+    const updated = await clinicService.updateProduct(id, body);
+    if (!updated) {
+      return NextResponse.json({ success: false, message: 'Product not found' }, { status: 404 });
+    }
+    return NextResponse.json({ success: true, data: updated, message: 'Product updated successfully' });
+  } catch (err: any) {
+    return NextResponse.json({ success: false, message: err.message }, { status: 500 });
+  }
+}
+

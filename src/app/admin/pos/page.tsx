@@ -80,6 +80,7 @@ function QuickSalePOSContent() {
 
   // Modals for adding items
   const [showCatalogModal, setShowCatalogModal] = useState<'service' | 'product' | 'package' | null>(null);
+  const [catalogSearchQuery, setCatalogSearchQuery] = useState('');
   const [showRedeemPackageModal, setShowRedeemPackageModal] = useState(false);
 
   // Discounts (FR-45: value OR percent, one at a time)
@@ -749,16 +750,16 @@ function QuickSalePOSContent() {
                               setSearchMobile(v.patientPhone || '');
                               setSelectedVisitId(v.visitId || v._id);
 
-                              // Add doctor consultation item
+                              // Add doctor consultation item with amount 0 (BUG-01: Fee must not be auto-set; staff enters amount manually)
                               const consultItem: IQuickSaleItem = {
                                 type: 'service',
                                 itemId: 'svc-5',
                                 name: `Doctor Consultation (${v.doctorName || 'Doctor'})`,
                                 staffName: v.doctorName || 'Doctor',
                                 quantity: 1,
-                                price: 500,
+                                price: 0,
                                 discountPercent: 0,
-                                total: 500,
+                                total: 0,
                               };
                               setItems((prev) => {
                                 if (prev.some((it) => it.name.includes('Doctor Consultation'))) return prev;
@@ -770,7 +771,7 @@ function QuickSalePOSContent() {
                           >
                             <div className="flex items-center justify-between font-bold text-slate-900">
                               <span>{v.patientName}</span>
-                              <span className="text-emerald-700 font-mono">₹500</span>
+                              <span className="text-amber-700 font-semibold text-[11px] bg-amber-100/80 px-2 py-0.5 rounded-full">Consultation Done</span>
                             </div>
                             <div className="flex items-center justify-between text-[11px] text-slate-500">
                               <span>{v.patientPhone}</span>
@@ -896,10 +897,11 @@ function QuickSalePOSContent() {
                           <input
                             type="number"
                             min="0"
-                            disabled={!settings?.staffCanEditPrice && user?.role !== 'admin'}
+                            disabled={!settings?.staffCanEditPrice && user?.role !== 'admin' && !it.name.toLowerCase().includes('consultation')}
                             value={it.price}
                             onChange={(e) => updateItemField(idx, 'price', Math.max(0, Number(e.target.value) || 0))}
-                            className="w-24 text-right bg-slate-50 border border-slate-200 rounded-lg py-1 font-bold text-sm disabled:opacity-60"
+                            placeholder={it.name.toLowerCase().includes('consultation') ? 'Enter fee' : '0'}
+                            className="w-24 text-right bg-slate-50 border border-slate-200 rounded-lg py-1 font-bold text-sm disabled:opacity-60 focus:ring-1 focus:ring-emerald-500"
                           />
                         </td>
                         <td className="px-3.5 py-2.5 text-center">
@@ -1281,68 +1283,130 @@ function QuickSalePOSContent() {
                 <h3 className="font-bold text-slate-900 text-sm">
                   Select {showCatalogModal === 'service' ? 'Treatment Service' : showCatalogModal === 'product' ? 'Retail Product' : 'Treatment Package'} to Add
                 </h3>
-                <button onClick={() => setShowCatalogModal(null)} className="text-slate-400 hover:text-slate-600">
+                <button
+                  onClick={() => {
+                    setShowCatalogModal(null);
+                    setCatalogSearchQuery('');
+                  }}
+                  className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+                >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <div className="space-y-2.5 mt-3 max-h-96 overflow-y-auto pr-1">
+              {/* Modal Search Bar */}
+              <div className="mt-3 relative">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  autoFocus
+                  placeholder={`Search ${showCatalogModal === 'service' ? 'treatments' : showCatalogModal === 'product' ? 'products by name or SKU' : 'packages'}...`}
+                  value={catalogSearchQuery}
+                  onChange={(e) => setCatalogSearchQuery(e.target.value)}
+                  className="w-full pl-8 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
+                />
+                {catalogSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setCatalogSearchQuery('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              <div className="space-y-2.5 mt-3 max-h-80 overflow-y-auto pr-1">
                 {showCatalogModal === 'service' &&
-                  services.map((s) => (
-                    <div
-                      key={s._id}
-                      onClick={() => addItemToBill(s, 'service')}
-                      className="p-3 bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 rounded-xl cursor-pointer transition-all flex items-center justify-between text-xs"
-                    >
-                      <div>
-                        <h4 className="font-bold text-slate-900">{s.name}</h4>
-                        <span className="text-[10px] text-slate-400">{s.category} • {s.duration} mins</span>
+                  services
+                    .filter(
+                      (s) =>
+                        !catalogSearchQuery ||
+                        s.name.toLowerCase().includes(catalogSearchQuery.toLowerCase()) ||
+                        s.category.toLowerCase().includes(catalogSearchQuery.toLowerCase())
+                    )
+                    .map((s) => (
+                      <div
+                        key={s._id}
+                        onClick={() => {
+                          addItemToBill(s, 'service');
+                          setCatalogSearchQuery('');
+                        }}
+                        className="p-3 bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 rounded-xl cursor-pointer transition-all flex items-center justify-between text-xs"
+                      >
+                        <div>
+                          <h4 className="font-bold text-slate-900">{s.name}</h4>
+                          <span className="text-[10px] text-slate-400">{s.category} • {s.duration} mins</span>
+                        </div>
+                        <span className="font-black text-slate-900 text-sm">₹{s.price}</span>
                       </div>
-                      <span className="font-black text-slate-900 text-sm">₹{s.price}</span>
-                    </div>
-                  ))}
+                    ))}
 
                 {showCatalogModal === 'product' &&
-                  products.map((p) => (
-                    <div
-                      key={p._id}
-                      onClick={() => addItemToBill(p, 'product')}
-                      className="p-3 bg-slate-50 hover:bg-sky-50 border border-slate-200 hover:border-sky-300 rounded-xl cursor-pointer transition-all flex items-center justify-between text-xs"
-                    >
-                      <div>
-                        <h4 className="font-bold text-slate-900">{p.name}</h4>
-                        <span className="text-[10px] text-slate-400">{p.category} {p.sku ? `• ${p.sku}` : ''}</span>
+                  products
+                    .filter(
+                      (p) =>
+                        !catalogSearchQuery ||
+                        p.name.toLowerCase().includes(catalogSearchQuery.toLowerCase()) ||
+                        (p.sku || '').toLowerCase().includes(catalogSearchQuery.toLowerCase()) ||
+                        p.category.toLowerCase().includes(catalogSearchQuery.toLowerCase())
+                    )
+                    .map((p) => (
+                      <div
+                        key={p._id}
+                        onClick={() => {
+                          addItemToBill(p, 'product');
+                          setCatalogSearchQuery('');
+                        }}
+                        className="p-3 bg-slate-50 hover:bg-sky-50 border border-slate-200 hover:border-sky-300 rounded-xl cursor-pointer transition-all flex items-center justify-between text-xs"
+                      >
+                        <div>
+                          <h4 className="font-bold text-slate-900">{p.name}</h4>
+                          <span className="text-[10px] text-slate-400">{p.category} {p.sku ? `• ${p.sku}` : ''}</span>
+                        </div>
+                        <span className="font-black text-slate-900 text-sm">₹{p.price}</span>
                       </div>
-                      <span className="font-black text-slate-900 text-sm">₹{p.price}</span>
-                    </div>
-                  ))}
+                    ))}
 
                 {showCatalogModal === 'package' &&
-                  packages.map((pkg) => (
-                    <div
-                      key={pkg._id}
-                      onClick={() => addPackageToBill(pkg)}
-                      className="p-3 bg-slate-50 hover:bg-purple-50 border border-slate-200 hover:border-purple-300 rounded-xl cursor-pointer transition-all flex items-center justify-between text-xs"
-                    >
-                      <div>
-                        <div className="flex items-center space-x-1.5">
-                          <h4 className="font-bold text-slate-900">{pkg.name}</h4>
-                          <span className="text-[9px] bg-purple-100 text-purple-700 px-1.5 py-0.2 rounded font-semibold">{pkg.type}</span>
+                  packages
+                    .filter(
+                      (pkg) =>
+                        !catalogSearchQuery ||
+                        pkg.name.toLowerCase().includes(catalogSearchQuery.toLowerCase()) ||
+                        (pkg.services || []).some((s) => s.serviceName.toLowerCase().includes(catalogSearchQuery.toLowerCase()))
+                    )
+                    .map((pkg) => (
+                      <div
+                        key={pkg._id}
+                        onClick={() => {
+                          addPackageToBill(pkg);
+                          setCatalogSearchQuery('');
+                        }}
+                        className="p-3 bg-slate-50 hover:bg-purple-50 border border-slate-200 hover:border-purple-300 rounded-xl cursor-pointer transition-all flex items-center justify-between text-xs"
+                      >
+                        <div>
+                          <div className="flex items-center space-x-1.5">
+                            <h4 className="font-bold text-slate-900">{pkg.name}</h4>
+                            <span className="text-[9px] bg-purple-100 text-purple-700 px-1.5 py-0.2 rounded font-semibold">{pkg.type}</span>
+                          </div>
+                          <span className="text-[10px] text-slate-400">
+                            {pkg.totalSittings} sittings • Valid {pkg.validityDays} days
+                          </span>
                         </div>
-                        <span className="text-[10px] text-slate-400">
-                          {pkg.totalSittings} sittings • Valid {pkg.validityDays} days
-                        </span>
+                        <span className="font-black text-purple-700 text-sm">₹{pkg.price}</span>
                       </div>
-                      <span className="font-black text-purple-700 text-sm">₹{pkg.price}</span>
-                    </div>
-                  ))}
+                    ))}
               </div>
             </div>
 
             <div className="pt-3 border-t border-slate-100 text-right">
               <button
                 type="button"
-                onClick={() => setShowCatalogModal(null)}
+                onClick={() => {
+                  setShowCatalogModal(null);
+                  setCatalogSearchQuery('');
+                }}
                 className="px-4 py-1.5 bg-slate-100 text-slate-700 font-semibold rounded-xl text-xs hover:bg-slate-200"
               >
                 Close

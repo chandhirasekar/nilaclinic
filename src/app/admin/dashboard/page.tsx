@@ -496,7 +496,7 @@ export default function ClinicDashboardPage() {
                   <span className="text-emerald-700 font-black text-base">₹{inv.payableAmount || inv.grandTotal}</span>
                 </div>
                 <div className="text-xs text-slate-600 font-medium flex justify-between">
-                  <span className="font-mono">Bill #{inv.invoiceNo}</span>
+                  <span className="font-mono">Bill #{inv.invoiceNo} <strong className="text-amber-800">[{inv.storeId || selectedStore}]</strong></span>
                   <span>By: {inv.staffName}</span>
                 </div>
                 <div className="grid grid-cols-2 gap-2 pt-1">
@@ -573,7 +573,7 @@ export default function ClinicDashboardPage() {
               </div>
             </div>
 
-            {/* Appointment Cards List */}
+            {/* Appointment Cards List (BUG-05: Scroll inside fixed-height box rather than running down whole page) */}
             {filteredDashboardAppts.length === 0 ? (
               <div className="py-12 text-center text-sm text-slate-500 space-y-2.5">
                 <Calendar className="w-10 h-10 text-slate-300 mx-auto" />
@@ -586,7 +586,7 @@ export default function ClinicDashboardPage() {
                 </Link>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-3 max-h-[500px] overflow-y-auto overscroll-contain pr-1.5 scrollbar-thin">
                 {filteredDashboardAppts.map((a) => (
                   <div
                     key={a._id || a.appointmentId}
@@ -598,12 +598,17 @@ export default function ClinicDashboardPage() {
                         <span className="text-xs text-slate-500 font-semibold">{a.durationMins || 30}m</span>
                       </div>
                       <div className="space-y-1">
-                        <div className="flex items-center space-x-2.5">
+                        {/* BUG-04: Show the Branch code/badge with every appointment */}
+                        <div className="flex flex-wrap items-center gap-2">
                           <span className="font-black text-slate-900 text-base">{a.customerName}</span>
+                          <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 font-mono">
+                            [{a.storeId || selectedStore}]
+                          </span>
                           <span className="text-xs text-slate-500 font-mono font-medium">{a.customerPhone}</span>
                         </div>
-                        <div className="flex items-center space-x-2 text-xs text-slate-700 font-medium">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-700 font-medium">
                           <span className="text-emerald-700 font-bold">{a.serviceName}</span>
+                          <span>• Branch: <strong className="text-slate-900 font-mono font-semibold">[{a.storeId || selectedStore}]</strong></span>
                           <span>• Specialist: <strong className="text-slate-900">{a.staffName || a.doctorName}</strong></span>
                         </div>
                       </div>

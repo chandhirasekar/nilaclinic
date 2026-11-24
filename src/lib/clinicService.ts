@@ -1591,6 +1591,43 @@ class ClinicService {
     return newService;
   }
 
+  async updateService(id: string, updates: Partial<IService>): Promise<IService | null> {
+    try {
+      const db = await connectToDatabase();
+      if (db) {
+        const isValidOid = mongoose.isValidObjectId(id);
+        const query = isValidOid ? { $or: [{ _id: id }, { _id: new mongoose.Types.ObjectId(id) }] } : { _id: id };
+        const cleanUpdates = { ...updates };
+        delete (cleanUpdates as any)._id;
+        delete (cleanUpdates as any).id;
+
+        const doc = await (Service as any).findOneAndUpdate(
+          query,
+          { $set: cleanUpdates },
+          { new: true }
+        ).lean();
+
+        if (doc) {
+          const saved = { ...doc, _id: doc._id?.toString() };
+          const idx = this.services.findIndex(s => s._id === id || s._id === saved._id);
+          if (idx !== -1) {
+            this.services[idx] = { ...this.services[idx], ...saved };
+          }
+          return saved as any;
+        }
+      }
+    } catch (e) {
+      console.error('Error updating service in MongoDB:', e);
+    }
+
+    const idx = this.services.findIndex(s => s._id === id);
+    if (idx !== -1) {
+      this.services[idx] = { ...this.services[idx], ...updates };
+      return this.services[idx];
+    }
+    return null;
+  }
+
   async getProducts(storeCode?: string): Promise<IProduct[]> {
     try {
       const db = await connectToDatabase();
@@ -1644,6 +1681,43 @@ class ClinicService {
 
     this.products.push(newProd);
     return newProd;
+  }
+
+  async updateProduct(id: string, updates: Partial<IProduct>): Promise<IProduct | null> {
+    try {
+      const db = await connectToDatabase();
+      if (db) {
+        const isValidOid = mongoose.isValidObjectId(id);
+        const query = isValidOid ? { $or: [{ _id: id }, { _id: new mongoose.Types.ObjectId(id) }] } : { _id: id };
+        const cleanUpdates = { ...updates };
+        delete (cleanUpdates as any)._id;
+        delete (cleanUpdates as any).id;
+
+        const doc = await (Product as any).findOneAndUpdate(
+          query,
+          { $set: cleanUpdates },
+          { new: true }
+        ).lean();
+
+        if (doc) {
+          const saved = { ...doc, _id: doc._id?.toString() };
+          const idx = this.products.findIndex(p => p._id === id || p._id === saved._id);
+          if (idx !== -1) {
+            this.products[idx] = { ...this.products[idx], ...saved };
+          }
+          return saved as any;
+        }
+      }
+    } catch (e) {
+      console.error('Error updating product in MongoDB:', e);
+    }
+
+    const idx = this.products.findIndex(p => p._id === id);
+    if (idx !== -1) {
+      this.products[idx] = { ...this.products[idx], ...updates };
+      return this.products[idx];
+    }
+    return null;
   }
 
   // ================= PAYMENT MODES MASTER (M2) =================
@@ -2712,8 +2786,8 @@ class ClinicService {
   }
 
   // Consultation completion workflow:
-  // Auto-creates an UNPAID bill in Quick Sale POS with Doctor Consultation Fee (FR-18, BR-02, NFR-06)
-  async autoCreateBillForVisit(visitId: string, consultationFee: number = 500): Promise<IInvoice | null> {
+  // Auto-creates an UNPAID bill in Quick Sale POS with Doctor Consultation Fee (FR-18, BR-02, NFR-06, BUG-01)
+  async autoCreateBillForVisit(visitId: string, consultationFee: number = 0): Promise<IInvoice | null> {
     const visits = await this.getVisits();
     const visit = visits.find(v => v._id === visitId || v.visitId === visitId);
     if (!visit) return null;

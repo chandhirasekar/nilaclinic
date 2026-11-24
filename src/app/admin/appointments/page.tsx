@@ -23,6 +23,7 @@ import {
   List,
   CalendarDays,
   Package,
+  Loader2,
 } from 'lucide-react';
 import { IAppointment, IService, IStaff, ICustomer, ICustomerPackage } from '@/types';
 import { useClinic } from '@/context/ClinicContext';
@@ -75,6 +76,7 @@ function AppointmentsCalendarContent() {
 
   // Double Booking Warning Modal (FR-61)
   const [conflictWarning, setConflictWarning] = useState<string | null>(null);
+  const [isBooking, setIsBooking] = useState(false);
 
   // Cancellation Modal
   const [cancellingAppt, setCancellingAppt] = useState<IAppointment | null>(null);
@@ -229,8 +231,9 @@ function AppointmentsCalendarContent() {
     }
   };
 
-  // Submit appointment booking
+  // Submit appointment booking (BUG-02: Double-click prevention with loading state)
   const handleSaveAppointment = async (force: boolean = false) => {
+    if (isBooking) return;
     const clientName = selectedClient ? selectedClient.name : inlineName.trim();
     const clientPhone = selectedClient ? selectedClient.mobile : clientSearchMobile.trim();
 
@@ -239,6 +242,7 @@ function AppointmentsCalendarContent() {
       return;
     }
 
+    setIsBooking(true);
     const assignedStaffObj = staffMembers.find((s) => s.name === bookingStaff);
 
     // BUG-18: Multi-sitting package booking workflow
@@ -281,6 +285,8 @@ function AppointmentsCalendarContent() {
       } catch (err) {
         alert('Failed to schedule some package sittings');
         return;
+      } finally {
+        setIsBooking(false);
       }
     }
 
@@ -327,6 +333,8 @@ function AppointmentsCalendarContent() {
       }
     } catch (err) {
       alert('Failed to connect to appointments service');
+    } finally {
+      setIsBooking(false);
     }
   };
 
@@ -634,10 +642,14 @@ function AppointmentsCalendarContent() {
       {currentView === 'grid' && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <div className="min-w-[850px]">
-              {/* Sticky Staff Column Headers */}
-              <div className="grid grid-cols-[80px_repeat(auto-fit,_minmax(190px,_1fr))] border-b border-slate-200 bg-slate-50 sticky top-0 z-10">
-                <div className="p-3 text-center text-xs font-bold text-slate-600 uppercase tracking-wider border-r border-slate-200">
+            <div style={{ minWidth: `${Math.max(850, 85 + visibleStaffMembers.length * 190)}px` }}>
+              {/* Sticky Staff Column Headers (BUG-03: Fixed count columns to prevent wrapping & align with time grid) */}
+              <div
+                className="grid border-b border-slate-200 bg-slate-50 sticky top-0 z-10"
+                style={{ gridTemplateColumns: `85px repeat(${visibleStaffMembers.length}, minmax(190px, 1fr))` }}
+              >
+                {/* Sticky Time Header */}
+                <div className="p-3 text-center text-xs font-bold text-slate-700 uppercase tracking-wider border-r border-slate-200 sticky left-0 z-20 bg-slate-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]">
                   Time
                 </div>
                 {visibleStaffMembers.map((st) => {
@@ -647,7 +659,7 @@ function AppointmentsCalendarContent() {
                   return (
                     <div
                       key={st._id}
-                      className="p-3 border-r border-slate-200 last:border-r-0 flex items-center space-x-2.5"
+                      className="p-3 border-r border-slate-200 last:border-r-0 flex items-center space-x-2.5 bg-slate-50"
                     >
                       <div
                         className="w-9 h-9 rounded-full flex items-center justify-center font-black text-sm text-white shadow-xs shrink-0"
@@ -669,15 +681,16 @@ function AppointmentsCalendarContent() {
                 })}
               </div>
 
-              {/* Time Slots Grid Rows */}
+              {/* Time Slots Grid Rows (BUG-03: Synchronized columns with header) */}
               <div className="divide-y divide-slate-100">
                 {gridTimeSlots.map((slot) => (
                   <div
                     key={slot}
-                    className="grid grid-cols-[80px_repeat(auto-fit,_minmax(190px,_1fr))] min-h-[75px]"
+                    className="grid min-h-[75px]"
+                    style={{ gridTemplateColumns: `85px repeat(${visibleStaffMembers.length}, minmax(190px, 1fr))` }}
                   >
-                    {/* Time Label */}
-                    <div className="p-2.5 border-r border-slate-200 text-center font-mono font-bold text-[11px] text-slate-500 bg-slate-50/60 flex items-start justify-center pt-3">
+                    {/* Sticky Time Label (Always anchored to the left while scrolling horizontally across doctors) */}
+                    <div className="p-2.5 border-r border-slate-200 text-center font-mono font-bold text-[11px] text-slate-700 bg-slate-50 flex items-start justify-center pt-3 sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]">
                       {slot}
                     </div>
 
@@ -1068,10 +1081,11 @@ function AppointmentsCalendarContent() {
                   </button>
                   <button
                     type="button"
+                    disabled={isBooking}
                     onClick={() => handleSaveAppointment(true)}
-                    className="px-3 py-1 bg-amber-600 text-white rounded font-bold hover:bg-amber-700"
+                    className="px-3 py-1 bg-amber-600 text-white rounded font-bold hover:bg-amber-700 disabled:opacity-50"
                   >
-                    Proceed Anyway (Override)
+                    {isBooking ? 'Overriding...' : 'Proceed Anyway (Override)'}
                   </button>
                 </div>
               </div>
@@ -1386,9 +1400,17 @@ function AppointmentsCalendarContent() {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition shadow-xs"
+                  disabled={isBooking}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition shadow-xs disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                 >
-                  Confirm Booking
+                  {isBooking ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Booking...</span>
+                    </>
+                  ) : (
+                    <span>Confirm Booking</span>
+                  )}
                 </button>
               </div>
             </form>
