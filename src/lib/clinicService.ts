@@ -55,62 +55,6 @@ class ClinicService {
       isActive: true,
       createdAt: new Date(Date.now() - 86400000 * 30).toISOString(),
     },
-    {
-      _id: 'store-mdu',
-      name: 'Nila Clinic - Madurai City Outlet',
-      code: 'NILA-MD',
-      address: '18, West Veli Street, Madurai, Tamil Nadu - 625001',
-      phone: '+91 98450 44556',
-      email: 'madurai@nilaclinic.com',
-      gstin: '33ABCDE1234F1Z5',
-      workingHours: { open: '09:00 AM', close: '08:00 PM', weeklyOff: 'None' },
-      invoicePrefix: 'NILA-MD-',
-      nextInvoiceNumber: 1002,
-      isActive: true,
-      createdAt: new Date(Date.now() - 86400000 * 25).toISOString(),
-    },
-    {
-      _id: 'store-chn',
-      name: 'Nila Clinic - Chennai Laser Hub',
-      code: 'NILA-CH',
-      address: '7, Anna Salai, Thousand Lights, Chennai, Tamil Nadu - 600002',
-      phone: '+91 98450 77889',
-      email: 'chennai@nilaclinic.com',
-      gstin: '33ABCDE1234F1Z5',
-      workingHours: { open: '10:00 AM', close: '08:30 PM', weeklyOff: 'Tuesday' },
-      invoicePrefix: 'NILA-CH-',
-      nextInvoiceNumber: 1002,
-      isActive: true,
-      createdAt: new Date(Date.now() - 86400000 * 20).toISOString(),
-    },
-    {
-      _id: 'store-cbe',
-      name: 'Nila Clinic - Coimbatore Aesthetic Center',
-      code: 'NILA-CB',
-      address: '104, Avinashi Road, Peelamedu, Coimbatore, Tamil Nadu - 641004',
-      phone: '+91 98450 88991',
-      email: 'coimbatore@nilaclinic.com',
-      gstin: '33ABCDE1234F1Z5',
-      workingHours: { open: '09:30 AM', close: '08:00 PM', weeklyOff: 'Sunday' },
-      invoicePrefix: 'NILA-CB-',
-      nextInvoiceNumber: 1001,
-      isActive: true,
-      createdAt: new Date(Date.now() - 86400000 * 15).toISOString(),
-    },
-    {
-      _id: 'store-trc',
-      name: 'Nila Clinic - Tiruchirappalli Branch',
-      code: 'NILA-TR',
-      address: '25, Thillai Nagar Main Road, Trichy, Tamil Nadu - 620018',
-      phone: '+91 98450 99002',
-      email: 'trichy@nilaclinic.com',
-      gstin: '33ABCDE1234F1Z5',
-      workingHours: { open: '09:00 AM', close: '07:30 PM', weeklyOff: 'Wednesday' },
-      invoicePrefix: 'NILA-TR-',
-      nextInvoiceNumber: 1001,
-      isActive: true,
-      createdAt: new Date(Date.now() - 86400000 * 10).toISOString(),
-    },
   ];
 
   private users: IUser[] = [
@@ -121,7 +65,7 @@ class ClinicService {
       name: 'Mohan Raj (Administrator)',
       role: 'admin',
       phone: '+91 98450 00001',
-      assignedStoreIds: ['NILA-TH', 'NILA-MD', 'NILA-CH', 'NILA-CB', 'NILA-TR', 'THN', 'MDU', 'CHN'],
+      assignedStoreIds: ['NILA-TH', 'THN'],
       primaryStoreId: 'NILA-TH',
       isActive: true,
     },
@@ -138,30 +82,6 @@ class ClinicService {
       isActive: true,
     },
     {
-      _id: 'user-doc-2',
-      email: 'doctor.madurai@nilaclinic.com',
-      password: 'doctor',
-      name: 'Dr. Rajesh Varma',
-      role: 'doctor',
-      phone: '+91 98450 33445',
-      assignedStoreIds: ['NILA-MD', 'MDU'],
-      primaryStoreId: 'NILA-MD',
-      specialization: 'Consultant Trichologist & Hair Transplant',
-      isActive: true,
-    },
-    {
-      _id: 'user-doc-3',
-      email: 'doctor.chennai@nilaclinic.com',
-      password: 'doctor',
-      name: 'Dr. Priya Dharshini',
-      role: 'doctor',
-      phone: '+91 98450 44556',
-      assignedStoreIds: ['NILA-CH', 'NILA-CB', 'CHN'],
-      primaryStoreId: 'NILA-CH',
-      specialization: 'Laser Specialist & Facial Aesthetics',
-      isActive: true,
-    },
-    {
       _id: 'user-staff-1',
       email: 'staff.theni@nilaclinic.com',
       password: 'staff',
@@ -170,17 +90,6 @@ class ClinicService {
       phone: '+91 98450 55667',
       assignedStoreIds: ['NILA-TH', 'THN'],
       primaryStoreId: 'NILA-TH',
-      isActive: true,
-    },
-    {
-      _id: 'user-staff-2',
-      email: 'staff.madurai@nilaclinic.com',
-      password: 'staff',
-      name: 'Kavitha Sundar',
-      role: 'staff',
-      phone: '+91 98450 66778',
-      assignedStoreIds: ['NILA-MD', 'MDU'],
-      primaryStoreId: 'NILA-MD',
       isActive: true,
     },
   ];
@@ -200,32 +109,6 @@ class ClinicService {
       isActive: true,
     },
     {
-      _id: 'staff-2',
-      name: 'Dr. Rajesh Varma',
-      mobile: '+91 98450 33445',
-      email: 'doctor.madurai@nilaclinic.com',
-      designation: 'Doctor',
-      stores: ['NILA-MD'],
-      calendarColour: '#0d9488',
-      showInAppointmentCalendar: true,
-      hasLogin: true,
-      loginRole: 'Doctor',
-      isActive: true,
-    },
-    {
-      _id: 'staff-3',
-      name: 'Dr. Priya Dharshini',
-      mobile: '+91 98450 44556',
-      email: 'doctor.chennai@nilaclinic.com',
-      designation: 'Doctor',
-      stores: ['NILA-CH', 'NILA-CB'],
-      calendarColour: '#7c3aed',
-      showInAppointmentCalendar: true,
-      hasLogin: true,
-      loginRole: 'Doctor',
-      isActive: true,
-    },
-    {
       _id: 'staff-4',
       name: 'Pooja Sharma',
       mobile: '+91 98450 55667',
@@ -239,24 +122,11 @@ class ClinicService {
       isActive: true,
     },
     {
-      _id: 'staff-5',
-      name: 'Kavitha Sundar',
-      mobile: '+91 98450 66778',
-      email: 'staff.madurai@nilaclinic.com',
-      designation: 'Front desk',
-      stores: ['NILA-MD'],
-      calendarColour: '#ec4899',
-      showInAppointmentCalendar: false,
-      hasLogin: true,
-      loginRole: 'Staff',
-      isActive: true,
-    },
-    {
       _id: 'staff-6',
       name: 'Sujatha P.',
       mobile: '+91 98450 88990',
       designation: 'Therapist',
-      stores: ['NILA-TH', 'NILA-MD', 'NILA-CB'],
+      stores: ['NILA-TH'],
       calendarColour: '#f59e0b',
       showInAppointmentCalendar: true,
       hasLogin: false,
@@ -738,187 +608,9 @@ class ClinicService {
     },
   ];
 
-  private appointments: IAppointment[] = [
-    {
-      _id: 'appt-1',
-      appointmentId: 'APP-1001',
-      customerId: 'CID-1001',
-      customerName: 'Priya Sharma',
-      customerPhone: '+91 98450 11223',
-      serviceName: 'Q-Switch Laser Carbon Peel',
-      serviceId: 'svc-2',
-      doctorId: 'user-doc-1',
-      doctorName: 'Dr. Anitha Ramachandran',
-      staffName: 'Dr. Anitha Ramachandran',
-      staffId: 'staff-1',
-      storeId: 'NILA-TH',
-      date: new Date().toISOString().split('T')[0],
-      startTime: '10:00 AM',
-      durationMins: 30,
-      status: 'Arrived',
-      notes: 'Third session of Q-Switch Laser package',
-      amount: 2500,
-      createdAt: new Date().toISOString(),
-    },
-    {
-      _id: 'appt-2',
-      appointmentId: 'APP-1002',
-      customerId: 'CID-1002',
-      customerName: 'Deepa Lakshmi',
-      customerPhone: '+91 98765 88990',
-      serviceName: 'Advanced Keratin Scalp Therapy',
-      serviceId: 'svc-4',
-      staffName: 'Sujatha P.',
-      staffId: 'staff-6',
-      storeId: 'NILA-TH',
-      date: new Date().toISOString().split('T')[0],
-      startTime: '11:30 AM',
-      durationMins: 45,
-      status: 'Booked',
-      notes: 'Scalp deep nourishment and follicle activation',
-      amount: 3200,
-      createdAt: new Date().toISOString(),
-    },
-    {
-      _id: 'appt-3',
-      appointmentId: 'APP-1003',
-      customerId: 'CID-1003',
-      customerName: 'Sangeetha Mohan',
-      customerPhone: '+91 94431 55667',
-      serviceName: 'Hydra Facial & Glowing Treatment',
-      serviceId: 'svc-1',
-      doctorId: 'user-doc-2',
-      doctorName: 'Dr. Rajesh Varma',
-      staffName: 'Dr. Rajesh Varma',
-      staffId: 'staff-2',
-      storeId: 'NILA-MD',
-      date: new Date().toISOString().split('T')[0],
-      startTime: '02:00 PM',
-      durationMins: 45,
-      status: 'In consultation',
-      notes: 'Monthly facial routine & consultation',
-      amount: 2499,
-      createdAt: new Date().toISOString(),
-    },
-    {
-      _id: 'appt-4',
-      appointmentId: 'APP-1004',
-      customerId: 'CID-1004',
-      customerName: 'Karthik Subramanian',
-      customerPhone: '+91 98401 22334',
-      serviceName: 'Laser Hair Reduction (Full Face)',
-      serviceId: 'svc-3',
-      doctorId: 'user-doc-3',
-      doctorName: 'Dr. Priya Dharshini',
-      staffName: 'Dr. Priya Dharshini',
-      staffId: 'staff-3',
-      storeId: 'NILA-CH',
-      date: new Date().toISOString().split('T')[0],
-      startTime: '04:15 PM',
-      durationMins: 30,
-      status: 'Booked',
-      notes: 'Second sitting of beard line diode laser',
-      amount: 2999,
-      createdAt: new Date().toISOString(),
-    },
-    {
-      _id: 'appt-5',
-      appointmentId: 'APP-1005',
-      customerId: 'CID-1005',
-      customerName: 'Meena Kumari',
-      customerPhone: '+91 97890 44556',
-      serviceName: 'Doctor Consultation Fee',
-      serviceId: 'svc-5',
-      doctorId: 'user-doc-1',
-      doctorName: 'Dr. Anitha Ramachandran',
-      staffName: 'Dr. Anitha Ramachandran',
-      staffId: 'staff-1',
-      storeId: 'NILA-TH',
-      date: new Date().toISOString().split('T')[0],
-      startTime: '09:30 AM',
-      durationMins: 15,
-      status: 'Completed',
-      notes: 'Anti-aging skin assessment',
-      amount: 500,
-      createdAt: new Date().toISOString(),
-    },
-  ];
+  private appointments: IAppointment[] = [];
 
-  private visits: IVisit[] = [
-    {
-      _id: 'vis-1',
-      visitId: 'VIS-1001',
-      patientId: 'CID-1001',
-      patientName: 'Priya Sharma',
-      patientPhone: '+91 98450 11223',
-      storeId: 'NILA-TH',
-      doctorId: 'user-doc-1',
-      doctorName: 'Dr. Anitha Ramachandran',
-      status: 'Waiting',
-      caseNotes: 'Chief complaints: Persistent acne eruption on chin and forehead. Grade II comedones.',
-      isReadByDoctor: false,
-      createdAt: new Date().toISOString(),
-    },
-    {
-      _id: 'vis-2',
-      visitId: 'VIS-1002',
-      patientId: 'CID-1002',
-      patientName: 'Deepa Lakshmi',
-      patientPhone: '+91 98765 88990',
-      storeId: 'NILA-TH',
-      doctorId: 'user-doc-1',
-      doctorName: 'Dr. Anitha Ramachandran',
-      status: 'Waiting',
-      caseNotes: 'Chief complaints: Excessive hair fall during shampooing. Scalp flaking.',
-      isReadByDoctor: false,
-      createdAt: new Date().toISOString(),
-    },
-    {
-      _id: 'vis-3',
-      visitId: 'VIS-1003',
-      patientId: 'CID-1003',
-      patientName: 'Sangeetha Mohan',
-      patientPhone: '+91 94431 55667',
-      storeId: 'NILA-MD',
-      doctorId: 'user-doc-2',
-      doctorName: 'Dr. Rajesh Varma',
-      status: 'In consultation',
-      caseNotes: 'Bilateral cheek hyperpigmentation. Sun exposure history.',
-      isReadByDoctor: true,
-      createdAt: new Date().toISOString(),
-    },
-    {
-      _id: 'vis-4',
-      visitId: 'VIS-1004',
-      patientId: 'CID-1004',
-      patientName: 'Karthik Subramanian',
-      patientPhone: '+91 98401 22334',
-      storeId: 'NILA-CH',
-      doctorId: 'user-doc-3',
-      doctorName: 'Dr. Priya Dharshini',
-      status: 'Waiting',
-      caseNotes: 'Beard neckline diode laser session #2 evaluation.',
-      isReadByDoctor: false,
-      createdAt: new Date().toISOString(),
-    },
-    {
-      _id: 'vis-5',
-      visitId: 'VIS-1005',
-      patientId: 'CID-1005',
-      patientName: 'Meena Kumari',
-      patientPhone: '+91 97890 44556',
-      storeId: 'NILA-TH',
-      doctorId: 'user-doc-1',
-      doctorName: 'Dr. Anitha Ramachandran',
-      status: 'Done',
-      caseNotes: 'DIAGNOSIS: Mild Photodamage & Epidermal Dehydration.\nAdvised daily broad-spectrum SPF 50 and Hyaluronic acid infusion.',
-      prescriptionText: '1. Nila Sunscreen SPF 50+ - Apply generously 20 mins before sun exposure.\n2. Niacinamide 10% Serum - 3 drops at night.',
-      billId: 'NILA-TH-1001',
-      isReadByDoctor: true,
-      createdAt: new Date(Date.now() - 7200000).toISOString(),
-      consultedAt: new Date(Date.now() - 3600000).toISOString(),
-    },
-  ];
+  private visits: IVisit[] = [];
 
   private invoices: IInvoice[] = [
     {
@@ -1133,15 +825,22 @@ class ClinicService {
     try {
       const db = await connectToDatabase();
       if (db) {
+        // Enforce ONLY Theni branch (remove all other branches from database)
+        await (Store as any).deleteMany({ code: { $nin: ['NILA-TH', 'THN'] } });
+        const existingTheni = await (Store as any).findOne({ code: { $in: ['NILA-TH', 'THN'] } });
+        if (!existingTheni) {
+          await (Store as any).create(this.stores[0]);
+        }
+
         const docs = await (Store as any)
-          .find({ isActive: { $ne: false } })
+          .find({ isActive: { $ne: false }, code: { $in: ['NILA-TH', 'THN'] } })
           .select('name code address phone email gstin workingHours invoicePrefix nextInvoiceNumber isActive')
           .sort({ createdAt: 1 })
           .lean();
-        if (docs) {
+        if (docs && docs.length > 0) {
           return docs.map((d: any) => ({ ...d, _id: d._id?.toString() }));
         }
-        return [];
+        return this.stores;
       }
     } catch (e) { }
     return this.stores;
@@ -2474,6 +2173,15 @@ class ClinicService {
     try {
       const db = await connectToDatabase();
       if (db) {
+        // Enforce clean state by removing mock dummy appointments from database
+        await (Appointment as any).deleteMany({
+          $or: [
+            { appointmentId: { $in: ['APP-1001', 'APP-1002', 'APP-1003', 'APP-1004', 'APP-1005'] } },
+            { customerName: { $in: ['Priya Sharma', 'Deepa Lakshmi', 'Sangeetha Mohan', 'Karthik Subramanian', 'Meena Kumari'] } },
+            { isDummyData: true },
+          ],
+        });
+
         const query: any = {};
         if (storeCode && storeCode !== 'ALL') {
           query.storeId = { $in: [storeCode.toUpperCase(), storeCode.replace('NILA-', '')] };
@@ -2486,10 +2194,7 @@ class ClinicService {
         if (docs && docs.length > 0) {
           return docs.map((d: any) => ({ ...d, _id: d._id?.toString() }));
         }
-        const totalApptCount = await (Appointment as any).countDocuments();
-        if (totalApptCount > 0) {
-          return [];
-        }
+        return [];
       }
     } catch (e) { }
 
@@ -2625,6 +2330,36 @@ class ClinicService {
     return null;
   }
 
+  async deleteAppointment(id: string): Promise<boolean> {
+    try {
+      const db = await connectToDatabase();
+      if (db) {
+        const isValidOid = mongoose.isValidObjectId ? mongoose.isValidObjectId(id) : false;
+        await (Appointment as any).deleteMany({
+          $or: [
+            ...(isValidOid ? [{ _id: id }] : []),
+            { appointmentId: id },
+          ],
+        });
+      }
+    } catch (e) { }
+    this.appointments = this.appointments.filter(a => a._id !== id && a.appointmentId !== id);
+    return true;
+  }
+
+  async clearAllAppointments(): Promise<boolean> {
+    try {
+      const db = await connectToDatabase();
+      if (db) {
+        await (Appointment as any).deleteMany({});
+        await (Visit as any).deleteMany({});
+      }
+    } catch (e) { }
+    this.appointments = [];
+    this.visits = [];
+    return true;
+  }
+
   // Appointment Check-in (Pushes patient to Doctor's Consultation Queue)
   async checkInAppointment(appointmentId: string): Promise<{ appointment: IAppointment; visit?: IVisit }> {
     const appt = await this.updateAppointment(appointmentId, { status: 'Arrived' });
@@ -2653,6 +2388,15 @@ class ClinicService {
     try {
       const db = await connectToDatabase();
       if (db) {
+        // Enforce clean state by removing mock dummy visits from database
+        await (Visit as any).deleteMany({
+          $or: [
+            { visitId: { $in: ['VIS-1001', 'VIS-1002', 'VIS-1003', 'VIS-1004', 'VIS-1005'] } },
+            { patientName: { $in: ['Priya Sharma', 'Deepa Lakshmi', 'Sangeetha Mohan', 'Karthik Subramanian', 'Meena Kumari'] } },
+            { isDummyData: true },
+          ],
+        });
+
         const query: any = {};
         if (storeCode && storeCode !== 'ALL') {
           query.storeId = { $in: [storeCode.toUpperCase(), storeCode.replace('NILA-', '')] };

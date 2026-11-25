@@ -171,3 +171,25 @@ export async function PUT(req: Request) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });
   }
 }
+
+export async function DELETE(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get('id');
+    const all = searchParams.get('all');
+
+    if (all === 'true') {
+      await clinicService.clearAllAppointments();
+      return NextResponse.json({ success: true, message: 'All appointments cleared successfully' });
+    }
+
+    if (!id) {
+      return NextResponse.json({ success: false, message: 'Appointment ID is required' }, { status: 400 });
+    }
+
+    const deleted = await clinicService.deleteAppointment(id);
+    return NextResponse.json({ success: true, data: deleted, message: 'Appointment deleted successfully' });
+  } catch (err: any) {
+    return NextResponse.json({ success: false, message: err.message }, { status: 500 });
+  }
+}

@@ -29,30 +29,6 @@ export default function Footer({ branches: propBranches }: FooterProps) {
       address: '42, Theni Main Road, Opp. District Court, Theni - 625531',
       phone: '+91 98450 11223',
     },
-    {
-      code: 'madurai',
-      city: 'Madurai City Hub',
-      address: '18, West Veli Street, Near Junction, Madurai - 625001',
-      phone: '+91 98450 44556',
-    },
-    {
-      code: 'chennai',
-      city: 'Chennai Laser Suite',
-      address: '7, Anna Salai, Thousand Lights, Chennai - 600002',
-      phone: '+91 98450 77889',
-    },
-    {
-      code: 'coimbatore',
-      city: 'Coimbatore Aesthetic Center',
-      address: '104, Avinashi Road, Peelamedu, Coimbatore - 641004',
-      phone: '+91 98450 88991',
-    },
-    {
-      code: 'trichy',
-      city: 'Trichy Clinical Center',
-      address: '25, Thillai Nagar Main Road, Trichy - 620018',
-      phone: '+91 98450 99002',
-    },
   ];
 
   const branches =

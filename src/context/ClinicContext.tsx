@@ -79,7 +79,7 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
       email: 'admin@nilaclinic.com',
       name: 'Mohan Raj (Admin)',
       role: 'admin',
-      assignedStoreIds: ['NILA-TH', 'NILA-MD', 'NILA-CH', 'NILA-CB', 'NILA-TR', 'NILA-PUD', 'THN', 'MDU', 'CHN'],
+      assignedStoreIds: ['NILA-TH', 'THN'],
       primaryStoreId: 'NILA-TH',
       isActive: true,
     };

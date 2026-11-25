@@ -846,7 +846,9 @@ function QuickSalePOSContent() {
           <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
             <div className="flex items-center justify-between text-sm font-black text-slate-900 border-b border-slate-100 pb-2.5">
               <span>2. Line Items ({items.length})</span>
-              <span className="text-xs text-slate-500 font-normal">Prices loaded from masters</span>
+              <span className="text-xs text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                Prices editable per item
+              </span>
             </div>
 
             {items.length === 0 ? (
@@ -897,11 +899,13 @@ function QuickSalePOSContent() {
                           <input
                             type="number"
                             min="0"
-                            disabled={!settings?.staffCanEditPrice && user?.role !== 'admin' && !it.name.toLowerCase().includes('consultation')}
-                            value={it.price}
+                            disabled={Boolean(it.isFromPackage)}
+                            value={it.price === 0 && !it.isFromPackage ? '' : it.price}
                             onChange={(e) => updateItemField(idx, 'price', Math.max(0, Number(e.target.value) || 0))}
-                            placeholder={it.name.toLowerCase().includes('consultation') ? 'Enter fee' : '0'}
-                            className="w-24 text-right bg-slate-50 border border-slate-200 rounded-lg py-1 font-bold text-sm disabled:opacity-60 focus:ring-1 focus:ring-emerald-500"
+                            onFocus={(e) => e.target.select()}
+                            placeholder="0"
+                            title={it.isFromPackage ? 'Package redemption sitting is ₹0' : 'Click to edit item price'}
+                            className="w-24 text-right bg-white border border-slate-300 hover:border-emerald-500 focus:border-emerald-500 rounded-lg py-1 px-2 font-bold text-sm text-slate-900 shadow-2xs focus:ring-2 focus:ring-emerald-500/20 outline-none disabled:opacity-60 disabled:bg-slate-100 transition-colors"
                           />
                         </td>
                         <td className="px-3.5 py-2.5 text-center">

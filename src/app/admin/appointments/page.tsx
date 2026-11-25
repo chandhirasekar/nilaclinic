@@ -642,60 +642,79 @@ function AppointmentsCalendarContent() {
       {currentView === 'grid' && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <div style={{ minWidth: `${Math.max(850, 85 + visibleStaffMembers.length * 190)}px` }}>
+            <div style={{ minWidth: visibleStaffMembers.length > 0 ? `${Math.max(850, 85 + visibleStaffMembers.length * 190)}px` : '100%' }}>
               {/* Sticky Staff Column Headers (BUG-03: Fixed count columns to prevent wrapping & align with time grid) */}
               <div
-                className="grid border-b border-slate-200 bg-slate-50 sticky top-0 z-10"
-                style={{ gridTemplateColumns: `85px repeat(${visibleStaffMembers.length}, minmax(190px, 1fr))` }}
+                className="grid border-b border-slate-200 bg-slate-50 sticky top-0 z-10 w-full"
+                style={{
+                  gridTemplateColumns: visibleStaffMembers.length > 0
+                    ? `85px repeat(${visibleStaffMembers.length}, minmax(190px, 1fr))`
+                    : '85px 1fr'
+                }}
               >
                 {/* Sticky Time Header */}
-                <div className="p-3 text-center text-xs font-bold text-slate-700 uppercase tracking-wider border-r border-slate-200 sticky left-0 z-20 bg-slate-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]">
+                <div className="p-3 text-left pl-3.5 text-xs font-bold text-slate-700 uppercase tracking-wider border-r border-slate-200 sticky left-0 z-20 bg-slate-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)] w-[85px] shrink-0">
                   Time
                 </div>
-                {visibleStaffMembers.map((st) => {
-                  const staffBookings = filteredAppointments.filter(
-                    (a) => a.staffName === st.name || a.doctorName === st.name
-                  );
-                  return (
-                    <div
-                      key={st._id}
-                      className="p-3 border-r border-slate-200 last:border-r-0 flex items-center space-x-2.5 bg-slate-50"
-                    >
+                {visibleStaffMembers.length === 0 ? (
+                  <div className="p-3 text-slate-400 text-xs italic flex items-center pl-4 bg-slate-50">
+                    No doctor schedule for this view
+                  </div>
+                ) : (
+                  visibleStaffMembers.map((st) => {
+                    const staffBookings = filteredAppointments.filter(
+                      (a) => a.staffName === st.name || a.doctorName === st.name
+                    );
+                    return (
                       <div
-                        className="w-9 h-9 rounded-full flex items-center justify-center font-black text-sm text-white shadow-xs shrink-0"
-                        style={{ backgroundColor: st.calendarColour || '#059669' }}
+                        key={st._id}
+                        className="p-3 border-r border-slate-200 last:border-r-0 flex items-center space-x-2.5 bg-slate-50"
                       >
-                        {st.name.charAt(0)}
-                      </div>
-                      <div className="truncate flex-1">
-                        <div className="font-bold text-slate-900 text-sm truncate">{st.name}</div>
-                        <div className="flex items-center space-x-1.5">
-                          <span className="text-xs text-slate-600 truncate font-medium">{st.designation}</span>
-                          <span className="text-xs font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
-                            {staffBookings.length}
-                          </span>
+                        <div
+                          className="w-9 h-9 rounded-full flex items-center justify-center font-black text-sm text-white shadow-xs shrink-0"
+                          style={{ backgroundColor: st.calendarColour || '#059669' }}
+                        >
+                          {st.name.charAt(0)}
+                        </div>
+                        <div className="truncate flex-1">
+                          <div className="font-bold text-slate-900 text-sm truncate">{st.name}</div>
+                          <div className="flex items-center space-x-1.5">
+                            <span className="text-xs text-slate-600 truncate font-medium">{st.designation}</span>
+                            <span className="text-xs font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
+                              {staffBookings.length}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </div>
 
               {/* Time Slots Grid Rows (BUG-03: Synchronized columns with header) */}
-              <div className="divide-y divide-slate-100">
+              <div className="divide-y divide-slate-100 w-full">
                 {gridTimeSlots.map((slot) => (
                   <div
                     key={slot}
-                    className="grid min-h-[75px]"
-                    style={{ gridTemplateColumns: `85px repeat(${visibleStaffMembers.length}, minmax(190px, 1fr))` }}
+                    className="grid min-h-[75px] w-full"
+                    style={{
+                      gridTemplateColumns: visibleStaffMembers.length > 0
+                        ? `85px repeat(${visibleStaffMembers.length}, minmax(190px, 1fr))`
+                        : '85px 1fr'
+                    }}
                   >
                     {/* Sticky Time Label (Always anchored to the left while scrolling horizontally across doctors) */}
-                    <div className="p-2.5 border-r border-slate-200 text-center font-mono font-bold text-[11px] text-slate-700 bg-slate-50 flex items-start justify-center pt-3 sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]">
+                    <div className="p-2.5 border-r border-slate-200 text-left pl-3.5 font-mono font-bold text-[11px] text-slate-700 bg-slate-50 flex items-start justify-start pt-3 sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)] w-[85px] shrink-0">
                       {slot}
                     </div>
 
                     {/* Staff Columns for this Time Slot */}
-                    {visibleStaffMembers.map((st) => {
+                    {visibleStaffMembers.length === 0 ? (
+                      <div className="p-3 text-slate-300 text-xs flex items-center justify-start pl-4 border-r border-slate-100 bg-white hover:bg-slate-50/50 transition-colors">
+                        —
+                      </div>
+                    ) : (
+                      visibleStaffMembers.map((st) => {
                       const apptsInSlot = filteredAppointments.filter((a) => {
                         const matchesStaff = a.staffName === st.name || a.doctorName === st.name;
                         if (!matchesStaff) return false;
@@ -812,7 +831,7 @@ function AppointmentsCalendarContent() {
                           )}
                         </div>
                       );
-                    })}
+                    }))}
                   </div>
                 ))}
               </div>

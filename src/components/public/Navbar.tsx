@@ -31,10 +31,6 @@ export default function Navbar({ currentBranch = 'Theni Main Branch', onBranchCh
 
   const defaultBranches = [
     { name: 'Theni Main Branch', address: 'Theni Main Rd', phone: '+91 98450 11223' },
-    { name: 'Madurai City Outlet', address: 'West Veli St', phone: '+91 98450 44556' },
-    { name: 'Chennai Laser Hub', address: 'Anna Salai, Thousand Lights', phone: '+91 98450 77889' },
-    { name: 'Coimbatore Center', address: 'Avinashi Rd, Peelamedu', phone: '+91 98450 88991' },
-    { name: 'Trichy Branch', address: 'Thillai Nagar Main Rd', phone: '+91 98450 99002' },
   ];
 
   const branches = propBranches && propBranches.length > 0 ? propBranches : defaultBranches;

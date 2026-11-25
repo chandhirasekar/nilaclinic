@@ -75,7 +75,7 @@ export async function POST(req: Request) {
           name: 'Mohan Raj (Director)',
           role: 'admin',
           phone: '+91 98450 11223',
-          assignedStoreIds: ['NILA-TH', 'NILA-MD', 'NILA-CH', 'NILA-CB', 'NILA-TR'],
+          assignedStoreIds: ['NILA-TH', 'THN'],
           primaryStoreId: 'NILA-TH',
           isActive: true,
           password: 'admin',

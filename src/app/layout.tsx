@@ -90,7 +90,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="h-full antialiased">
+    <html lang="en" className="h-full antialiased" suppressHydrationWarning>
       <head>
         {/* Fallback Open Graph tags for legacy social crawlers */}
         <meta property="og:title" content="Nila Clinic - Skin & Hair Care Center" />
@@ -111,7 +111,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
         <meta name="twitter:image" content={`${siteUrl}/og-image.jpg`} />
       </head>
-      <body className="min-h-full flex flex-col font-sans bg-slate-50 text-slate-900">
+      <body className="min-h-full flex flex-col font-sans bg-slate-50 text-slate-900" suppressHydrationWarning>
         {children}
       </body>
     </html>
