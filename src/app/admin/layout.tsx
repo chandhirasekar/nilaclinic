@@ -33,7 +33,15 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => {
     setMounted(true);
-  }, []);
+    try {
+      const saved = localStorage.getItem('nilaclinic_user') || localStorage.getItem('miosalon_user');
+      if (!saved && !user) {
+        window.location.href = '/login';
+      }
+    } catch (e) {
+      if (!user) window.location.href = '/login';
+    }
+  }, [user]);
 
   const userRole = user?.role || 'admin';
 

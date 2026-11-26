@@ -207,7 +207,7 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* ================= RIGHT COLUMN: CLINIC WALL IMAGE ONLY ================= */}
+      {/* ================= RIGHT COLUMN: CLINIC WALL IMAGE ================= */}
       <div className="hidden lg:block lg:w-1/2 xl:w-7/12 relative min-h-screen overflow-hidden bg-slate-950">
         <img
           src="/images/login-wall.jpg"

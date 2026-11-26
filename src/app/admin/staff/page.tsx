@@ -17,6 +17,7 @@ import {
   Briefcase,
   Eye,
   EyeOff,
+  Trash2,
 } from 'lucide-react';
 import { IStaff, StaffDesignation } from '@/types';
 import { useClinic } from '@/context/ClinicContext';
@@ -170,6 +171,36 @@ export default function StaffMasterPage() {
     }
   };
 
+  const handleDeleteStaff = async (st: IStaff) => {
+    const isNonDeletableAdmin =
+      st.loginRole === 'Admin' ||
+      (st.designation as string) === 'Admin' ||
+      st.name.toLowerCase().includes('director') ||
+      st.name.toLowerCase().includes('mohan') ||
+      st.email?.toLowerCase().includes('admin@');
+
+    if (isNonDeletableAdmin) {
+      alert('Administrator & Director accounts cannot be deleted.');
+      return;
+    }
+    const confirmed = window.confirm(`Are you sure you want to delete staff member "${st.name}"? This action cannot be undone.`);
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch(`/api/masters/staff?id=${encodeURIComponent(st._id)}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (data.success) {
+        await loadStaff();
+      } else {
+        alert(data.message || 'Failed to delete staff member');
+      }
+    } catch (e: any) {
+      alert(e.message || 'Error deleting staff member');
+    }
+  };
+
   const filteredStaff = staffList.filter((st) => {
     const matchesSearch =
       st.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -181,7 +212,7 @@ export default function StaffMasterPage() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -223,110 +254,144 @@ export default function StaffMasterPage() {
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
-              {des}
+              {des}y
             </button>
           ))}
         </div>
       </div>
 
       {/* Staff Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredStaff.map((st) => (
-          <div
-            key={st._id}
-            className={`bg-white rounded-2xl border p-5 shadow-xs transition-all flex flex-col justify-between ${
-              st.isActive ? 'border-slate-200 hover:border-slate-300' : 'border-red-200 bg-red-50/20 opacity-75'
-            }`}
-          >
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <span
-                  className="w-3.5 h-3.5 rounded-full inline-block border border-white shadow-xs"
-                  style={{ backgroundColor: st.calendarColour || '#0284c7' }}
-                  title="Calendar Colour"
-                ></span>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        {filteredStaff.map((st) => {
+          const isNonDeletableAdmin =
+            st.loginRole === 'Admin' ||
+            (st.designation as string) === 'Admin' ||
+            st.name.toLowerCase().includes('director') ||
+            st.name.toLowerCase().includes('mohan') ||
+            st.email?.toLowerCase().includes('admin@');
 
-                <span
-                  className={`text-xs font-bold px-2.5 py-1 rounded-full ${
-                    st.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-700'
+          return (
+            <div
+              key={st._id}
+              className={`bg-white rounded-2xl border p-5 shadow-xs transition-all flex flex-col justify-between h-full ${
+                st.isActive ? 'border-slate-200 hover:border-slate-300' : 'border-red-200 bg-red-50/20 opacity-75'
+              }`}
+            >
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center space-x-2">
+                    <span
+                      className="w-3.5 h-3.5 rounded-full inline-block border border-white shadow-xs shrink-0"
+                      style={{ backgroundColor: st.calendarColour || '#0284c7' }}
+                      title="Calendar Colour"
+                    />
+                    <span className="text-[11px] font-mono text-slate-400">ID: {st._id.slice(-6)}</span>
+                  </div>
+
+                  <span
+                    className={`text-xs font-bold px-2.5 py-1 rounded-full ${
+                      st.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-700'
+                    }`}
+                  >
+                    {st.isActive ? 'Active' : 'Deactivated'}
+                  </span>
+                </div>
+
+                <div className="flex items-center space-x-3 min-h-[46px]">
+                  <div
+                    className="w-10 h-10 rounded-full text-white font-bold flex items-center justify-center text-sm shadow-xs shrink-0 capitalize"
+                    style={{ backgroundColor: st.calendarColour || '#0284c7' }}
+                  >
+                    {st.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-bold text-slate-900 text-base leading-tight truncate capitalize">{st.name}</h3>
+                    <span className="text-xs font-semibold text-slate-500">{st.designation}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 text-xs text-slate-700 mt-3 pt-3 border-t border-slate-100 min-h-[96px] flex flex-col justify-start">
+                  <div className="flex items-center space-x-2">
+                    <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span className="text-xs font-medium">{st.mobile}</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span className="text-xs font-medium truncate">{st.email || '—'}</span>
+                  </div>
+                  <div className="flex items-center space-x-2 text-xs text-slate-500 font-medium">
+                    <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span>Calendar View: {st.showInAppointmentCalendar ? 'Visible' : 'Hidden'}</span>
+                  </div>
+                  {st.hasLogin ? (
+                    <div className="pt-0.5">
+                      <span className="inline-flex items-center space-x-1 text-[11px] text-purple-700 font-bold bg-purple-50 px-2 py-0.5 rounded-md border border-purple-100">
+                        <Lock className="w-3 h-3 shrink-0" />
+                        <span>Login Enabled ({st.loginRole || 'Staff'})</span>
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="h-5" />
+                  )}
+                </div>
+
+                {/* Assigned stores tags */}
+                <div className="mt-3 pt-2.5 border-t border-slate-100 min-h-[58px] flex flex-col justify-start">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block mb-1">
+                    Assigned Stores:
+                  </span>
+                  <div className="flex flex-wrap gap-1">
+                    {st.stores && st.stores.length > 0 ? (
+                      st.stores.map((sc) => (
+                        <span
+                          key={sc}
+                          className="text-[11px] font-bold px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md border border-slate-200/60"
+                        >
+                          {sc}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-xs text-slate-400 italic">None</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                <button
+                  onClick={() => toggleStaffActive(st)}
+                  className={`text-xs sm:text-sm font-bold px-3 py-1 rounded-lg transition-all ${
+                    st.isActive ? 'text-red-600 hover:bg-red-50' : 'text-emerald-700 hover:bg-emerald-50'
                   }`}
                 >
-                  {st.isActive ? 'Active' : 'Deactivated'}
-                </span>
-              </div>
+                  {st.isActive ? 'Deactivate' : 'Activate'}
+                </button>
 
-              <div className="flex items-center space-x-2.5">
-                <div
-                  className="w-10 h-10 rounded-full text-white font-bold flex items-center justify-center text-sm shadow-xs"
-                  style={{ backgroundColor: st.calendarColour || '#0284c7' }}
-                >
-                  {st.name.charAt(0)}
-                </div>
-                <div>
-                  <h3 className="font-bold text-slate-900 text-base leading-tight">{st.name}</h3>
-                  <span className="text-xs font-bold text-slate-600">{st.designation}</span>
-                </div>
-              </div>
+                <div className="flex items-center space-x-1">
+                  <button
+                    onClick={() => handleOpenEdit(st)}
+                    className="p-1.5 text-slate-600 hover:text-sky-600 hover:bg-sky-50 rounded-lg text-xs sm:text-sm font-bold flex items-center space-x-1"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                    <span>Edit</span>
+                  </button>
 
-              <div className="space-y-1.5 text-xs text-slate-700 mt-3 pt-3 border-t border-slate-100">
-                <div className="flex items-center space-x-2">
-                  <Phone className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                  <span className="text-xs font-medium">{st.mobile}</span>
-                </div>
-                {st.email && (
-                  <div className="flex items-center space-x-2">
-                    <Mail className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                    <span className="text-xs font-medium truncate">{st.email}</span>
-                  </div>
-                )}
-                <div className="flex items-center space-x-2 text-xs text-slate-600 font-medium">
-                  <Calendar className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                  <span>Calendar View: {st.showInAppointmentCalendar ? 'Visible' : 'Hidden'}</span>
-                </div>
-                {st.hasLogin && (
-                  <div className="flex items-center space-x-1.5 text-xs text-purple-700 font-bold bg-purple-50 px-2.5 py-1 rounded-md inline-block">
-                    <Lock className="w-3.5 h-3.5 inline mr-1" />
-                    <span>Login Enabled ({st.loginRole})</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Assigned stores tags */}
-              <div className="mt-3 pt-2 border-t border-slate-100">
-                <span className="text-xs uppercase font-bold text-slate-500 block mb-1">Assigned Stores:</span>
-                <div className="flex flex-wrap gap-1">
-                  {st.stores.map((sc) => (
-                    <span key={sc} className="text-xs font-bold px-2 py-0.5 bg-slate-100 text-slate-700 rounded">
-                      {sc}
-                    </span>
-                  ))}
+                  {user?.role === 'admin' && !isNonDeletableAdmin && (
+                    <button
+                      onClick={() => handleDeleteStaff(st)}
+                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg text-xs sm:text-sm font-bold flex items-center space-x-1"
+                      title="Delete Staff Member (Admin only)"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Delete</span>
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
-
-            {/* Actions */}
-            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
-              <button
-                onClick={() => toggleStaffActive(st)}
-                className={`text-xs sm:text-sm font-bold px-3 py-1 rounded-lg transition-all ${
-                  st.isActive
-                    ? 'text-red-600 hover:bg-red-50'
-                    : 'text-emerald-700 hover:bg-emerald-50'
-                }`}
-              >
-                {st.isActive ? 'Deactivate' : 'Activate'}
-              </button>
-
-              <button
-                onClick={() => handleOpenEdit(st)}
-                className="p-1.5 text-slate-600 hover:text-sky-600 hover:bg-sky-50 rounded-lg text-xs sm:text-sm font-bold flex items-center space-x-1"
-              >
-                <Edit2 className="w-3.5 h-3.5" />
-                <span>Edit</span>
-              </button>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Modal */}

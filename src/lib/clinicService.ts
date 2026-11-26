@@ -825,20 +825,22 @@ class ClinicService {
     try {
       const db = await connectToDatabase();
       if (db) {
-        // Enforce ONLY Theni branch (remove all other branches from database)
-        await (Store as any).deleteMany({ code: { $nin: ['NILA-TH', 'THN'] } });
-        const existingTheni = await (Store as any).findOne({ code: { $in: ['NILA-TH', 'THN'] } });
-        if (!existingTheni) {
-          await (Store as any).create(this.stores[0]);
+        // Ensure default Theni store exists if database has 0 stores
+        const count = await (Store as any).countDocuments();
+        if (count === 0 && this.stores.length > 0) {
+          const { _id, ...theniData } = this.stores[0];
+          await (Store as any).create(theniData);
         }
 
         const docs = await (Store as any)
-          .find({ isActive: { $ne: false }, code: { $in: ['NILA-TH', 'THN'] } })
+          .find({ isActive: { $ne: false } })
           .select('name code address phone email gstin workingHours invoicePrefix nextInvoiceNumber isActive')
           .sort({ createdAt: 1 })
           .lean();
         if (docs && docs.length > 0) {
-          return docs.map((d: any) => ({ ...d, _id: d._id?.toString() }));
+          const mapped = docs.map((d: any) => ({ ...d, _id: d._id?.toString() }));
+          this.stores = mapped;
+          return mapped;
         }
         return this.stores;
       }
@@ -876,11 +878,17 @@ class ClinicService {
         const doc = await (Store as any).create(storeData);
         const saved = doc.toObject();
         saved._id = saved._id.toString();
-        this.stores.push(saved);
+        const existingIdx = this.stores.findIndex(s => s.code.toUpperCase() === code);
+        if (existingIdx !== -1) {
+          this.stores[existingIdx] = saved;
+        } else {
+          this.stores.push(saved);
+        }
         return saved;
       }
     } catch (e) {
       console.error('Error creating store in MongoDB:', e);
+      throw e;
     }
 
     this.stores.push(newStore);
@@ -1071,6 +1079,19 @@ class ClinicService {
         if (doc) {
           const idx = this.users.findIndex(u => u._id === id);
           if (idx !== -1) this.users[idx] = { ...this.users[idx], ...updates };
+
+          // Sync isActive status with Staff collection if updated
+          if (updates.isActive !== undefined) {
+            await (Staff as any).updateMany(
+              {
+                $or: [
+                  ...(doc.email ? [{ email: doc.email.toLowerCase() }] : []),
+                  ...(doc.name ? [{ name: { $regex: new RegExp(`^${doc.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } }] : []),
+                ],
+              },
+              { $set: { isActive: updates.isActive } }
+            );
+          }
           return doc as any;
         }
       }
@@ -1225,6 +1246,19 @@ class ClinicService {
         if (doc) {
           const idx = this.staff.findIndex(s => s._id === id);
           if (idx !== -1) this.staff[idx] = { ...this.staff[idx], ...updates };
+
+          // Sync isActive status with User collection if updated
+          if (updates.isActive !== undefined) {
+            await (User as any).updateMany(
+              {
+                $or: [
+                  ...(doc.email ? [{ email: doc.email.toLowerCase() }] : []),
+                  ...(doc.name ? [{ name: { $regex: new RegExp(`^${doc.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } }] : []),
+                ],
+              },
+              { $set: { isActive: updates.isActive } }
+            );
+          }
           return doc as any;
         }
       }
@@ -1236,6 +1270,31 @@ class ClinicService {
       return this.staff[idx];
     }
     return null;
+  }
+
+  async deleteStaff(id: string): Promise<boolean> {
+    try {
+      const db = await connectToDatabase();
+      if (db) {
+        const isValidOid = mongoose.isValidObjectId ? mongoose.isValidObjectId(id) : false;
+        const query = isValidOid ? { $or: [{ _id: id }, { _id: new mongoose.Types.ObjectId(id) }] } : { _id: id };
+        const staffDoc = await (Staff as any).findOne(query).lean();
+        if (staffDoc) {
+          if (staffDoc.loginRole === 'Admin' || staffDoc.designation === 'Admin') {
+            throw new Error('Admin role users cannot be deleted');
+          }
+          await (Staff as any).deleteOne({ _id: staffDoc._id });
+          if (staffDoc.email) {
+            await (User as any).deleteOne({ email: staffDoc.email.toLowerCase(), role: { $ne: 'admin' } });
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Error deleting staff:', e);
+      throw e;
+    }
+    this.staff = this.staff.filter(s => s._id !== id);
+    return true;
   }
 
   // ================= SERVICES & PRODUCTS MASTERS (M2) =================
@@ -2409,13 +2468,13 @@ class ClinicService {
           // Fast-path known doctor aliases without extra DB roundtrip
           if (docIdTrim === 'user-doc-1' || docIdTrim.toLowerCase().includes('anitha')) {
             docIds.push('user-doc-1', '6afaf14cb00b4600f4042892', '6afaf14db00b4600f4042897', '6b0296ec8be796595c91e0b2');
-            docNames.push('Dr. Anitha Ramachandran', 'Anitha R.');
+            docNames.push('Dr. Anitha Ramachandran', 'Anitha R.', 'Anitha');
           } else if (docIdTrim === 'user-doc-2' || docIdTrim.toLowerCase().includes('rajesh')) {
             docIds.push('user-doc-2');
-            docNames.push('Dr. Rajesh Varma', 'Rajesh Varma');
+            docNames.push('Dr. Rajesh Varma', 'Rajesh Varma', 'Rajesh');
           } else if (docIdTrim === 'user-doc-3' || docIdTrim.toLowerCase().includes('priya')) {
             docIds.push('user-doc-3');
-            docNames.push('Dr. Priya Dharshini', 'Priya Dharshini');
+            docNames.push('Dr. Priya Dharshini', 'Priya Dharshini', 'Priya');
           } else {
             try {
               const isValidOid = mongoose.isValidObjectId ? mongoose.isValidObjectId(docIdTrim) : false;
@@ -2424,6 +2483,7 @@ class ClinicService {
                   ...(isValidOid ? [{ _id: docIdTrim }] : []),
                   { email: docIdTrim },
                   { name: docIdTrim },
+                  { username: docIdTrim },
                 ],
               }).lean();
 
@@ -2432,12 +2492,41 @@ class ClinicService {
                 if (docUser.email) docIds.push(docUser.email);
                 if (docUser.name) docNames.push(docUser.name);
               }
+
+              // Also search Staff collection
+              const docStaff = await (Staff as any).findOne({
+                $or: [
+                  ...(isValidOid ? [{ _id: docIdTrim }] : []),
+                  { email: docIdTrim },
+                  { name: docIdTrim },
+                  { mobile: docIdTrim },
+                ],
+              }).lean();
+
+              if (docStaff) {
+                if (docStaff._id) docIds.push(docStaff._id.toString());
+                if (docStaff.email) docIds.push(docStaff.email);
+                if (docStaff.name) docNames.push(docStaff.name);
+              }
             } catch (_) {}
           }
 
+          if (docNames.length === 0 && !mongoose.isValidObjectId(docIdTrim)) {
+            docNames.push(docIdTrim);
+          }
+          const expandedNames = [...new Set(docNames.flatMap(n => {
+            const stripped = n.replace(/^Dr\.\s*/i, '').trim();
+            return [n, stripped, `Dr. ${stripped}`];
+          }))];
+
+          const nameQueries = expandedNames.flatMap(n => [
+            { doctorName: { $regex: new RegExp(`^${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } },
+            { doctorId: { $regex: new RegExp(`^${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } }
+          ]);
+
           query.$or = [
             { doctorId: { $in: docIds } },
-            ...(docNames.length > 0 ? [{ doctorName: { $in: docNames } }] : []),
+            ...nameQueries,
           ];
         }
         if (status) query.status = status;
@@ -2460,12 +2549,12 @@ class ClinicService {
       );
     }
     if (doctorId) {
-      const docIdTrim = String(doctorId).toLowerCase();
+      const docIdTrim = String(doctorId).toLowerCase().replace(/^dr\.\s*/i, '').trim();
       res = res.filter(v =>
         v.doctorId === doctorId ||
-        (v.doctorName && v.doctorName.toLowerCase().includes('anitha') && (docIdTrim.includes('anitha') || docIdTrim === 'user-doc-1')) ||
-        (v.doctorName && v.doctorName.toLowerCase().includes('rajesh') && (docIdTrim.includes('rajesh') || docIdTrim === 'user-doc-2')) ||
-        (v.doctorName && v.doctorName.toLowerCase().includes('priya') && (docIdTrim.includes('priya') || docIdTrim === 'user-doc-3'))
+        (v.doctorName && v.doctorName.toLowerCase().replace(/^dr\.\s*/i, '').trim() === docIdTrim) ||
+        (v.doctorId && v.doctorId.toLowerCase().replace(/^dr\.\s*/i, '').trim() === docIdTrim) ||
+        (v.doctorName && v.doctorName.toLowerCase().includes(docIdTrim))
       );
     }
     if (status) {

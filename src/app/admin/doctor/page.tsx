@@ -661,61 +661,87 @@ export default function DoctorPanelPage() {
                   </div>
 
                   <div className="space-y-2">
+                    {/* Header for prescription table */}
+                    <div className="hidden sm:grid sm:grid-cols-12 gap-2 px-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                      <div className="col-span-4">Medicine Name</div>
+                      <div className="col-span-2">Dosage</div>
+                      <div className="col-span-2">Frequency</div>
+                      <div className="col-span-2">Duration</div>
+                      <div className="col-span-2">Instructions</div>
+                    </div>
                     {prescriptionRows.map((row, idx) => (
-                      <div key={idx} className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200">
-                        <input
-                          type="text"
-                          disabled={isReadOnly}
-                          placeholder="Medicine Name (e.g. Clindamycin Gel)"
-                          value={row.medicineName}
-                          onChange={(e) => handleUpdateMedicineRow(idx, 'medicineName', e.target.value)}
-                          className="flex-1 p-1.5 bg-white border border-slate-200 rounded-lg text-xs disabled:bg-slate-100 disabled:text-slate-800"
-                        />
-                        <input
-                          type="text"
-                          disabled={isReadOnly}
-                          placeholder="Dosage (e.g. 500mg)"
-                          value={row.dosage}
-                          onChange={(e) => handleUpdateMedicineRow(idx, 'dosage', e.target.value)}
-                          className="w-24 p-1.5 bg-white border border-slate-200 rounded-lg text-xs disabled:bg-slate-100 disabled:text-slate-800"
-                        />
-                        <select
-                          disabled={isReadOnly}
-                          value={row.frequency}
-                          onChange={(e) => handleUpdateMedicineRow(idx, 'frequency', e.target.value)}
-                          className="w-24 p-1.5 bg-white border border-slate-200 rounded-lg text-xs disabled:bg-slate-100 disabled:text-slate-800"
-                        >
-                          <option value="1-0-1">1-0-1</option>
-                          <option value="1-0-0">1-0-0</option>
-                          <option value="0-0-1">0-0-1</option>
-                          <option value="1-1-1">1-1-1</option>
-                          <option value="SOS">SOS (As needed)</option>
-                        </select>
-                        <input
-                          type="text"
-                          disabled={isReadOnly}
-                          placeholder="Duration"
-                          value={row.duration}
-                          onChange={(e) => handleUpdateMedicineRow(idx, 'duration', e.target.value)}
-                          className="w-20 p-1.5 bg-white border border-slate-200 rounded-lg text-xs disabled:bg-slate-100 disabled:text-slate-800"
-                        />
-                        <input
-                          type="text"
-                          disabled={isReadOnly}
-                          placeholder="Instructions (e.g. After food)"
-                          value={row.instructions}
-                          onChange={(e) => handleUpdateMedicineRow(idx, 'instructions', e.target.value)}
-                          className="w-28 p-1.5 bg-white border border-slate-200 rounded-lg text-xs disabled:bg-slate-100 disabled:text-slate-800"
-                        />
-                        {!isReadOnly && prescriptionRows.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveMedicineRow(idx)}
-                            className="text-slate-400 hover:text-rose-500 p-1"
+                      <div key={idx} className="grid grid-cols-1 sm:grid-cols-12 gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200 items-center">
+                        <div className="sm:col-span-4">
+                          <label className="sm:hidden block text-[10px] font-bold text-slate-500 mb-0.5">Medicine Name</label>
+                          <input
+                            type="text"
+                            disabled={isReadOnly}
+                            placeholder="e.g. Clindamycin Gel"
+                            value={row.medicineName}
+                            onChange={(e) => handleUpdateMedicineRow(idx, 'medicineName', e.target.value)}
+                            className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs disabled:bg-slate-100 disabled:text-slate-800 focus:ring-1 focus:ring-sky-500"
+                          />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label className="sm:hidden block text-[10px] font-bold text-slate-500 mb-0.5">Dosage</label>
+                          <input
+                            type="text"
+                            disabled={isReadOnly}
+                            placeholder="e.g. 500mg"
+                            value={row.dosage}
+                            onChange={(e) => handleUpdateMedicineRow(idx, 'dosage', e.target.value)}
+                            className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs disabled:bg-slate-100 disabled:text-slate-800 focus:ring-1 focus:ring-sky-500"
+                          />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label className="sm:hidden block text-[10px] font-bold text-slate-500 mb-0.5">Frequency</label>
+                          <select
+                            disabled={isReadOnly}
+                            value={row.frequency}
+                            onChange={(e) => handleUpdateMedicineRow(idx, 'frequency', e.target.value)}
+                            className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs disabled:bg-slate-100 disabled:text-slate-800 focus:ring-1 focus:ring-sky-500"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
+                            <option value="1-0-1">1-0-1 (Twice)</option>
+                            <option value="1-0-0">1-0-0 (Morning)</option>
+                            <option value="0-0-1">0-0-1 (Night)</option>
+                            <option value="1-1-1">1-1-1 (Thrice)</option>
+                            <option value="SOS">SOS (As needed)</option>
+                          </select>
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label className="sm:hidden block text-[10px] font-bold text-slate-500 mb-0.5">Duration</label>
+                          <input
+                            type="text"
+                            disabled={isReadOnly}
+                            placeholder="e.g. 5 Days"
+                            value={row.duration}
+                            onChange={(e) => handleUpdateMedicineRow(idx, 'duration', e.target.value)}
+                            className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs disabled:bg-slate-100 disabled:text-slate-800 focus:ring-1 focus:ring-sky-500"
+                          />
+                        </div>
+                        <div className="sm:col-span-2 flex items-center gap-1.5">
+                          <div className="flex-1">
+                            <label className="sm:hidden block text-[10px] font-bold text-slate-500 mb-0.5">Instructions</label>
+                            <input
+                              type="text"
+                              disabled={isReadOnly}
+                              placeholder="e.g. After food"
+                              value={row.instructions}
+                              onChange={(e) => handleUpdateMedicineRow(idx, 'instructions', e.target.value)}
+                              className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs disabled:bg-slate-100 disabled:text-slate-800 focus:ring-1 focus:ring-sky-500"
+                            />
+                          </div>
+                          {!isReadOnly && prescriptionRows.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveMedicineRow(idx)}
+                              className="text-slate-400 hover:text-rose-500 p-2 rounded-lg hover:bg-rose-50 transition self-end sm:self-center"
+                              title="Delete Row"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -807,9 +833,9 @@ export default function DoctorPanelPage() {
                 )}
 
                 {/* Bottom action bar */}
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                <div className="sticky bottom-0 z-20 -mx-6 -mb-6 mt-6 bg-white/95 backdrop-blur-md px-6 py-4 rounded-b-2xl border-t border-slate-200 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] flex flex-wrap items-center justify-between gap-3">
                   {isReadOnly ? (
-                    <div className="w-full flex items-center justify-between">
+                    <div className="w-full flex items-center justify-between flex-wrap gap-2">
                       <div className="flex items-center space-x-2 text-emerald-800 bg-emerald-50 px-3 py-2 rounded-xl border border-emerald-200 font-bold text-xs">
                         <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                         <span>Prescription & Consultation Completed (Read-only)</span>
@@ -820,13 +846,14 @@ export default function DoctorPanelPage() {
                     </div>
                   ) : (
                     <>
-                      <div className="text-[11px] text-slate-400">
+                      <div className="text-[11px] text-slate-500 font-medium flex items-center gap-1.5">
+                        <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                         Rule BR-03: Consultation record is queued for Reception POS billing upon submit.
                       </div>
                       <button
                         type="submit"
                         disabled={submitting}
-                        className="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center space-x-2 disabled:opacity-50"
+                        className="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs rounded-xl shadow-md hover:shadow-lg transition-all flex items-center space-x-2 disabled:opacity-50"
                       >
                         <Check className="w-4 h-4" />
                         <span>

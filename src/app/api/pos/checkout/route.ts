@@ -56,6 +56,32 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
+    // BUG-12: Reject checkout if any line item attending staff or tip staff is deactivated
+    const allStaff = await clinicService.getStaff();
+    const inactiveStaff = allStaff.filter((s) => s.isActive === false);
+    if (inactiveStaff.length > 0) {
+      const inactiveNames = new Set(inactiveStaff.map((s) => s.name.toLowerCase().trim()));
+      const inactiveIds = new Set(inactiveStaff.map((s) => s._id?.toLowerCase().trim()));
+
+      if (tipStaffName && inactiveNames.has(tipStaffName.toLowerCase().trim())) {
+        return NextResponse.json({
+          success: false,
+          message: `Staff member "${tipStaffName}" is deactivated and cannot receive tips.`,
+        }, { status: 400 });
+      }
+
+      for (const item of (items || [])) {
+        const staffNameVal = (item.staffName || item.staff || '').toLowerCase().trim();
+        const staffIdVal = (item.staffId || '').toLowerCase().trim();
+        if ((staffNameVal && inactiveNames.has(staffNameVal)) || (staffIdVal && inactiveIds.has(staffIdVal))) {
+          return NextResponse.json({
+            success: false,
+            message: `Attending staff member "${item.staffName || item.staff}" is deactivated. Please assign item "${item.name}" to an active staff member.`,
+          }, { status: 400 });
+        }
+      }
+    }
+
     // FR-46: Validate payments add up to payable amount
     const targetPayable = Number(payableAmount) || Number(grandTotal) || 0;
     let finalPayments = payments || [];

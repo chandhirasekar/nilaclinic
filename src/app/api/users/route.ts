@@ -15,7 +15,7 @@ export async function GET(req: Request) {
     for (const ds of docStaff) {
       const dsName = (ds.name || '').trim();
       const dsEmail = (ds.email || '').trim().toLowerCase();
-      const alreadyExists = users.some(u => {
+      const matchedIdx = users.findIndex(u => {
         const uEmail = (u.email || '').trim().toLowerCase();
         const uName = (u.name || '').trim().toLowerCase();
         return (
@@ -24,7 +24,13 @@ export async function GET(req: Request) {
           (dsName && uName && uName === dsName.toLowerCase())
         );
       });
-      if (!alreadyExists) {
+
+      if (matchedIdx !== -1) {
+        // If staff master is deactivated, sync isActive to user representation
+        if (ds.isActive === false) {
+          users[matchedIdx].isActive = false;
+        }
+      } else {
         const cleanSlug = dsName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'staff';
         const roleAssigned = ds.designation === 'Doctor' ? 'doctor' : (ds.loginRole?.toLowerCase() === 'admin' ? 'admin' : 'staff');
         const safeEmail = ds.email || `${roleAssigned}.${cleanSlug}@nilaclinic.com`;
@@ -82,8 +88,8 @@ export async function POST(req: Request) {
       email,
       name,
       role,
-      assignedStoreIds: assignedStoreIds || ['THN'],
-      primaryStoreId: assignedStoreIds?.[0] || 'THN',
+      assignedStoreIds: assignedStoreIds || ['NILA-TH'],
+      primaryStoreId: assignedStoreIds?.[0] || 'NILA-TH',
       phone: phone || '+91 98000 00000',
       specialization,
       image,

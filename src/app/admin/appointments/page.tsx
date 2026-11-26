@@ -143,9 +143,10 @@ function AppointmentsCalendarContent() {
 
       if (apptData.success) setAppointments(apptData.data || []);
       if (staffData.success) {
-        // BUG-20: Show only doctors in the appointment calendar columns and filter
+        // BUG-20 & BUG-11: Show only active doctors in the appointment calendar columns and filter
         const calStaff = (staffData.data || []).filter(
           (s: IStaff) =>
+            s.isActive !== false &&
             s.showInAppointmentCalendar !== false &&
             ((s.designation && s.designation.toLowerCase().includes('doc')) ||
               (s.loginRole && s.loginRole.toLowerCase() === 'doctor') ||
@@ -153,7 +154,10 @@ function AppointmentsCalendarContent() {
               (s.name && s.name.toLowerCase().startsWith('dr.')))
         );
         setStaffMembers(calStaff);
-        if (calStaff.length > 0 && !bookingStaff) {
+        if (selectedStaffFilter !== 'ALL' && !calStaff.some((s: IStaff) => s.name === selectedStaffFilter)) {
+          setSelectedStaffFilter('ALL');
+        }
+        if (calStaff.length > 0 && (!bookingStaff || !calStaff.some((s: IStaff) => s.name === bookingStaff))) {
           setBookingStaff(calStaff[0].name);
         }
       }
@@ -637,6 +641,27 @@ function AppointmentsCalendarContent() {
           ))}
         </div>
       </div>
+
+      {/* BUG-11: Alert if any appointments belong to an inactive doctor */}
+      {(() => {
+        const inactiveDoctorAppts = appointments.filter(
+          (a) =>
+            (a.staffName || a.doctorName) &&
+            !staffMembers.some((s) => s.name === (a.staffName || a.doctorName))
+        );
+        if (inactiveDoctorAppts.length === 0) return null;
+        return (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center justify-between text-xs text-amber-800">
+            <div className="flex items-center space-x-2">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>
+                <strong>Notice:</strong> {inactiveDoctorAppts.length} appointment(s) are assigned to doctors currently marked as Inactive.
+              </span>
+            </div>
+            <span className="text-[11px] text-amber-700 font-medium">Reassign to an active doctor if required</span>
+          </div>
+        );
+      })()}
 
       {/* ================= VIEW 1: MIOSALON STAFF COLUMN DAY GRID ================= */}
       {currentView === 'grid' && (

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import {
@@ -61,6 +61,11 @@ function QuickSalePOSContent() {
     isLoading: isMasterLoading,
     refreshInvoices,
   } = useMasterData(selectedStore);
+
+  // BUG-12: Filter active staff for line item attribution and tips
+  const activeStaffList = useMemo(() => {
+    return (staffList || []).filter((st) => st.isActive !== false);
+  }, [staffList]);
 
   // Active Customer Lookup (FR-20, FR-21, FR-22)
   const [searchMobile, setSearchMobile] = useState('');
@@ -259,8 +264,8 @@ function QuickSalePOSContent() {
 
   // Add Item to Bill (FR-42, FR-43)
   const addItemToBill = (item: IService | IProduct, type: 'service' | 'product') => {
-    const defaultStaff = staffList[0]?.name || 'Attending Specialist';
-    const defaultStaffId = staffList[0]?._id;
+    const defaultStaff = activeStaffList[0]?.name || staffList[0]?.name || 'Attending Specialist';
+    const defaultStaffId = activeStaffList[0]?._id || staffList[0]?._id;
 
     const newItem: IQuickSaleItem = {
       type,
@@ -280,8 +285,8 @@ function QuickSalePOSContent() {
 
   // Sell Package in Quick Sale (FR-35)
   const addPackageToBill = (pkg: IPackageMaster) => {
-    const defaultStaff = staffList[0]?.name || 'Attending Specialist';
-    const defaultStaffId = staffList[0]?._id;
+    const defaultStaff = activeStaffList[0]?.name || staffList[0]?.name || 'Attending Specialist';
+    const defaultStaffId = activeStaffList[0]?._id || staffList[0]?._id;
 
     const newItem: IQuickSaleItem = {
       type: 'package',
@@ -301,8 +306,8 @@ function QuickSalePOSContent() {
 
   // Redeem Customer Package Sitting (FR-36: sitting added at ₹0 marked from package)
   const redeemSittingToBill = (custPkg: ICustomerPackage, serviceName: string) => {
-    const defaultStaff = staffList[0]?.name || 'Attending Specialist';
-    const defaultStaffId = staffList[0]?._id;
+    const defaultStaff = activeStaffList[0]?.name || staffList[0]?.name || 'Attending Specialist';
+    const defaultStaffId = activeStaffList[0]?._id || staffList[0]?._id;
 
     const newItem: IQuickSaleItem = {
       type: 'package_use',
@@ -879,7 +884,7 @@ function QuickSalePOSContent() {
                             onChange={(e) => updateItemField(idx, 'staffName', e.target.value)}
                             className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs sm:text-sm text-slate-800 font-medium"
                           >
-                            {staffList.map((st) => (
+                            {activeStaffList.map((st) => (
                               <option key={st._id} value={st.name}>
                                 {st.name} ({st.designation})
                               </option>
@@ -1050,7 +1055,7 @@ function QuickSalePOSContent() {
                   className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm"
                 >
                   <option value="">Attribute Tip to Staff...</option>
-                  {staffList.map((st) => (
+                  {activeStaffList.map((st) => (
                     <option key={st._id} value={st.name}>
                       {st.name}
                     </option>
@@ -1791,7 +1796,7 @@ function QuickSalePOSContent() {
             mobile: selectedCustomer?.mobile || lastInvoice?.customerMobile || '',
           }}
           customerPackage={schedulingPackage}
-          staffMembers={staffList}
+          staffMembers={activeStaffList}
           storeId={selectedStore}
           onSuccess={() => {
             alert('Remaining sessions booked on Appointment Calendar!');

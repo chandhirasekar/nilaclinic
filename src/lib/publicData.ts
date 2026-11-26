@@ -192,22 +192,38 @@ export async function getPublicClinicBranches(): Promise<PublicBranch[]> {
 export async function getPublicDoctors(): Promise<PublicDoctor[]> {
   try {
     const users = await clinicService.getUsers();
-    const docUsers = users.filter((u) => u.role === 'doctor' && u.isActive !== false);
+    const staff = await clinicService.getStaff();
     const branches = await getPublicClinicBranches();
+
+    // Identify all inactive doctor names to strictly exclude (BUG-06)
+    const inactiveDoctorNames = new Set<string>();
+    users.filter(u => u.role === 'doctor' && u.isActive === false).forEach(u => {
+      if (u.name) inactiveDoctorNames.add(u.name.toLowerCase().trim());
+    });
+    staff.filter(s => (s.designation === 'Doctor' || s.loginRole === 'Doctor') && s.isActive === false).forEach(s => {
+      if (s.name) inactiveDoctorNames.add(s.name.toLowerCase().trim());
+    });
+
+    const docUsers = users.filter((u) => u.role === 'doctor' && u.isActive !== false && !inactiveDoctorNames.has((u.name || '').toLowerCase().trim()));
+    const docStaff = staff.filter((s) => (s.designation === 'Doctor' || s.loginRole === 'Doctor') && s.isActive !== false && !inactiveDoctorNames.has((s.name || '').toLowerCase().trim()));
 
     // Map all DB doctors
     const doctorsMap = new Map<string, PublicDoctor>();
 
-    // 1. First add core profiles
+    // 1. First add core profiles that are NOT inactive
     Object.values(CORE_DOCTOR_PROFILES).forEach((profile) => {
       if (profile.name) {
-        doctorsMap.set(profile.name.toLowerCase().trim(), profile as PublicDoctor);
+        const key = profile.name.toLowerCase().trim();
+        if (!inactiveDoctorNames.has(key)) {
+          doctorsMap.set(key, profile as PublicDoctor);
+        }
       }
     });
 
-    // 2. Enrich or insert from DB
+    // 2. Enrich or insert from DB Users
     docUsers.forEach((docUser) => {
       const key = (docUser.name || '').toLowerCase().trim();
+      if (inactiveDoctorNames.has(key)) return;
       const existing = doctorsMap.get(key);
 
       // Resolve store location
@@ -254,7 +270,31 @@ export async function getPublicDoctors(): Promise<PublicDoctor[]> {
       }
     });
 
-    return Array.from(doctorsMap.values());
+    // 3. Also enrich or insert from DB Staff
+    docStaff.forEach((st) => {
+      const key = (st.name || '').toLowerCase().trim();
+      if (!doctorsMap.has(key) && !inactiveDoctorNames.has(key)) {
+        const storeCode = st.stores?.[0] || 'NILA-TH';
+        const matchedBranch = branches.find((b) => b.code === storeCode);
+        const branchName = matchedBranch ? matchedBranch.name : 'Nila Clinic';
+        doctorsMap.set(key, {
+          name: st.name,
+          qualification: 'MBBS, MD - Dermatology & Aesthetic Medicine',
+          regNo: 'TNMC Reg #Registered',
+          experience: '8+ Years Clinical Experience',
+          role: 'Attending Specialist & Doctor',
+          location: branchName,
+          focus: 'Clinical Skin Care, Acne & Laser Protocols',
+          initials: st.name.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase() || 'DR',
+          image: st.image || '/images/doctors/dr-anitha.jpg',
+          bio: `${st.name} specializes in advanced clinical treatments at Nila Clinic.`,
+          focusAreas: ['Skin Evaluation', 'Laser Care', 'Hair Protocols'],
+          assignedStoreCode: storeCode,
+        });
+      }
+    });
+
+    return Array.from(doctorsMap.values()).filter((d) => !inactiveDoctorNames.has(d.name.toLowerCase().trim()));
   } catch (err) {
     console.warn('[getPublicDoctors] Failed to fetch live doctors, using core profiles:', err);
     return Object.values(CORE_DOCTOR_PROFILES) as PublicDoctor[];

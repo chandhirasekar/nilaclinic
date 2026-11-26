@@ -73,20 +73,8 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (e) {}
 
-    // Default initial mock admin user for immediate seamless access
-    const defaultUser: IUser = {
-      _id: 'user-admin-1',
-      email: 'admin@nilaclinic.com',
-      name: 'Mohan Raj (Admin)',
-      role: 'admin',
-      assignedStoreIds: ['NILA-TH', 'THN'],
-      primaryStoreId: 'NILA-TH',
-      isActive: true,
-    };
-    setUser(defaultUser);
-    try {
-      localStorage.setItem('nilaclinic_user', JSON.stringify(defaultUser));
-    } catch (e) {}
+    // No saved user found: remain unauthenticated
+    setUser(null);
     setIsInitialized(true);
   }, []);
 
@@ -119,8 +107,11 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = () => {
-    localStorage.removeItem('nilaclinic_user');
-    localStorage.removeItem('miosalon_user');
+    try {
+      localStorage.removeItem('nilaclinic_user');
+      localStorage.removeItem('miosalon_user');
+      sessionStorage.clear();
+    } catch (e) {}
     setUser(null);
     window.location.href = '/login';
   };
