@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Search, Clock, Sparkles, Package, Tag, Building2, CheckCircle2, Edit2, X, Filter, Upload, Image as ImageIcon, Star } from 'lucide-react';
 import { IService, IProduct } from '@/types';
 import { useClinic } from '@/context/ClinicContext';
+import { useInfiniteSlice } from '@/hooks/useInfiniteScroll';
+import InfiniteScrollSentinel from '@/components/ui/InfiniteScrollSentinel';
 
 export default function ServicesAndProductsMasterPage() {
   const { stores, selectedStore } = useClinic();
@@ -283,6 +285,22 @@ export default function ServicesAndProductsMasterPage() {
     return matchesSearch && matchesCat;
   });
 
+  const {
+    visibleItems: visibleServices,
+    hasMore: hasMoreServices,
+    loadMore: loadMoreServices,
+    visibleCount: visibleServiceCount,
+    totalCount: totalServiceCount,
+  } = useInfiniteSlice(filteredServices, 10, `${selectedStore}|${activeTab}|${searchQuery}|${categoryFilter}`);
+
+  const {
+    visibleItems: visibleProducts,
+    hasMore: hasMoreProducts,
+    loadMore: loadMoreProducts,
+    visibleCount: visibleProductCount,
+    totalCount: totalProductCount,
+  } = useInfiniteSlice(filteredProducts, 10, `${selectedStore}|${activeTab}|${searchQuery}|${categoryFilter}`);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -407,8 +425,9 @@ export default function ServicesAndProductsMasterPage() {
 
       {/* Content */}
       {activeTab === 'services' ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {filteredServices.map((svc) => (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {visibleServices.map((svc) => (
             <div
               key={svc._id}
               className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs flex flex-col justify-between hover:shadow-md transition-shadow relative group"
@@ -477,10 +496,19 @@ export default function ServicesAndProductsMasterPage() {
               No treatments found matching &quot;{searchQuery}&quot;
             </div>
           )}
-        </div>
+          </div>
+          <InfiniteScrollSentinel
+            hasMore={hasMoreServices}
+            onLoadMore={loadMoreServices}
+            visibleCount={visibleServiceCount}
+            totalCount={totalServiceCount}
+            itemLabel="treatments"
+          />
+        </>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {filteredProducts.map((prod) => (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {visibleProducts.map((prod) => (
             <div
               key={prod._id}
               className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs flex flex-col justify-between hover:shadow-md transition-shadow relative group"
@@ -527,7 +555,15 @@ export default function ServicesAndProductsMasterPage() {
               No products found matching &quot;{searchQuery}&quot;
             </div>
           )}
-        </div>
+          </div>
+          <InfiniteScrollSentinel
+            hasMore={hasMoreProducts}
+            onLoadMore={loadMoreProducts}
+            visibleCount={visibleProductCount}
+            totalCount={totalProductCount}
+            itemLabel="products"
+          />
+        </>
       )}
 
       {/* Service Modal (Create) */}

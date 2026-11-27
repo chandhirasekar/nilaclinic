@@ -4,6 +4,8 @@ import React, { useState } from 'react';
 import { Building2, Plus, Edit2, CheckCircle2, XCircle, Phone, MapPin, Mail, ShieldAlert, Clock } from 'lucide-react';
 import { IStore } from '@/types';
 import { useClinic } from '@/context/ClinicContext';
+import { useInfiniteSlice } from '@/hooks/useInfiniteScroll';
+import InfiniteScrollSentinel from '@/components/ui/InfiniteScrollSentinel';
 
 export default function StoreMasterPage() {
   const { stores, refreshStores, user, selectedStore, setSelectedStore } = useClinic();
@@ -25,6 +27,14 @@ export default function StoreMasterPage() {
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  const {
+    visibleItems: visibleStores,
+    hasMore: hasMoreStores,
+    loadMore: loadMoreStores,
+    visibleCount: visibleStoreCount,
+    totalCount: totalStoreCount,
+  } = useInfiniteSlice(stores, 10);
 
   if (user && user.role !== 'admin') {
     return (
@@ -199,7 +209,7 @@ export default function StoreMasterPage() {
 
       {/* Stores Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {stores.map((st) => {
+        {visibleStores.map((st) => {
           const isSelected = selectedStore.toUpperCase() === st.code.toUpperCase();
           return (
             <div
@@ -337,6 +347,13 @@ export default function StoreMasterPage() {
           );
         })}
       </div>
+      <InfiniteScrollSentinel
+        hasMore={hasMoreStores}
+        onLoadMore={loadMoreStores}
+        visibleCount={visibleStoreCount}
+        totalCount={totalStoreCount}
+        itemLabel="branches"
+      />
 
       {/* Modal for Add / Edit Store */}
       {showModal && (

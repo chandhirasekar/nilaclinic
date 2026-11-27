@@ -4,12 +4,19 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Search, Phone, Mail, User, AlertTriangle, Building2, CreditCard, X, MapPin } from 'lucide-react';
 import { ICustomer } from '@/types';
 import { useClinic } from '@/context/ClinicContext';
+import { useDebounce } from '@/hooks/useDebounce';
+import InfiniteScrollSentinel from '@/components/ui/InfiniteScrollSentinel';
 
 export default function CustomersCRMPage() {
   const { selectedStore, user } = useClinic();
   const [customers, setCustomers] = useState<ICustomer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [totalCustomers, setTotalCustomers] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery, 300);
   const [showAllStores, setShowAllStores] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [duplicateError, setDuplicateError] = useState('');
@@ -25,25 +32,37 @@ export default function CustomersCRMPage() {
     skinHairNotes: '',
   });
 
-  const loadCustomers = async () => {
-    setLoading(true);
+  const loadCustomers = async (targetPage = 1, append = false) => {
+    if (append) setLoadingMore(true);
+    else setLoading(true);
     try {
-      const storeParam = showAllStores || user?.role === 'admin' && showAllStores ? 'ALL' : selectedStore;
-      const res = await fetch(`/api/customers?storeCode=${storeParam}&search=${searchQuery}`);
+      const storeParam = showAllStores && user?.role === 'admin' ? 'ALL' : selectedStore;
+      const res = await fetch(
+        `/api/customers?storeCode=${storeParam}&search=${encodeURIComponent(debouncedSearch)}&page=${targetPage}&limit=10`
+      );
       const data = await res.json();
       if (data.success) {
-        setCustomers(data.data);
+        const incoming: ICustomer[] = data.data || [];
+        setCustomers((prev) => {
+          if (!append) return incoming;
+          const seen = new Set(prev.map((c) => c._id || c.customerId));
+          return [...prev, ...incoming.filter((c) => !seen.has(c._id || c.customerId))];
+        });
+        setPage(targetPage);
+        setTotalCustomers(data.pagination?.total ?? incoming.length);
+        setHasMore(Boolean(data.pagination?.hasMore));
       }
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
   useEffect(() => {
-    loadCustomers();
-  }, [selectedStore, searchQuery, showAllStores]);
+    loadCustomers(1, false);
+  }, [selectedStore, debouncedSearch, showAllStores]);
 
   const handleCreateCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -131,7 +150,7 @@ export default function CustomersCRMPage() {
           )}
 
           <span className="text-slate-600 font-medium">
-            Total Clients: <strong className="text-slate-900 font-bold">{customers.length}</strong>
+            Total Clients: <strong className="text-slate-900 font-bold">{totalCustomers || customers.length}</strong>
           </span>
         </div>
       </div>
@@ -199,6 +218,14 @@ export default function CustomersCRMPage() {
             </tbody>
           </table>
         </div>
+        <InfiniteScrollSentinel
+          hasMore={hasMore}
+          isLoading={loadingMore}
+          onLoadMore={() => loadCustomers(page + 1, true)}
+          visibleCount={customers.length}
+          totalCount={totalCustomers}
+          itemLabel="clients"
+        />
       </div>
 
       {/* Add Client Inline Modal (FR-22) */}

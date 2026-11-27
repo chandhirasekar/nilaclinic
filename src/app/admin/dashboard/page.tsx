@@ -51,6 +51,8 @@ import {
 import { useClinic } from '@/context/ClinicContext';
 import CardSkeleton from '@/components/ui/skeletons/CardSkeleton';
 import TableSkeleton from '@/components/ui/skeletons/TableSkeleton';
+import { useInfiniteSlice } from '@/hooks/useInfiniteScroll';
+import InfiniteScrollSentinel from '@/components/ui/InfiniteScrollSentinel';
 
 export default function ClinicDashboardPage() {
   const { user, selectedStore, setSelectedStore, stores } = useClinic();
@@ -202,7 +204,7 @@ export default function ClinicDashboardPage() {
     unpaidBillsCount: 0,
     paidBillsCount: 0,
     averageTicket: 0,
-    retentionRate: 58,
+    retentionRate: 0,
     ...(reportData?.kpi || {}),
   };
 
@@ -219,23 +221,23 @@ export default function ClinicDashboardPage() {
   ];
 
   const categoryBreakdown = reportData?.categoryBreakdown || [
-    { name: 'Clinical Treatments', revenue: Math.round(kpi.totalRevenue * 0.76), count: 18, color: '#059669', share: 76 },
-    { name: 'Retail Products', revenue: Math.round(kpi.totalRevenue * 0.16), count: 7, color: '#4f46e5', share: 16 },
-    { name: 'Packages & Sittings', revenue: Math.round(kpi.totalRevenue * 0.08), count: 3, color: '#d97706', share: 8 },
+    { name: 'Clinical Treatments', revenue: 0, count: 0, color: '#059669', share: 0 },
+    { name: 'Retail Products', revenue: 0, count: 0, color: '#4f46e5', share: 0 },
+    { name: 'Packages & Sittings', revenue: 0, count: 0, color: '#d97706', share: 0 },
   ];
 
   const clientRetention = reportData?.clientRetention || [
-    { name: 'New Patients', value: Math.round(todayAppointments.length * 0.42) || 4, percentage: 42, color: '#0284c7' },
-    { name: 'Returning Patients', value: Math.round(todayAppointments.length * 0.58) || 6, percentage: 58, color: '#059669' },
+    { name: 'New Patients', value: 0, percentage: 0, color: '#0284c7' },
+    { name: 'Returning Patients', value: 0, percentage: 0, color: '#059669' },
   ];
 
-  const retentionRateValue = kpi.retentionRate ?? clientRetention[1]?.percentage ?? 58;
+  const retentionRateValue = kpi.retentionRate ?? clientRetention[1]?.percentage ?? 0;
 
   const topServices = reportData?.topServices || [];
   const doctorCounts = reportData?.doctorCounts || [];
   const hourlyLoad = reportData?.hourlyLoad || [];
   const salesTrend = reportData?.salesTrend || [];
-  const peakHour = reportData?.peakHour || { hour: '17:00', appointments: 11 };
+  const peakHour = reportData?.peakHour || { hour: '—', appointments: 0 };
 
   const filteredDashboardAppts = todayAppointments.filter((a) => {
     if (dashboardApptFilter === 'ALL') return true;
@@ -245,10 +247,21 @@ export default function ClinicDashboardPage() {
     return true;
   });
 
-  const bookedCount = todayAppointments.filter((a) => a.status === 'Booked').length;
-  const arrivedCount = todayAppointments.filter((a) => a.status === 'Arrived').length;
-  const inServiceCount = todayAppointments.filter((a) => a.status === 'In consultation').length;
-  const completedApptCount = todayAppointments.filter((a) => a.status === 'Completed').length;
+  const queueListRef = useRef<HTMLDivElement | null>(null);
+  const {
+    visibleItems: visibleDashboardAppts,
+    hasMore: hasMoreDashboardAppts,
+    loadMore: loadMoreDashboardAppts,
+    visibleCount: visibleDashApptCount,
+    totalCount: totalDashApptCount,
+  } = useInfiniteSlice(filteredDashboardAppts, 10, `${selectedStore}|${dashboardApptFilter}|${dashboardTab}`);
+
+  const periodApptStats = reportData?.appointmentStats;
+  const totalBookingsCount = periodApptStats ? periodApptStats.total : todayAppointments.length;
+  const bookedCount = periodApptStats ? periodApptStats.booked : todayAppointments.filter((a) => a.status === 'Booked').length;
+  const arrivedCount = periodApptStats ? periodApptStats.arrived : todayAppointments.filter((a) => a.status === 'Arrived').length;
+  const inServiceCount = periodApptStats ? periodApptStats.inService : todayAppointments.filter((a) => a.status === 'In consultation').length;
+  const completedApptCount = periodApptStats ? periodApptStats.completed : todayAppointments.filter((a) => a.status === 'Completed').length;
 
   const getDateRangeLabel = () => {
     const now = new Date();
@@ -591,7 +604,7 @@ export default function ClinicDashboardPage() {
             </div>
           </div>
           <div className="text-3xl sm:text-4xl font-black text-slate-900">
-            {todayAppointments.length} <span className="text-sm font-semibold text-slate-500">Bookings</span>
+            {totalBookingsCount} <span className="text-sm font-semibold text-slate-500">Bookings</span>
           </div>
           <div className="flex flex-wrap items-center gap-1.5 pt-1 text-[11px] font-bold">
             <span className="px-2 py-0.5 bg-blue-50 text-blue-800 rounded border border-blue-200">
@@ -638,7 +651,13 @@ export default function ClinicDashboardPage() {
             {retentionRateValue}% <span className="text-sm font-semibold text-slate-500">Retention</span>
           </div>
           <div className="flex items-center justify-between pt-1 text-xs text-slate-600">
-            <span className="text-emerald-700 font-bold">High Patient Loyalty</span>
+            <span className={retentionRateValue > 0 ? 'text-emerald-700 font-bold' : 'text-slate-500 font-medium'}>
+              {kpi.totalPatientsCount === 0
+                ? 'No completed visits yet'
+                : retentionRateValue >= 40
+                ? 'High Patient Loyalty'
+                : 'Building Repeat Base'}
+            </span>
             <span className="text-slate-500 font-medium">{kpi.totalPatientsCount} Total Footfall</span>
           </div>
         </div>
@@ -934,31 +953,40 @@ export default function ClinicDashboardPage() {
               </div>
 
               <div className="h-44 w-full relative flex items-center justify-center">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={clientRetention}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={45}
-                      outerRadius={70}
-                      paddingAngle={5}
-                      dataKey="value"
-                    >
-                      {clientRetention.map((entry, index) => (
-                        <Cell key={`ret-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{ backgroundColor: '#0f172a', borderRadius: '12px', color: '#fff', border: 'none', fontSize: '11px' }}
-                      formatter={(val: any) => [`${val} Patients`, 'Count']}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <span className="text-lg font-black text-emerald-700 leading-none">{retentionRateValue}%</span>
-                  <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider mt-1">Retention</span>
-                </div>
+                {(clientRetention[0]?.value ?? 0) === 0 && (clientRetention[1]?.value ?? 0) === 0 ? (
+                  <div className="w-36 h-36 rounded-full border-[14px] border-slate-100 flex flex-col items-center justify-center">
+                    <span className="text-lg font-black text-slate-400 leading-none">0%</span>
+                    <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider mt-1">Retention</span>
+                  </div>
+                ) : (
+                  <>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={clientRetention}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={45}
+                          outerRadius={70}
+                          paddingAngle={5}
+                          dataKey="value"
+                        >
+                          {clientRetention.map((entry, index) => (
+                            <Cell key={`ret-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          contentStyle={{ backgroundColor: '#0f172a', borderRadius: '12px', color: '#fff', border: 'none', fontSize: '11px' }}
+                          formatter={(val: any) => [`${val} Patients`, 'Count']}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                      <span className="text-lg font-black text-emerald-700 leading-none">{retentionRateValue}%</span>
+                      <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider mt-1">Retention</span>
+                    </div>
+                  </>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-2.5 pt-2 border-t border-slate-100 text-xs">
@@ -966,14 +994,14 @@ export default function ClinicDashboardPage() {
                   <span className="font-bold text-sky-950 block">New Patients</span>
                   <div className="mt-1.5 flex items-baseline gap-2 flex-wrap">
                     <span className="text-xl font-black text-sky-900 leading-none">{clientRetention[0]?.value ?? 0}</span>
-                    <span className="text-[11px] text-sky-700 font-semibold">{clientRetention[0]?.percentage ?? 42}% of footfall</span>
+                    <span className="text-[11px] text-sky-700 font-semibold">{clientRetention[0]?.percentage ?? 0}% of footfall</span>
                   </div>
                 </div>
                 <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100">
                   <span className="font-bold text-emerald-950 block">Returning</span>
                   <div className="mt-1.5 flex items-baseline gap-2 flex-wrap">
                     <span className="text-xl font-black text-emerald-900 leading-none">{clientRetention[1]?.value ?? 0}</span>
-                    <span className="text-[11px] text-emerald-700 font-semibold">{clientRetention[1]?.percentage ?? 58}% repeat visits</span>
+                    <span className="text-[11px] text-emerald-700 font-semibold">{clientRetention[1]?.percentage ?? 0}% repeat visits</span>
                   </div>
                 </div>
               </div>
@@ -995,35 +1023,41 @@ export default function ClinicDashboardPage() {
               </div>
 
               <div className="space-y-3">
-                {topServices.slice(0, 5).map((ts: any, i: number) => {
-                  const maxRev = topServices[0]?.revenue || 1;
-                  const pct = Math.round((ts.revenue / maxRev) * 100);
-                  return (
-                    <div key={ts.name} className="space-y-1 text-xs">
-                      <div className="flex items-center justify-between font-bold">
-                        <div className="flex items-center space-x-2 truncate max-w-[70%]">
-                          <span className="w-5 h-5 rounded-md bg-emerald-50 text-emerald-700 font-black text-[10px] flex items-center justify-center shrink-0">
-                            #{i + 1}
-                          </span>
-                          <span className="text-slate-800 truncate">{ts.name}</span>
-                          <span className="text-[10px] font-bold px-1.5 py-0.2 bg-slate-100 text-slate-600 rounded">
-                            {ts.category}
-                          </span>
+                {topServices.length === 0 ? (
+                  <div className="py-10 text-center text-xs text-slate-400">
+                    No treatments or sales recorded yet for this branch and date range.
+                  </div>
+                ) : (
+                  topServices.slice(0, 5).map((ts: any, i: number) => {
+                    const maxRev = topServices[0]?.revenue || 1;
+                    const pct = ts.revenue > 0 ? Math.round((ts.revenue / maxRev) * 100) : 0;
+                    return (
+                      <div key={ts.name} className="space-y-1 text-xs">
+                        <div className="flex items-center justify-between font-bold">
+                          <div className="flex items-center space-x-2 truncate max-w-[70%]">
+                            <span className="w-5 h-5 rounded-md bg-emerald-50 text-emerald-700 font-black text-[10px] flex items-center justify-center shrink-0">
+                              #{i + 1}
+                            </span>
+                            <span className="text-slate-800 truncate">{ts.name}</span>
+                            <span className="text-[10px] font-bold px-1.5 py-0.2 bg-slate-100 text-slate-600 rounded">
+                              {ts.category}
+                            </span>
+                          </div>
+                          <div className="flex items-center space-x-2 shrink-0">
+                            <span className="text-slate-400 font-medium">{ts.count} Sittings</span>
+                            <span className="font-black text-slate-900">₹{ts.revenue.toLocaleString()}</span>
+                          </div>
                         </div>
-                        <div className="flex items-center space-x-2 shrink-0">
-                          <span className="text-slate-400 font-medium">{ts.count} Sittings</span>
-                          <span className="font-black text-slate-900">₹{ts.revenue.toLocaleString()}</span>
+                        <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-emerald-500 to-teal-600 rounded-full transition-all duration-500"
+                            style={{ width: `${pct}%` }}
+                          />
                         </div>
                       </div>
-                      <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-emerald-500 to-teal-600 rounded-full transition-all duration-500"
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </div>
             </div>
 
@@ -1034,12 +1068,12 @@ export default function ClinicDashboardPage() {
                   <Stethoscope className="w-5 h-5 text-sky-600" />
                   <span>Specialist Productivity</span>
                 </h3>
-                <p className="text-xs text-slate-500 font-medium">Consultations & treatments completed by specialist</p>
+                <p className="text-xs text-slate-500 font-medium">Consultations & treatments completed by active specialist</p>
               </div>
 
               <div className="space-y-3">
                 {doctorCounts.length === 0 ? (
-                  <div className="py-8 text-center text-xs text-slate-400">No specialist records found</div>
+                  <div className="py-8 text-center text-xs text-slate-400">No active doctors assigned to this branch</div>
                 ) : (
                   doctorCounts.slice(0, 4).map((doc: any) => (
                     <div key={doc.name} className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between text-xs">
@@ -1049,16 +1083,16 @@ export default function ClinicDashboardPage() {
                         </div>
                         <div>
                           <h4 className="font-bold text-slate-900 text-xs sm:text-sm">{doc.name}</h4>
-                          <p className="text-[11px] text-slate-500">{doc.visits} Consultations Booked</p>
+                          <p className="text-[11px] text-slate-500">{doc.visits ?? 0} Consultations Booked</p>
                         </div>
                       </div>
 
                       <div className="text-right">
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 block">
-                          {doc.completed || Math.round(doc.visits * 0.85)} Completed
+                          {doc.completed ?? 0} Completed
                         </span>
                         <span className="font-black text-slate-900 text-xs mt-1 block">
-                          ₹{(doc.revenue || doc.visits * 2500).toLocaleString()}
+                          ₹{(doc.revenue ?? 0).toLocaleString()}
                         </span>
                       </div>
                     </div>
@@ -1091,7 +1125,11 @@ export default function ClinicDashboardPage() {
 
               <div className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold">
                 <Zap className="w-3.5 h-3.5 text-amber-600" />
-                <span>Peak Rush Hour: {peakHour.hour} ({peakHour.appointments} Consultations)</span>
+                <span>
+                  {peakHour.appointments > 0
+                    ? `Peak Rush Hour: ${peakHour.hour} (${peakHour.appointments} Consultations)`
+                    : 'Peak Rush Hour: No consultations yet (0)'}
+                </span>
               </div>
             </div>
 
@@ -1177,8 +1215,8 @@ export default function ClinicDashboardPage() {
                 </Link>
               </div>
             ) : (
-              <div className="space-y-3 max-h-[550px] overflow-y-auto overscroll-contain pr-1.5 scrollbar-thin">
-                {filteredDashboardAppts.map((a) => (
+              <div ref={queueListRef} className="space-y-3 max-h-[550px] overflow-y-auto overscroll-contain pr-1.5 scrollbar-thin">
+                {visibleDashboardAppts.map((a) => (
                   <div
                     key={a._id || a.appointmentId}
                     className="p-4 bg-slate-50 hover:bg-slate-100/80 rounded-xl border border-slate-200 text-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3.5 transition-all shadow-2xs"
@@ -1246,6 +1284,14 @@ export default function ClinicDashboardPage() {
                     </div>
                   </div>
                 ))}
+                <InfiniteScrollSentinel
+                  hasMore={hasMoreDashboardAppts}
+                  onLoadMore={loadMoreDashboardAppts}
+                  visibleCount={visibleDashApptCount}
+                  totalCount={totalDashApptCount}
+                  rootRef={queueListRef}
+                  itemLabel="appointments"
+                />
               </div>
             )}
           </div>

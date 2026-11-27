@@ -20,6 +20,7 @@ import { useClinic } from '@/context/ClinicContext';
 import { useDebounce } from '@/hooks/useDebounce';
 import { ButtonLoader } from '@/components/ui/ButtonLoader';
 import { TableSkeleton } from '@/components/ui/skeletons/TableSkeleton';
+import InfiniteScrollSentinel from '@/components/ui/InfiniteScrollSentinel';
 import { canonicalStoreCode } from '@/lib/storeHelpers';
 
 export default function PatientEntryAndQueuePage() {
@@ -30,6 +31,10 @@ export default function PatientEntryAndQueuePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 300);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [totalPatients, setTotalPatients] = useState(0);
   const [isSubmittingReg, setIsSubmittingReg] = useState(false);
   const [isSubmittingAssign, setIsSubmittingAssign] = useState(false);
 
@@ -58,16 +63,21 @@ export default function PatientEntryAndQueuePage() {
     setLoading(true);
     try {
       const [patRes, visRes, docRes] = await Promise.all([
-        fetch(`/api/patients?storeCode=${selectedStore}&search=${encodeURIComponent(debouncedSearch)}`),
+        fetch(`/api/patients?storeCode=${selectedStore}&search=${encodeURIComponent(debouncedSearch)}&page=1&limit=10`),
         fetch(`/api/visits?storeCode=${selectedStore}`),
-        fetch(`/api/users?storeCode=${selectedStore}&role=doctor`),
+        fetch(`/api/users?storeCode=${selectedStore}&role=doctor&activeOnly=true`),
       ]);
 
       const patData = await patRes.json();
       const visData = await visRes.json();
       const docData = await docRes.json();
 
-      if (patData.success) setPatients(patData.data);
+      if (patData.success) {
+        setPatients(patData.data || []);
+        setPage(1);
+        setTotalPatients(patData.pagination?.total ?? (patData.data || []).length);
+        setHasMore(Boolean(patData.pagination?.hasMore));
+      }
       if (visData.success) setVisits(visData.data);
       if (docData.success) {
         // Enforce BR-01: list only ACTIVE doctors of that store
@@ -83,6 +93,32 @@ export default function PatientEntryAndQueuePage() {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadMorePatients = async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    const nextPage = page + 1;
+    try {
+      const res = await fetch(
+        `/api/patients?storeCode=${selectedStore}&search=${encodeURIComponent(debouncedSearch)}&page=${nextPage}&limit=10`
+      );
+      const patData = await res.json();
+      if (patData.success) {
+        const incoming: IPatient[] = patData.data || [];
+        setPatients((prev) => {
+          const seen = new Set(prev.map((p) => p._id || p.patientId));
+          return [...prev, ...incoming.filter((p) => !seen.has(p._id || p.patientId))];
+        });
+        setPage(nextPage);
+        setTotalPatients(patData.pagination?.total ?? totalPatients);
+        setHasMore(Boolean(patData.pagination?.hasMore));
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -415,7 +451,7 @@ export default function PatientEntryAndQueuePage() {
             />
           </div>
           <span className="text-sm text-slate-600 font-medium">
-            Registered Patients in [{selectedStore}]: <strong className="text-slate-900 font-bold">{patients.length}</strong>
+            Registered Patients in [{selectedStore}]: <strong className="text-slate-900 font-bold">{totalPatients || patients.length}</strong>
           </span>
         </div>
 
@@ -570,6 +606,14 @@ export default function PatientEntryAndQueuePage() {
             </tbody>
           </table>
         </div>
+        <InfiniteScrollSentinel
+          hasMore={hasMore}
+          isLoading={loadingMore}
+          onLoadMore={loadMorePatients}
+          visibleCount={patients.length}
+          totalCount={totalPatients}
+          itemLabel="patients"
+        />
       </div>
 
       {/* Registration Modal with Duplicate Warning (FR-10) */}

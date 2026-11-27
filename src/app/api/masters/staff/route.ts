@@ -5,8 +5,12 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const storeCode = searchParams.get('storeCode') || undefined;
+    const activeOnly = searchParams.get('activeOnly') === 'true';
 
-    const staff = await clinicService.getStaff(storeCode);
+    let staff = await clinicService.getStaff(storeCode);
+    if (activeOnly) {
+      staff = staff.filter((s) => s.isActive !== false);
+    }
     return NextResponse.json({ success: true, data: staff });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });

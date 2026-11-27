@@ -1,6 +1,34 @@
 import { NextResponse } from 'next/server';
 import clinicService, { getLocalDateString } from '@/lib/clinicService';
 
+function parseHour24(timeStr?: string): string | null {
+  if (!timeStr) return null;
+  const match = timeStr.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+  if (!match) return null;
+  let hours = parseInt(match[1], 10);
+  const ampm = match[3] ? match[3].toUpperCase() : null;
+  if (ampm === 'PM' && hours < 12) hours += 12;
+  if (ampm === 'AM' && hours === 12) hours = 0;
+  return `${hours.toString().padStart(2, '0')}:00`;
+}
+
+function toLocalYMD(createdStr?: string | Date, dateStr?: string): string {
+  if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr.trim())) {
+    return dateStr.trim();
+  }
+  if (!createdStr) return '';
+  const d = new Date(createdStr);
+  if (isNaN(d.getTime())) return '';
+  return getLocalDateString(d);
+}
+
+function normalizeDoctorName(name?: string): string {
+  return (name || '')
+    .toLowerCase()
+    .replace(/^dr\.\s*/i, '')
+    .trim();
+}
+
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
@@ -12,18 +40,16 @@ export async function GET(req: Request) {
 
     const targetStore = storeCode !== 'ALL' ? storeCode.toUpperCase() : undefined;
 
-    // Fetch baseline data
-    const [allInvoices, allVisits, allPatients, allUsers, allAppointments, allServices, allStores] = await Promise.all([
-      clinicService.getInvoices(targetStore),
+    // Fetch baseline data scoped to targetStore + shared active doctors query (BUG-02)
+    const [allInvoices, allVisits, activeDoctors, allAppointments, allStores] = await Promise.all([
+      clinicService.getInvoices(targetStore, undefined, { limit: 5000 }),
       clinicService.getVisits(targetStore),
-      clinicService.getPatients(targetStore),
-      clinicService.getUsers(targetStore),
+      clinicService.getActiveDoctors(targetStore),
       clinicService.getAppointments(targetStore),
-      clinicService.getServices(targetStore),
       clinicService.getStores(),
     ]);
 
-    // Calculate Date Bounds
+    // Calculate Date Bounds as YYYY-MM-DD strings in local calendar
     const now = new Date();
     const todayYMD = getLocalDateString(now);
 
@@ -31,82 +57,53 @@ export async function GET(req: Request) {
     yesterdayDate.setDate(now.getDate() - 1);
     const yesterdayYMD = getLocalDateString(yesterdayDate);
 
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-    const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - (now.getDay() === 0 ? 6 : now.getDay() - 1)); // Monday start
-    startOfWeek.setHours(0, 0, 0, 0);
+    const weekStartYMD = getLocalDateString(startOfWeek);
 
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthStartYMD = getLocalDateString(startOfMonth);
 
     const last30Start = new Date(now);
     last30Start.setDate(now.getDate() - 30);
-    last30Start.setHours(0, 0, 0, 0);
+    const last30StartYMD = getLocalDateString(last30Start);
 
     const filterDate = (createdStr?: string | Date, dateStr?: string) => {
-      // 1. Custom Range with Start and End Date
+      const itemYMD = toLocalYMD(createdStr, dateStr);
+      if (!itemYMD) return false;
+
       if (startDateParam && endDateParam) {
-        const itemDateStr = dateStr || (createdStr ? getLocalDateString(new Date(createdStr)) : '');
-        return itemDateStr >= startDateParam && itemDateStr <= endDateParam;
+        return itemYMD >= startDateParam && itemYMD <= endDateParam;
       }
-
-      // 2. Single Custom Date
       if (customDate) {
-        if (dateStr === customDate) return true;
-        if (!createdStr) return false;
-        const d = new Date(createdStr);
-        if (isNaN(d.getTime())) return false;
-        const [y, m, day] = customDate.split('-').map(Number);
-        const dayStart = new Date(y, m - 1, day, 0, 0, 0, 0);
-        const dayEnd = new Date(y, m - 1, day, 23, 59, 59, 999);
-        return d >= dayStart && d <= dayEnd;
+        return itemYMD === customDate;
       }
-
-      // 3. Yesterday
       if (dateRange === 'yesterday') {
-        if (dateStr === yesterdayYMD) return true;
-        if (!createdStr) return false;
-        const d = new Date(createdStr);
-        return !isNaN(d.getTime()) && getLocalDateString(d) === yesterdayYMD;
+        return itemYMD === yesterdayYMD;
       }
-
-      // 4. Today
       if (dateRange === 'today') {
-        if (dateStr === todayYMD) return true;
-        if (!createdStr) return false;
-        const d = new Date(createdStr);
-        if (isNaN(d.getTime())) return false;
-        return d >= startOfToday && d <= endOfToday;
+        return itemYMD === todayYMD;
       }
-
-      // 5. This Week
       if (dateRange === 'week') {
-        const d = new Date(createdStr || dateStr || '');
-        return !isNaN(d.getTime()) && d >= startOfWeek;
+        return itemYMD >= weekStartYMD && itemYMD <= todayYMD;
       }
-
-      // 6. This Month
       if (dateRange === 'month') {
-        const d = new Date(createdStr || dateStr || '');
-        return !isNaN(d.getTime()) && d >= startOfMonth;
+        return itemYMD >= monthStartYMD && itemYMD <= todayYMD;
       }
-
-      // 7. Last 30 Days
       if (dateRange === 'last30') {
-        const d = new Date(createdStr || dateStr || '');
-        return !isNaN(d.getTime()) && d >= last30Start;
+        return itemYMD >= last30StartYMD && itemYMD <= todayYMD;
       }
-
       return true;
     };
 
     const periodInvoices = allInvoices.filter(inv => filterDate(inv.createdAt, inv.date));
     const periodVisits = allVisits.filter(v => filterDate(v.createdAt));
+    const completedPeriodVisits = allVisits.filter(
+      v => v.status === 'Done' && filterDate(v.consultedAt || v.createdAt)
+    );
     const periodAppointments = allAppointments.filter(a => filterDate(a.createdAt, a.date));
 
-    // Core KPI Metrics
-    const totalPatientsCount = periodVisits.length;
+    // Core KPI Metrics (BUG-04, BUG-05, BUG-06: never fall back to all-time counts when period is 0)
     const totalBillsCount = periodInvoices.length;
     const paidInvoices = periodInvoices.filter(i => i.status === 'Paid');
     const unpaidInvoices = periodInvoices.filter(i => i.status === 'Unpaid');
@@ -114,7 +111,7 @@ export async function GET(req: Request) {
     const totalRevenue = paidInvoices.reduce((sum, i) => sum + (i.grandTotal || 0), 0);
     const pendingPayments = unpaidInvoices.reduce((sum, i) => sum + (i.grandTotal || 0), 0);
 
-    // 1. Payment Modes Breakdown (FR-25 & MioSalon Donut Chart)
+    // 1. Payment Modes Breakdown
     const paymentModeTotals: Record<string, { amount: number; count: number }> = {
       Cash: { amount: 0, count: 0 },
       Card: { amount: 0, count: 0 },
@@ -122,7 +119,6 @@ export async function GET(req: Request) {
     };
 
     paidInvoices.forEach(inv => {
-      // Check split payments if any
       if (inv.payments && inv.payments.length > 0) {
         inv.payments.forEach(p => {
           const mode = (p.mode || 'Cash') as 'Cash' | 'Card' | 'UPI';
@@ -170,186 +166,306 @@ export async function GET(req: Request) {
           }
         });
       } else {
-        // If items are not itemized, allocate based on standard clinic ratio
-        serviceRevenue += Math.round((inv.grandTotal || 0) * 0.78);
-        productRevenue += Math.round((inv.grandTotal || 0) * 0.14);
-        packageRevenue += Math.round((inv.grandTotal || 0) * 0.08);
+        serviceRevenue += inv.grandTotal || 0;
         serviceCount += 1;
       }
     });
 
-    // Fallback baseline for clean chart display if 0
-    if (serviceRevenue === 0 && productRevenue === 0 && packageRevenue === 0 && totalRevenue > 0) {
-      serviceRevenue = Math.round(totalRevenue * 0.76);
-      productRevenue = Math.round(totalRevenue * 0.16);
-      packageRevenue = Math.round(totalRevenue * 0.08);
-      serviceCount = 12;
-      productCount = 5;
-      packageCount = 2;
-    }
-
     const categoryBreakdown = [
-      { name: 'Clinical Treatments', revenue: serviceRevenue, count: serviceCount, color: '#059669', share: totalRevenue ? Math.round((serviceRevenue / totalRevenue) * 100) : 75 },
-      { name: 'Retail Products', revenue: productRevenue, count: productCount, color: '#4f46e5', share: totalRevenue ? Math.round((productRevenue / totalRevenue) * 100) : 15 },
-      { name: 'Packages & Sittings', revenue: packageRevenue, count: packageCount, color: '#d97706', share: totalRevenue ? Math.round((packageRevenue / totalRevenue) * 100) : 10 },
+      {
+        name: 'Clinical Treatments',
+        revenue: serviceRevenue,
+        count: serviceCount,
+        color: '#059669',
+        share: totalRevenue > 0 ? Math.round((serviceRevenue / totalRevenue) * 100) : 0,
+      },
+      {
+        name: 'Retail Products',
+        revenue: productRevenue,
+        count: productCount,
+        color: '#4f46e5',
+        share: totalRevenue > 0 ? Math.round((productRevenue / totalRevenue) * 100) : 0,
+      },
+      {
+        name: 'Packages & Sittings',
+        revenue: packageRevenue,
+        count: packageCount,
+        color: '#d97706',
+        share: totalRevenue > 0 ? Math.round((packageRevenue / totalRevenue) * 100) : 0,
+      },
     ];
 
-    // 3. Client Segmentation: New vs Returning Patients
-    // Count distinct customer phones / IDs
-    const patientVisitHistory: Record<string, number> = {};
-    allVisits.forEach(v => {
-      const key = v.patientPhone || v.patientId || v.patientName;
-      if (key) patientVisitHistory[key] = (patientVisitHistory[key] || 0) + 1;
-    });
+    // 3. Client Segmentation: New vs Returning Patients (BUG-06)
+    // Scoped to selected store, selected date range, and completed visits only (status === 'Done').
+    const completedVisitHistory: Record<string, number> = {};
+    allVisits
+      .filter(v => v.status === 'Done')
+      .forEach(v => {
+        const key = (v.patientPhone || v.patientId || v.patientName || '').trim().toLowerCase();
+        if (key) completedVisitHistory[key] = (completedVisitHistory[key] || 0) + 1;
+      });
 
     let newPatientsCount = 0;
     let returningPatientsCount = 0;
+    const seenPeriodPatients = new Set<string>();
 
-    periodVisits.forEach(v => {
-      const key = v.patientPhone || v.patientId || v.patientName;
-      const count = patientVisitHistory[key] || 1;
-      if (count <= 1) newPatientsCount += 1;
+    completedPeriodVisits.forEach(v => {
+      const key = (v.patientPhone || v.patientId || v.patientName || '').trim().toLowerCase();
+      if (!key || seenPeriodPatients.has(key)) return;
+      seenPeriodPatients.add(key);
+
+      const totalCompleted = completedVisitHistory[key] || 1;
+      if (totalCompleted <= 1) newPatientsCount += 1;
       else returningPatientsCount += 1;
     });
 
-    if (newPatientsCount === 0 && returningPatientsCount === 0) {
-      newPatientsCount = Math.max(1, Math.round(periodAppointments.length * 0.45));
-      returningPatientsCount = Math.max(1, Math.round(periodAppointments.length * 0.55));
-    }
-
     const totalClients = newPatientsCount + returningPatientsCount;
-    const retentionRate = totalClients > 0 ? Math.round((returningPatientsCount / totalClients) * 100) : 60;
+    const totalPatientsCount = completedPeriodVisits.length;
+    const retentionRate = totalClients > 0 ? Math.round((returningPatientsCount / totalClients) * 100) : 0;
+    const newPatientsPct = totalClients > 0 ? Math.round((newPatientsCount / totalClients) * 100) : 0;
 
     const clientRetention = [
-      { name: 'New Patients', value: newPatientsCount, percentage: totalClients ? Math.round((newPatientsCount / totalClients) * 100) : 40, color: '#0284c7' },
+      { name: 'New Patients', value: newPatientsCount, percentage: newPatientsPct, color: '#0284c7' },
       { name: 'Returning Patients', value: returningPatientsCount, percentage: retentionRate, color: '#059669' },
     ];
 
-    // 4. Top Performing Treatments & Services
+    // 4. Top Performing Treatments & Services (BUG-04: Strictly real branch data, NO hardcoded defaultServices)
     const serviceTally: Record<string, { name: string; revenue: number; count: number; category: string }> = {};
+    const billedPatientServices = new Set<string>();
 
     paidInvoices.forEach(inv => {
+      const invDate = toLocalYMD(inv.createdAt, inv.date);
+      const custKey = (inv.customerMobile || inv.customerPhone || inv.customerId || inv.customerName || '').trim().toLowerCase();
       if (inv.items && inv.items.length > 0) {
         inv.items.forEach(it => {
           const name = it.name || 'Clinical Service';
+          const category =
+            it.type === 'product'
+              ? 'Product'
+              : it.type === 'package' || it.type === 'package_use' || it.isFromPackage
+              ? 'Package'
+              : 'Treatment';
           if (!serviceTally[name]) {
-            serviceTally[name] = { name, revenue: 0, count: 0, category: it.type === 'product' ? 'Product' : 'Treatment' };
+            serviceTally[name] = { name, revenue: 0, count: 0, category };
           }
           serviceTally[name].revenue += it.total || 0;
           serviceTally[name].count += it.quantity || 1;
+          if (custKey) {
+            billedPatientServices.add(`${custKey}|${name.toLowerCase().trim()}|${invDate}`);
+          }
         });
       }
     });
 
-    periodAppointments.forEach(a => {
-      const name = a.serviceName || 'General Consultation';
-      if (!serviceTally[name]) {
-        serviceTally[name] = { name, revenue: a.amount || 1500, count: 0, category: 'Treatment' };
-      }
-      serviceTally[name].count += 1;
-      if (serviceTally[name].revenue === 0) {
-        serviceTally[name].revenue += a.amount || 1500;
-      }
-    });
-
-    // Populate standard treatments if empty
-    const defaultServices = [
-      { name: 'Hydra Facial & Glowing Treatment', revenue: 24990, count: 10, category: 'Skin Care' },
-      { name: 'Laser Hair Reduction (Full Face)', revenue: 23992, count: 8, category: 'Laser' },
-      { name: 'Q-Switch Nd:YAG Laser', revenue: 21000, count: 6, category: 'Laser' },
-      { name: 'Keratin Scalp & PRP Therapy', revenue: 19200, count: 6, category: 'Hair & Scalp' },
-      { name: 'Glycolic Acid Glow Peel (35%)', revenue: 14400, count: 8, category: 'Peels' },
-      { name: 'Doctor Consultation Fee', revenue: 11500, count: 23, category: 'Consultation' },
-    ];
-
-    defaultServices.forEach(ds => {
-      if (!serviceTally[ds.name]) {
-        serviceTally[ds.name] = { ...ds };
-      }
-    });
+    // Include Completed appointments that were not already counted via a paid invoice
+    periodAppointments
+      .filter(a => a.status === 'Completed')
+      .forEach(a => {
+        const name = a.serviceName || 'General Consultation';
+        const apptDate = toLocalYMD(a.createdAt, a.date);
+        const custKey = (a.customerPhone || a.customerId || a.customerName || '').trim().toLowerCase();
+        if (custKey && billedPatientServices.has(`${custKey}|${name.toLowerCase().trim()}|${apptDate}`)) {
+          return;
+        }
+        if (!serviceTally[name]) {
+          serviceTally[name] = { name, revenue: 0, count: 0, category: 'Treatment' };
+        }
+        serviceTally[name].count += 1;
+        serviceTally[name].revenue += a.amount || 0;
+      });
 
     const topServices = Object.values(serviceTally)
-      .sort((a, b) => b.revenue - a.revenue)
+      .sort((a, b) => b.revenue - a.revenue || b.count - a.count)
       .slice(0, 6);
 
-    // 5. Doctor & Specialist Productivity
+    // 5. Doctor & Specialist Productivity (BUG-02 & BUG-05: Only active doctors of this store, real metrics only)
     const doctorCounts: Record<string, { name: string; visits: number; completed: number; revenue: number }> = {};
-    const doctors = allUsers.filter(u => u.role === 'doctor');
-    doctors.forEach(doc => {
+    const findActiveDoctorName = (idOrEmail?: string, name?: string): string | null => {
+      const idTrim = (idOrEmail || '').trim().toLowerCase();
+      const normName = normalizeDoctorName(name);
+      const matched = activeDoctors.find(d => {
+        const dId = String(d._id || '').trim().toLowerCase();
+        const dEmail = (d.email || '').trim().toLowerCase();
+        const dNorm = normalizeDoctorName(d.name);
+        return (
+          (idTrim && (dId === idTrim || dEmail === idTrim)) ||
+          (normName && dNorm && dNorm === normName)
+        );
+      });
+      return matched ? matched.name : null;
+    };
+
+    activeDoctors.forEach(doc => {
       doctorCounts[doc.name] = { name: doc.name, visits: 0, completed: 0, revenue: 0 };
     });
 
+    const countedVisitKeys = new Set<string>();
     periodVisits.forEach(v => {
-      if (!doctorCounts[v.doctorName]) {
-        doctorCounts[v.doctorName] = { name: v.doctorName, visits: 0, completed: 0, revenue: 0 };
-      }
-      doctorCounts[v.doctorName].visits += 1;
+      const activeDocName = findActiveDoctorName(v.doctorId, v.doctorName);
+      if (!activeDocName || !doctorCounts[activeDocName]) return;
+
+      doctorCounts[activeDocName].visits += 1;
       if (v.status === 'Done') {
-        doctorCounts[v.doctorName].completed += 1;
+        doctorCounts[activeDocName].completed += 1;
+      }
+      const pKey = (v.patientPhone || v.patientId || v.patientName || '').trim().toLowerCase();
+      const vDate = toLocalYMD(v.createdAt);
+      if (pKey) countedVisitKeys.add(`${pKey}|${normalizeDoctorName(activeDocName)}|${vDate}`);
+    });
+
+    periodAppointments
+      .filter(a => a.status !== 'Cancelled' && a.status !== 'No-show')
+      .forEach(a => {
+        const activeDocName = findActiveDoctorName(a.doctorId || a.staffId, a.doctorName || a.staffName);
+        if (!activeDocName || !doctorCounts[activeDocName]) return;
+
+        const pKey = (a.customerPhone || a.customerId || a.customerName || '').trim().toLowerCase();
+        const aDate = toLocalYMD(a.createdAt, a.date);
+        // Avoid double-counting an appointment that already has a corresponding Visit record
+        if (pKey && countedVisitKeys.has(`${pKey}|${normalizeDoctorName(activeDocName)}|${aDate}`)) {
+          return;
+        }
+        doctorCounts[activeDocName].visits += 1;
+        if (a.status === 'Completed') {
+          doctorCounts[activeDocName].completed += 1;
+        }
+      });
+
+    // Calculate real revenue per active doctor from paid invoices
+    paidInvoices.forEach(inv => {
+      if (inv.items && inv.items.length > 0) {
+        inv.items.forEach(it => {
+          const activeDocName = findActiveDoctorName(undefined, it.staffName || inv.staffName);
+          if (activeDocName && doctorCounts[activeDocName]) {
+            doctorCounts[activeDocName].revenue += it.total || 0;
+          }
+        });
+      } else {
+        const activeDocName = findActiveDoctorName(undefined, inv.staffName);
+        if (activeDocName && doctorCounts[activeDocName]) {
+          doctorCounts[activeDocName].revenue += inv.grandTotal || 0;
+        }
       }
     });
 
-    periodAppointments.forEach(a => {
-      const doc = a.doctorName || a.staffName || 'Dr. Anitha Ramachandran';
-      if (!doctorCounts[doc]) {
-        doctorCounts[doc] = { name: doc, visits: 0, completed: 0, revenue: 0 };
-      }
-      doctorCounts[doc].visits += 1;
-      doctorCounts[doc].revenue += a.amount || 2000;
-      if (a.status === 'Completed') doctorCounts[doc].completed += 1;
-    });
-
-    // 6. Hourly Appointment Distribution & Peak Clinic Hours (09:00 to 20:00)
+    // 6. Hourly Appointment Distribution & Peak Clinic Hours (BUG-05: Zero when empty, no random numbers)
     const hourlyMap: Record<string, number> = {
       '09:00': 0, '10:00': 0, '11:00': 0, '12:00': 0, '13:00': 0,
       '14:00': 0, '15:00': 0, '16:00': 0, '17:00': 0, '18:00': 0,
       '19:00': 0, '20:00': 0,
     };
 
-    periodAppointments.forEach(a => {
-      const timeStr = a.startTime || a.time || '10:00';
-      const hour = timeStr.split(':')[0].padStart(2, '0') + ':00';
+    const activePeriodAppts = periodAppointments.filter(
+      a => a.status !== 'Cancelled' && a.status !== 'No-show'
+    );
+
+    const apptPatientDates = new Set<string>();
+    activePeriodAppts.forEach(a => {
+      const hour = parseHour24(a.startTime || a.time);
+      if (hour && hourlyMap[hour] !== undefined) {
+        hourlyMap[hour] += 1;
+      }
+      const pKey = (a.customerPhone || a.customerId || a.customerName || '').trim().toLowerCase();
+      const aDate = toLocalYMD(a.createdAt, a.date);
+      if (pKey) apptPatientDates.add(`${pKey}|${aDate}`);
+    });
+
+    // Include walk-in consultations from periodVisits that weren't created from an appointment
+    periodVisits.forEach(v => {
+      const pKey = (v.patientPhone || v.patientId || v.patientName || '').trim().toLowerCase();
+      const vDate = toLocalYMD(v.createdAt);
+      if (pKey && apptPatientDates.has(`${pKey}|${vDate}`)) return;
+      if (!v.createdAt) return;
+      const d = new Date(v.createdAt);
+      if (isNaN(d.getTime())) return;
+      const hour = `${d.getHours().toString().padStart(2, '0')}:00`;
       if (hourlyMap[hour] !== undefined) {
         hourlyMap[hour] += 1;
-      } else {
-        hourlyMap['11:00'] += 1;
       }
     });
 
     const hourlyLoad = Object.entries(hourlyMap).map(([hour, appointments]) => ({
       hour,
-      appointments: appointments || Math.floor(Math.random() * 4) + 1,
+      appointments,
     }));
 
-    // Find peak hour
-    const peakHour = [...hourlyLoad].sort((a, b) => b.appointments - a.appointments)[0];
+    const topPeak = [...hourlyLoad].sort((a, b) => b.appointments - a.appointments)[0];
+    const peakHour =
+      topPeak && topPeak.appointments > 0
+        ? topPeak
+        : { hour: '—', appointments: 0 };
 
-    // 7. Dynamic Sales & Revenue Trajectory Trend
+    // 7. Real Sales & Revenue Trajectory Trend (Zero when no paid bills exist)
     let salesTrend: Array<{ day: string; revenue: number; bills: number; cash: number; upi: number; card: number }> = [];
 
     if (dateRange === 'today' || dateRange === 'yesterday' || (customDate && !startDateParam)) {
-      // Hourly trajectory for single-day view
-      salesTrend = [
-        { day: '09:00', revenue: Math.round(totalRevenue * 0.05), bills: 1, cash: Math.round(totalRevenue * 0.02), upi: Math.round(totalRevenue * 0.03), card: 0 },
-        { day: '11:00', revenue: Math.round(totalRevenue * 0.20), bills: 3, cash: Math.round(totalRevenue * 0.08), upi: Math.round(totalRevenue * 0.10), card: Math.round(totalRevenue * 0.02) },
-        { day: '13:00', revenue: Math.round(totalRevenue * 0.15), bills: 2, cash: Math.round(totalRevenue * 0.05), upi: Math.round(totalRevenue * 0.07), card: Math.round(totalRevenue * 0.03) },
-        { day: '15:00', revenue: Math.round(totalRevenue * 0.18), bills: 3, cash: Math.round(totalRevenue * 0.06), upi: Math.round(totalRevenue * 0.08), card: Math.round(totalRevenue * 0.04) },
-        { day: '17:00', revenue: Math.round(totalRevenue * 0.28), bills: 5, cash: Math.round(totalRevenue * 0.12), upi: Math.round(totalRevenue * 0.11), card: Math.round(totalRevenue * 0.05) },
-        { day: '19:00', revenue: Math.round(totalRevenue * 0.14), bills: 2, cash: Math.round(totalRevenue * 0.04), upi: Math.round(totalRevenue * 0.08), card: Math.round(totalRevenue * 0.02) },
-      ];
+      const buckets = ['09:00', '11:00', '13:00', '15:00', '17:00', '19:00'];
+      const bucketMap: Record<string, { day: string; revenue: number; bills: number; cash: number; upi: number; card: number }> = {};
+      buckets.forEach(b => {
+        bucketMap[b] = { day: b, revenue: 0, bills: 0, cash: 0, upi: 0, card: 0 };
+      });
+
+      paidInvoices.forEach(inv => {
+        const dt = new Date(inv.paidAt || inv.createdAt || Date.now());
+        const hr = isNaN(dt.getTime()) ? 11 : dt.getHours();
+        const bucketIdx = Math.min(buckets.length - 1, Math.max(0, Math.floor((hr - 9) / 2)));
+        const bKey = buckets[bucketIdx];
+        bucketMap[bKey].revenue += inv.grandTotal || 0;
+        bucketMap[bKey].bills += 1;
+        if (inv.payments && inv.payments.length > 0) {
+          inv.payments.forEach(p => {
+            if (p.mode === 'Cash') bucketMap[bKey].cash += p.amount || 0;
+            else if (p.mode === 'UPI') bucketMap[bKey].upi += p.amount || 0;
+            else if (p.mode === 'Card') bucketMap[bKey].card += p.amount || 0;
+          });
+        } else {
+          if (inv.paymentMethod === 'Cash') bucketMap[bKey].cash += inv.grandTotal || 0;
+          else if (inv.paymentMethod === 'UPI') bucketMap[bKey].upi += inv.grandTotal || 0;
+          else if (inv.paymentMethod === 'Card') bucketMap[bKey].card += inv.grandTotal || 0;
+        }
+      });
+
+      salesTrend = buckets.map(b => bucketMap[b]);
     } else {
-      // Multi-day timeline points (7 days or weekly distribution)
-      salesTrend = [
-        { day: 'Mon', revenue: Math.round(totalRevenue * 0.12), bills: Math.max(1, Math.round(totalBillsCount * 0.11)), cash: Math.round(totalRevenue * 0.05), upi: Math.round(totalRevenue * 0.05), card: Math.round(totalRevenue * 0.02) },
-        { day: 'Tue', revenue: Math.round(totalRevenue * 0.14), bills: Math.max(1, Math.round(totalBillsCount * 0.13)), cash: Math.round(totalRevenue * 0.06), upi: Math.round(totalRevenue * 0.06), card: Math.round(totalRevenue * 0.02) },
-        { day: 'Wed', revenue: Math.round(totalRevenue * 0.11), bills: Math.max(1, Math.round(totalBillsCount * 0.10)), cash: Math.round(totalRevenue * 0.04), upi: Math.round(totalRevenue * 0.05), card: Math.round(totalRevenue * 0.02) },
-        { day: 'Thu', revenue: Math.round(totalRevenue * 0.18), bills: Math.max(1, Math.round(totalBillsCount * 0.17)), cash: Math.round(totalRevenue * 0.07), upi: Math.round(totalRevenue * 0.08), card: Math.round(totalRevenue * 0.03) },
-        { day: 'Fri', revenue: Math.round(totalRevenue * 0.21), bills: Math.max(1, Math.round(totalBillsCount * 0.20)), cash: Math.round(totalRevenue * 0.08), upi: Math.round(totalRevenue * 0.09), card: Math.round(totalRevenue * 0.04) },
-        { day: 'Sat', revenue: Math.round(totalRevenue * 0.24), bills: Math.max(1, Math.round(totalBillsCount * 0.25)), cash: Math.round(totalRevenue * 0.10), upi: Math.round(totalRevenue * 0.10), card: Math.round(totalRevenue * 0.04) },
-      ];
+      const daysOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const dayMap: Record<string, { day: string; revenue: number; bills: number; cash: number; upi: number; card: number }> = {};
+      daysOrder.forEach(d => {
+        dayMap[d] = { day: d, revenue: 0, bills: 0, cash: 0, upi: 0, card: 0 };
+      });
+
+      paidInvoices.forEach(inv => {
+        const ymd = toLocalYMD(inv.createdAt, inv.date);
+        const dt = ymd ? new Date(`${ymd}T12:00:00`) : new Date(inv.createdAt || Date.now());
+        const dayLabel = isNaN(dt.getTime()) ? 'Mon' : dayNames[dt.getDay()];
+        dayMap[dayLabel].revenue += inv.grandTotal || 0;
+        dayMap[dayLabel].bills += 1;
+        if (inv.payments && inv.payments.length > 0) {
+          inv.payments.forEach(p => {
+            if (p.mode === 'Cash') dayMap[dayLabel].cash += p.amount || 0;
+            else if (p.mode === 'UPI') dayMap[dayLabel].upi += p.amount || 0;
+            else if (p.mode === 'Card') dayMap[dayLabel].card += p.amount || 0;
+          });
+        } else {
+          if (inv.paymentMethod === 'Cash') dayMap[dayLabel].cash += inv.grandTotal || 0;
+          else if (inv.paymentMethod === 'UPI') dayMap[dayLabel].upi += inv.grandTotal || 0;
+          else if (inv.paymentMethod === 'Card') dayMap[dayLabel].card += inv.grandTotal || 0;
+        }
+      });
+
+      salesTrend = daysOrder.map(d => dayMap[d]);
     }
 
-    // Branch Breakdown for multi-store
+    // Appointment summary counts for the selected period
+    const appointmentStats = {
+      total: periodAppointments.length,
+      booked: periodAppointments.filter(a => a.status === 'Booked').length,
+      arrived: periodAppointments.filter(a => a.status === 'Arrived').length,
+      inService: periodAppointments.filter(a => a.status === 'In consultation').length,
+      completed: periodAppointments.filter(a => a.status === 'Completed').length,
+    };
+
+    // Branch Breakdown for multi-store (filtered by selected period)
     const storeBreakdown: Record<string, { storeId: string; name: string; revenue: number; invoices: number; patients: number }> = {};
     allStores.forEach(st => {
       storeBreakdown[st.code] = {
@@ -361,7 +477,7 @@ export async function GET(req: Request) {
       };
     });
 
-    allInvoices.forEach(inv => {
+    periodInvoices.forEach(inv => {
       const sCode = (inv.storeId || '').toUpperCase();
       const matchedKey = Object.keys(storeBreakdown).find(
         k => k.toUpperCase() === sCode || `NILA-${sCode}` === k.toUpperCase() || sCode === `NILA-${k.toUpperCase()}`
@@ -372,7 +488,7 @@ export async function GET(req: Request) {
       }
     });
 
-    allVisits.forEach(v => {
+    completedPeriodVisits.forEach(v => {
       const sCode = (v.storeId || '').toUpperCase();
       const matchedKey = Object.keys(storeBreakdown).find(
         k => k.toUpperCase() === sCode || `NILA-${sCode}` === k.toUpperCase() || sCode === `NILA-${k.toUpperCase()}`
@@ -390,15 +506,16 @@ export async function GET(req: Request) {
         startDate: startDateParam,
         endDate: endDateParam,
         kpi: {
-          totalPatientsCount: totalPatientsCount || allVisits.length,
-          totalBillsCount: totalBillsCount || allInvoices.length,
-          totalRevenue: totalRevenue || paidInvoices.reduce((acc, i) => acc + (i.grandTotal || 0), 0),
+          totalPatientsCount,
+          totalBillsCount,
+          totalRevenue,
           pendingPayments,
           unpaidBillsCount: unpaidInvoices.length,
           paidBillsCount: paidInvoices.length,
           averageTicket: paidInvoices.length ? Math.round(totalRevenue / paidInvoices.length) : 0,
           retentionRate,
         },
+        appointmentStats,
         paymentModeTotals,
         paymentModesChart,
         categoryBreakdown,

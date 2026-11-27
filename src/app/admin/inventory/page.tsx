@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Search, AlertTriangle, CheckCircle2, X } from 'lucide-react';
 import { IInventory } from '@/types';
+import { useInfiniteSlice } from '@/hooks/useInfiniteScroll';
+import InfiniteScrollSentinel from '@/components/ui/InfiniteScrollSentinel';
 
 export default function InventoryPage() {
   const [items, setItems] = useState<IInventory[]>([]);
@@ -58,6 +60,14 @@ export default function InventoryPage() {
     i.supplier.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const {
+    visibleItems,
+    hasMore,
+    loadMore,
+    visibleCount,
+    totalCount,
+  } = useInfiniteSlice(filteredItems, 10, searchQuery);
+
   return (
     <div className="space-y-6">
       
@@ -102,7 +112,7 @@ export default function InventoryPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredItems.map((item) => {
+              {visibleItems.map((item) => {
                 const isLow = item.stockQty <= item.minThreshold;
                 return (
                   <tr key={item._id} className="hover:bg-slate-50/80 transition-colors">
@@ -130,6 +140,13 @@ export default function InventoryPage() {
             </tbody>
           </table>
         </div>
+        <InfiniteScrollSentinel
+          hasMore={hasMore}
+          onLoadMore={loadMore}
+          visibleCount={visibleCount}
+          totalCount={totalCount}
+          itemLabel="items"
+        />
       </div>
 
       {showModal && (

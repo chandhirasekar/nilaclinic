@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   ArrowRight,
   Eye,
@@ -207,12 +208,16 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* ================= RIGHT COLUMN: CLINIC WALL IMAGE ================= */}
+      {/* ================= RIGHT COLUMN: CLINIC TREATMENT HERO ================= */}
       <div className="hidden lg:block lg:w-1/2 xl:w-7/12 relative h-full overflow-hidden bg-slate-950">
-        <img
-          src="/images/login-wall.jpg"
-          alt="Nila Clinic - Skin & Hair Care Clinic"
-          className="w-full h-full object-cover object-center select-none"
+        <Image
+          src="/images/login-portal-hero.jpg"
+          alt="Nila Clinic - Aesthetic Skin & Hair Care Treatment"
+          fill
+          preload
+          quality={85}
+          sizes="(min-width: 1280px) 58vw, (min-width: 1024px) 50vw, 0px"
+          className="object-cover object-center select-none"
         />
       </div>
     </div>

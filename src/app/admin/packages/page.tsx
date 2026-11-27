@@ -22,6 +22,8 @@ import {
 import { IPackageMaster, ICustomerPackage, IService, ICustomer, IStaff } from '@/types';
 import { useClinic } from '@/context/ClinicContext';
 import PackageSchedulerModal from '@/components/admin/PackageSchedulerModal';
+import { useInfiniteSlice } from '@/hooks/useInfiniteScroll';
+import InfiniteScrollSentinel from '@/components/ui/InfiniteScrollSentinel';
 
 export default function PackagesPage() {
   const { user, selectedStore, stores } = useClinic();
@@ -103,6 +105,14 @@ export default function PackagesPage() {
     const matchesType = packageTypeFilter === 'ALL' || pkg.type === packageTypeFilter;
     return matchesSearch && matchesType;
   });
+
+  const {
+    visibleItems: visiblePackages,
+    hasMore: hasMorePackages,
+    loadMore: loadMorePackages,
+    visibleCount: visiblePkgCount,
+    totalCount: totalPkgCount,
+  } = useInfiniteSlice(filteredPackages, 10, `${selectedStore}|${searchPackageQuery}|${packageTypeFilter}`);
 
   const handleCustomerSearch = async () => {
     if (!searchMobile.trim()) return;
@@ -325,7 +335,7 @@ export default function PackagesPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filteredPackages.map((pkg) => (
+            {visiblePackages.map((pkg) => (
               <div
                 key={pkg._id}
                 className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden flex flex-col justify-between hover:shadow-md transition-shadow"
@@ -413,6 +423,13 @@ export default function PackagesPage() {
               </div>
             )}
           </div>
+          <InfiniteScrollSentinel
+            hasMore={hasMorePackages}
+            onLoadMore={loadMorePackages}
+            visibleCount={visiblePkgCount}
+            totalCount={totalPkgCount}
+            itemLabel="packages"
+          />
         </div>
       )}
 

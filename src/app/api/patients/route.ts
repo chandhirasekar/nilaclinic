@@ -19,7 +19,10 @@ export async function GET(req: Request) {
       });
     }
 
-    const customers = await clinicService.getCustomers(storeCode, search, { limit, page });
+    const [customers, total] = await Promise.all([
+      clinicService.getCustomers(storeCode, search, { limit, page }),
+      clinicService.countCustomers(storeCode, search),
+    ]);
     const patients = customers.map(c => ({
       ...c,
       patientId: c.patientId || c.customerId || c._id,
@@ -31,7 +34,13 @@ export async function GET(req: Request) {
     return NextResponse.json({
       success: true,
       data: patients,
-      pagination: { page, limit, count: patients.length },
+      pagination: {
+        page,
+        limit,
+        count: patients.length,
+        total,
+        hasMore: page * limit < total,
+      },
     });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });

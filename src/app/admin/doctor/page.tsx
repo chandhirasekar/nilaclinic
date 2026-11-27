@@ -24,6 +24,8 @@ import {
 } from 'lucide-react';
 import { IVisit, ICustomer } from '@/types';
 import { useClinic } from '@/context/ClinicContext';
+import { useInfiniteSlice } from '@/hooks/useInfiniteScroll';
+import InfiniteScrollSentinel from '@/components/ui/InfiniteScrollSentinel';
 
 interface IPrescriptionRow {
   medicineName: string;
@@ -49,6 +51,11 @@ export default function DoctorPanelPage() {
   ]);
   const [prescriptionNotes, setPrescriptionNotes] = useState('');
   const [prescriptionImage, setPrescriptionImage] = useState<string>('');
+  const [imageUploading, setImageUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [uploadedImageSizeKB, setUploadedImageSizeKB] = useState<number | null>(null);
+  const [imageUploadedToVisit, setImageUploadedToVisit] = useState(false);
+  const [imageCleared, setImageCleared] = useState(false);
   const [followUpAdvice, setFollowUpAdvice] = useState('');
   const [fileError, setFileError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -162,6 +169,11 @@ export default function DoctorPanelPage() {
     setPrescriptionNotes(loadedNotes);
     setFollowUpAdvice(loadedFollowUp);
     setPrescriptionImage(visit.prescriptionImage || '');
+    setImageUploading(false);
+    setUploadProgress(0);
+    setUploadedImageSizeKB(null);
+    setImageUploadedToVisit(Boolean(visit.prescriptionImage));
+    setImageCleared(false);
 
     // Fetch client full profile & cross-store history
     try {
@@ -208,11 +220,74 @@ export default function DoctorPanelPage() {
     }
   };
 
-  // NFR-03: Secure image upload with type and size checks
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Compress & resize image client-side before uploading separately with progress (BUG-01)
+  const compressImageToBlob = (file: File): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('Failed to read image file'));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error('Invalid or corrupted image file'));
+        img.onload = () => {
+          const maxDim = 1200;
+          let width = img.width;
+          let height = img.height;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('Canvas context unavailable'));
+            return;
+          }
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, width, height);
+          ctx.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob(
+            (blob) => {
+              if (!blob) {
+                reject(new Error('Image compression failed'));
+                return;
+              }
+              if (blob.size > 1.5 * 1024 * 1024) {
+                canvas.toBlob(
+                  (smallerBlob) => {
+                    if (!smallerBlob) reject(new Error('Image compression failed'));
+                    else resolve(smallerBlob);
+                  },
+                  'image/jpeg',
+                  0.6
+                );
+              } else {
+                resolve(blob);
+              }
+            },
+            'image/jpeg',
+            0.78
+          );
+        };
+        img.src = reader.result as string;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  // NFR-03 & BUG-01: Enforce file-size limit, compress, and upload separately with progress bar
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     setFileError('');
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !selectedVisit) return;
 
     // Check type: only image/jpeg, image/png, image/webp
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
@@ -221,17 +296,91 @@ export default function DoctorPanelPage() {
       return;
     }
 
-    // Check size: max 5MB
+    // Check original file size: max 5MB
     if (file.size > 5 * 1024 * 1024) {
-      setFileError('Image size exceeds 5MB limit. Please upload a smaller file.');
+      setFileError('Image size exceeds 5MB limit. Please choose a smaller file.');
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      setPrescriptionImage(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+    setImageUploading(true);
+    setUploadProgress(5);
+    setImageUploadedToVisit(false);
+    setImageCleared(false);
+
+    try {
+      const compressedBlob = await compressImageToBlob(file);
+      if (compressedBlob.size > 2 * 1024 * 1024) {
+        setFileError('Compressed image still exceeds 2MB limit. Please use a smaller photo.');
+        setImageUploading(false);
+        setUploadProgress(0);
+        return;
+      }
+
+      // Show instant local preview while uploading in background
+      const previewUrl = URL.createObjectURL(compressedBlob);
+      setPrescriptionImage(previewUrl);
+      setUploadedImageSizeKB(Math.max(1, Math.round(compressedBlob.size / 1024)));
+      setUploadProgress(15);
+
+      const formData = new FormData();
+      formData.append('visitId', String(selectedVisit._id || selectedVisit.visitId));
+      formData.append('file', new File([compressedBlob], 'prescription.jpg', { type: 'image/jpeg' }));
+
+      const result: any = await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/api/visits/upload');
+        xhr.upload.onprogress = (evt) => {
+          if (evt.lengthComputable) {
+            const pct = Math.min(95, Math.max(15, Math.round((evt.loaded / evt.total) * 90) + 5));
+            setUploadProgress(pct);
+          }
+        };
+        xhr.onload = () => {
+          try {
+            const parsed = JSON.parse(xhr.responseText);
+            if (xhr.status >= 200 && xhr.status < 300 && parsed.success) {
+              resolve(parsed);
+            } else {
+              reject(new Error(parsed.message || 'Image upload failed'));
+            }
+          } catch {
+            reject(new Error('Unexpected server response during image upload'));
+          }
+        };
+        xhr.onerror = () => reject(new Error('Network error while uploading image'));
+        xhr.send(formData);
+      });
+
+      URL.revokeObjectURL(previewUrl);
+      setPrescriptionImage(result.prescriptionImage);
+      setUploadProgress(100);
+      setImageUploadedToVisit(true);
+    } catch (err: any) {
+      setFileError(err?.message || 'Failed to compress or upload image.');
+      setPrescriptionImage('');
+      setUploadedImageSizeKB(null);
+      setUploadProgress(0);
+      setImageUploadedToVisit(false);
+    } finally {
+      setImageUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleRemoveImage = async () => {
+    setPrescriptionImage('');
+    setUploadedImageSizeKB(null);
+    setUploadProgress(0);
+    setFileError('');
+    setImageUploadedToVisit(false);
+    setImageCleared(true);
+    if (selectedVisit) {
+      try {
+        await fetch(`/api/visits/upload?visitId=${encodeURIComponent(String(selectedVisit._id || selectedVisit.visitId))}`, {
+          method: 'DELETE',
+        });
+      } catch {}
+    }
   };
 
   // Structured prescription row handlers
@@ -283,21 +432,35 @@ export default function DoctorPanelPage() {
       .filter(Boolean)
       .join('\n\n');
 
+    if (imageUploading) {
+      setFileError('Please wait for the prescription image upload to finish.');
+      setSubmitting(false);
+      return;
+    }
+
     try {
+      const payload: Record<string, any> = {
+        visitId: selectedVisit._id || selectedVisit.visitId,
+        status: 'Done',
+        caseNotes: fullCaseNotes,
+        prescriptionText: fullPrescription,
+      };
+      // Only send prescriptionImage if cleared or not yet uploaded via /api/visits/upload
+      if (imageCleared) {
+        payload.prescriptionImage = '';
+      } else if (!imageUploadedToVisit && prescriptionImage) {
+        payload.prescriptionImage = prescriptionImage;
+      }
+
       const res = await fetch('/api/visits', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          visitId: selectedVisit._id || selectedVisit.visitId,
-          status: 'Done',
-          caseNotes: fullCaseNotes,
-          prescriptionText: fullPrescription,
-          prescriptionImage,
-        }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (data.success) {
         setCompletedSuccess(true);
+        setSelectedVisit((prev) => (prev ? { ...prev, status: 'Done', prescriptionImage } : prev));
         fetchVisits();
         refreshDoctorAlerts();
       } else {
@@ -321,6 +484,15 @@ export default function DoctorPanelPage() {
       : queueFilter === 'done'
       ? doneVisits
       : visits;
+
+  const queueScrollRef = React.useRef<HTMLDivElement | null>(null);
+  const {
+    visibleItems: visibleDisplayedVisits,
+    hasMore: hasMoreVisits,
+    loadMore: loadMoreVisits,
+    visibleCount: visibleVisitsCount,
+    totalCount: totalVisitsCount,
+  } = useInfiniteSlice(displayedVisits, 10, `${selectedStore}|${queueFilter}`);
 
   const isReadOnly = selectedVisit?.status === 'Done' || completedSuccess;
 
@@ -438,8 +610,8 @@ export default function DoctorPanelPage() {
                   : `No patient consultations found for store [${selectedStore}].`}
               </div>
             ) : (
-              <div className="space-y-3 mt-3.5 max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
-                {displayedVisits.map((v) => {
+              <div ref={queueScrollRef} className="space-y-3 mt-3.5 max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
+                {visibleDisplayedVisits.map((v) => {
                   const isSelected = selectedVisit?._id === v._id || selectedVisit?.visitId === v.visitId;
                   const isReadOnly = selectedVisit?.status === 'Done' || completedSuccess;
 
@@ -517,6 +689,14 @@ export default function DoctorPanelPage() {
                     </div>
                   );
                 })}
+                <InfiniteScrollSentinel
+                  hasMore={hasMoreVisits}
+                  onLoadMore={loadMoreVisits}
+                  visibleCount={visibleVisitsCount}
+                  totalCount={totalVisitsCount}
+                  rootRef={queueScrollRef}
+                  itemLabel="patients"
+                />
               </div>
             )}
           </div>
@@ -757,13 +937,32 @@ export default function DoctorPanelPage() {
                   />
                 </div>
 
-                {/* 4. Secure Prescription Image Upload (<5MB, JPEG/PNG/WebP) */}
+                {/* 4. Secure Prescription Image Upload (Compressed + Progress Bar, Max 5MB raw) */}
                 <div>
                   <label className="block font-semibold text-slate-800 mb-1">
                     Handwritten Prescription Scan or Clinical Photo (Optional)
                   </label>
                   <div className="border-2 border-dashed border-slate-200 rounded-xl p-3 bg-slate-50 text-center transition-colors">
-                    {prescriptionImage ? (
+                    {imageUploading ? (
+                      <div className="space-y-2 py-2 max-w-xs mx-auto">
+                        {prescriptionImage && (
+                          <img
+                            src={prescriptionImage}
+                            alt="Uploading Preview"
+                            className="max-h-28 rounded-lg border border-slate-200 object-contain mx-auto opacity-75"
+                          />
+                        )}
+                        <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-sky-600 rounded-full transition-all duration-200"
+                            style={{ width: `${uploadProgress}%` }}
+                          />
+                        </div>
+                        <p className="text-[11px] font-bold text-sky-700">
+                          Compressing & uploading image... {uploadProgress}%
+                        </p>
+                      </div>
+                    ) : prescriptionImage ? (
                       <div className="space-y-2">
                         <div className="relative inline-block">
                           <img
@@ -774,15 +973,15 @@ export default function DoctorPanelPage() {
                           {!isReadOnly && (
                             <button
                               type="button"
-                              onClick={() => setPrescriptionImage('')}
-                              className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 shadow"
+                              onClick={handleRemoveImage}
+                              className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 shadow cursor-pointer"
                             >
                               <X className="w-3 h-3" />
                             </button>
                           )}
                         </div>
                         <p className="text-[10px] text-emerald-600 font-semibold">
-                          Image uploaded and encrypted in record.
+                          Image compressed and uploaded{uploadedImageSizeKB ? ` (${uploadedImageSizeKB} KB)` : ''} — ready to save.
                         </p>
                       </div>
                     ) : isReadOnly ? (
@@ -800,12 +999,12 @@ export default function DoctorPanelPage() {
                           />
                         </label>
                         <span className="text-[10px] text-slate-400 block mt-0.5">
-                          JPEG, PNG, WebP (Max 5MB)
+                          JPEG, PNG, WebP (Max 5MB, auto-compressed)
                         </span>
                       </div>
                     )}
                   </div>
-                  {fileError && <p className="text-red-500 text-[11px] mt-1">{fileError}</p>}
+                  {fileError && <p className="text-red-500 text-[11px] mt-1 font-medium">{fileError}</p>}
                 </div>
 
                 {/* Status indicator banner */}
@@ -852,12 +1051,16 @@ export default function DoctorPanelPage() {
                       </div>
                       <button
                         type="submit"
-                        disabled={submitting}
-                        className="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs rounded-xl shadow-md hover:shadow-lg transition-all flex items-center space-x-2 disabled:opacity-50"
+                        disabled={submitting || imageUploading}
+                        className="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs rounded-xl shadow-md hover:shadow-lg transition-all flex items-center space-x-2 disabled:opacity-50 cursor-pointer"
                       >
                         <Check className="w-4 h-4" />
                         <span>
-                          {submitting ? 'Saving...' : 'Complete Consultation & Queue for Billing'}
+                          {imageUploading
+                            ? `Uploading image (${uploadProgress}%)...`
+                            : submitting
+                            ? 'Saving consultation...'
+                            : 'Complete Consultation & Queue for Billing'}
                         </span>
                       </button>
                     </>

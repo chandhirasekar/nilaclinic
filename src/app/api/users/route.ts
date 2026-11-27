@@ -6,6 +6,17 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const storeCode = searchParams.get('storeCode') || undefined;
     const role = searchParams.get('role') || undefined;
+    const activeOnly = searchParams.get('activeOnly') === 'true';
+
+    // Shared active-doctors-of-this-store query (BUG-02)
+    if (role === 'doctor' && activeOnly) {
+      const activeDoctors = await clinicService.getActiveDoctors(storeCode);
+      const safeDoctors = activeDoctors.map(({ password, ...rest }) => ({
+        ...rest,
+        _id: String(rest._id),
+      }));
+      return NextResponse.json({ success: true, data: safeDoctors });
+    }
 
     let users = await clinicService.getUsers(storeCode);
 

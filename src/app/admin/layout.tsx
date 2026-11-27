@@ -29,21 +29,44 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const { user, selectedStore, setSelectedStore, stores, unreadDoctorVisits, logout } = useClinic();
+  const {
+    user,
+    selectedStore,
+    setSelectedStore,
+    stores,
+    unreadDoctorVisits,
+    isInitialized,
+    storesLoaded,
+    isLoggingOut,
+    logout,
+  } = useClinic();
 
   React.useEffect(() => {
     setMounted(true);
-    try {
-      const saved = localStorage.getItem('nilaclinic_user') || localStorage.getItem('miosalon_user');
-      if (!saved && !user) {
-        window.location.href = '/login';
-      }
-    } catch (e) {
-      if (!user) window.location.href = '/login';
-    }
-  }, [user]);
+  }, []);
 
-  const userRole = user?.role || 'admin';
+  React.useEffect(() => {
+    if (!mounted || !isInitialized || isLoggingOut) return;
+    if (!user) {
+      window.location.replace('/login');
+    }
+  }, [mounted, isInitialized, isLoggingOut, user]);
+
+  // Wait until session & store metadata are ready before showing sidebar and header (prevents login/logout flash)
+  if (!mounted || !isInitialized || !storesLoaded || isLoggingOut || !user) {
+    return (
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center p-6">
+        <div className="flex flex-col items-center space-y-3 text-slate-600">
+          <div className="w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
+            {isLoggingOut ? 'Signing out...' : 'Loading clinic portal...'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const userRole = user.role;
 
   // Navigation Items customized by Role (FR-02 & Section 9 matrix)
   const navItems = [
@@ -133,12 +156,12 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
         });
 
   return (
-    <div className="min-h-screen bg-slate-100 flex font-sans text-slate-800">
+    <div className="min-h-screen bg-slate-100 print:bg-white flex font-sans text-slate-800">
       {/* Mobile Backdrop */}
       {sidebarOpen && (
         <div
           onClick={() => setSidebarOpen(false)}
-          className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-30 md:hidden transition-opacity"
+          className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-30 md:hidden print:hidden transition-opacity"
           aria-hidden="true"
         />
       )}
@@ -147,7 +170,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
       <aside
         className={`fixed inset-y-0 left-0 z-40 w-64 md:w-20 lg:w-64 bg-slate-900 text-white transform ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } md:translate-x-0 transition-all duration-300 ease-in-out flex flex-col h-screen max-h-screen justify-between overflow-hidden shadow-xl`}
+        } md:translate-x-0 transition-all duration-300 ease-in-out flex flex-col h-screen max-h-screen justify-between overflow-hidden shadow-xl print:hidden`}
       >
         {/* Logo Branding (Fixed Header) */}
         <div className="p-3.5 sm:p-4 border-b border-slate-800 flex items-center justify-between shrink-0">
@@ -258,12 +281,12 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
                     ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30'
                     : 'bg-teal-500/20 text-teal-400 border border-teal-500/30'
                 }`}
-                title={`${user?.name || 'Nila User'} (${userRole})`}
+                title={`${user.name} (${userRole})`}
               >
                 {userRole === 'admin' ? 'AD' : userRole === 'doctor' ? 'DR' : 'ST'}
               </div>
               <div className="truncate md:hidden lg:block">
-                <p className="text-sm font-bold text-white truncate" suppressHydrationWarning>{user?.name || 'Nila User'}</p>
+                <p className="text-sm font-bold text-white truncate">{user.name}</p>
                 <div className="flex items-center space-x-1.5 mt-0.5">
                   <span
                     suppressHydrationWarning
@@ -295,9 +318,9 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex-1 md:ml-20 lg:ml-64 flex flex-col min-w-0 transition-all duration-300">
+      <div className="flex-1 md:ml-20 lg:ml-64 print:ml-0 flex flex-col min-w-0 transition-all duration-300">
         {/* Top Header */}
-        <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 sm:px-6 py-3 flex items-center justify-between shadow-xs">
+        <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 sm:px-6 py-3 flex items-center justify-between shadow-xs print:hidden">
           <div className="flex items-center space-x-3">
             <button
               onClick={() => setSidebarOpen(true)}
@@ -307,7 +330,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
             </button>
             <div>
               <div className="flex items-center space-x-2">
-                <span className="font-black text-slate-900 text-base" suppressHydrationWarning>{user?.name || 'Nila Clinic'}</span>
+                <span className="font-black text-slate-900 text-base">{user.name}</span>
                 <span
                   suppressHydrationWarning
                   className={`text-xs font-bold uppercase px-2.5 py-0.5 rounded-full ${
@@ -367,7 +390,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Dynamic Page Content */}
-        <main className="flex-1 p-4 sm:p-6 w-full">{children}</main>
+        <main className="flex-1 p-4 sm:p-6 print:p-0 w-full">{children}</main>
       </div>
     </div>
   );

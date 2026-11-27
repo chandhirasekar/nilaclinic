@@ -29,6 +29,8 @@ import { IAppointment, IService, IStaff, ICustomer, ICustomerPackage } from '@/t
 import { useClinic } from '@/context/ClinicContext';
 import Link from 'next/link';
 import AppointmentDetailModal, { calculateEndTime } from '@/components/admin/AppointmentDetailModal';
+import { useInfiniteSlice } from '@/hooks/useInfiniteScroll';
+import InfiniteScrollSentinel from '@/components/ui/InfiniteScrollSentinel';
 
 function AppointmentsCalendarContent() {
   const { user, selectedStore, stores } = useClinic();
@@ -437,6 +439,14 @@ function AppointmentsCalendarContent() {
     (st) => selectedStaffFilter === 'ALL' || st.name === selectedStaffFilter
   );
 
+  const {
+    visibleItems: visibleAppointments,
+    hasMore: hasMoreAppts,
+    loadMore: loadMoreAppts,
+    visibleCount: visibleApptCount,
+    totalCount: totalApptCount,
+  } = useInfiniteSlice(filteredAppointments, 10, `${selectedStore}|${selectedDate}|${selectedStaffFilter}|${statusFilter}|${searchQuery}|${currentView}`);
+
   return (
     <div className="space-y-4">
       {/* Top Header Bar (MioSalon Style) */}
@@ -820,9 +830,10 @@ function AppointmentsCalendarContent() {
                                             e.stopPropagation();
                                             handleCheckIn(appt._id || appt.appointmentId!);
                                           }}
-                                          className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold shadow-2xs transition"
+                                          className="px-2 py-0.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded font-bold shadow-2xs transition cursor-pointer"
+                                          title="Check in patient as Arrived"
                                         >
-                                          ✓ Arrived
+                                          Mark Arrived
                                         </button>
                                       )}
                                       <Link
@@ -889,8 +900,9 @@ function AppointmentsCalendarContent() {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredAppointments.map((appt) => {
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {visibleAppointments.map((appt) => {
                 const staffObj = staffMembers.find((s) => s.name === appt.staffName || s.name === appt.doctorName);
                 const color = staffObj?.calendarColour || '#059669';
 
@@ -1000,7 +1012,15 @@ function AppointmentsCalendarContent() {
                   </div>
                 );
               })}
-            </div>
+              </div>
+              <InfiniteScrollSentinel
+                hasMore={hasMoreAppts}
+                onLoadMore={loadMoreAppts}
+                visibleCount={visibleApptCount}
+                totalCount={totalApptCount}
+                itemLabel="appointments"
+              />
+            </>
           )}
         </div>
       )}
@@ -1020,7 +1040,7 @@ function AppointmentsCalendarContent() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredAppointments.map((appt) => (
+              {visibleAppointments.map((appt) => (
                 <tr key={appt._id} className="hover:bg-slate-50/80 transition-colors">
                   <td className="p-3.5 font-semibold text-slate-900">
                     <div className="flex items-center space-x-1.5">
@@ -1053,9 +1073,9 @@ function AppointmentsCalendarContent() {
                     {appt.status === 'Booked' && (
                       <button
                         onClick={() => handleCheckIn(appt._id || appt.appointmentId!)}
-                        className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-semibold shadow-xs"
+                        className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-semibold shadow-xs cursor-pointer"
                       >
-                        Check-in
+                        Mark Arrived
                       </button>
                     )}
 
@@ -1093,6 +1113,13 @@ function AppointmentsCalendarContent() {
               )}
             </tbody>
           </table>
+          <InfiniteScrollSentinel
+            hasMore={hasMoreAppts}
+            onLoadMore={loadMoreAppts}
+            visibleCount={visibleApptCount}
+            totalCount={totalApptCount}
+            itemLabel="appointments"
+          />
         </div>
       )}
 

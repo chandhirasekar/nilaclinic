@@ -225,6 +225,13 @@ export async function PUT(req: Request) {
             message: 'Invalid prescription file format. Only JPEG, PNG, or WEBP images are allowed.'
           }, { status: 400 });
         }
+        const approxBytes = Math.round((prescriptionImage.length * 3) / 4);
+        if (approxBytes > 2 * 1024 * 1024) {
+          return NextResponse.json({
+            success: false,
+            message: 'Image exceeds 2MB compressed limit. Please re-attach the image.'
+          }, { status: 400 });
+        }
       }
       updates.prescriptionImage = prescriptionImage;
     }

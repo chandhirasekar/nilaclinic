@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { UserCheck, Plus, Edit2, ShieldAlert, CheckCircle, XCircle, X, Phone, Mail, Stethoscope, Briefcase, Search, Building2, Filter, Eye, EyeOff, Upload } from 'lucide-react';
 import { IUser, IStore } from '@/types';
 import { useClinic } from '@/context/ClinicContext';
+import { useInfiniteSlice } from '@/hooks/useInfiniteScroll';
+import InfiniteScrollSentinel from '@/components/ui/InfiniteScrollSentinel';
 
 export default function UsersManagementPage() {
   const { user, stores, selectedStore } = useClinic();
@@ -246,6 +248,14 @@ export default function UsersManagementPage() {
     return matchesSearch && matchesRole;
   });
 
+  const {
+    visibleItems: visibleUsers,
+    hasMore: hasMoreUsers,
+    loadMore: loadMoreUsers,
+    visibleCount: visibleUserCount,
+    totalCount: totalUserCount,
+  } = useInfiniteSlice(filteredUsers, 10, `${branchFilter}|${roleFilter}|${searchQuery}`);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -340,7 +350,7 @@ export default function UsersManagementPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {filteredUsers.map((u) => {
+          {visibleUsers.map((u) => {
           return (
             <div
               key={u._id || u.email}
@@ -458,6 +468,13 @@ export default function UsersManagementPage() {
         })}
       </div>
       )}
+      <InfiniteScrollSentinel
+        hasMore={hasMoreUsers}
+        onLoadMore={loadMoreUsers}
+        visibleCount={visibleUserCount}
+        totalCount={totalUserCount}
+        itemLabel="users"
+      />
 
       {/* Modal */}
       {showModal && (

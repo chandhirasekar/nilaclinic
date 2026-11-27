@@ -11,6 +11,8 @@ interface ClinicContextType {
   currentStoreObj: IStore | null;
   unreadDoctorVisits: number;
   isInitialized: boolean;
+  storesLoaded: boolean;
+  isLoggingOut: boolean;
   setSelectedStore: (code: string) => void;
   setUser: (user: IUser | null) => void;
   refreshStores: () => Promise<void>;
@@ -24,6 +26,8 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<IUser | null>(null);
   const [selectedStore, setSelectedStoreState] = useState<string>('NILA-TH');
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
+  const [storesLoaded, setStoresLoaded] = useState<boolean>(false);
+  const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false);
 
   const [stores, setStores] = useState<IStore[]>([]);
   const [unreadDoctorVisits, setUnreadDoctorVisits] = useState<number>(0);
@@ -38,6 +42,8 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (err) {
       console.error('Failed to load stores:', err);
+    } finally {
+      setStoresLoaded(true);
     }
   };
 
@@ -107,13 +113,13 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = () => {
+    setIsLoggingOut(true);
     try {
       localStorage.removeItem('nilaclinic_user');
       localStorage.removeItem('miosalon_user');
       sessionStorage.clear();
     } catch (e) {}
-    setUser(null);
-    window.location.href = '/login';
+    window.location.replace('/login');
   };
 
   const currentStoreObj: IStore | null =
@@ -142,6 +148,8 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
         currentStoreObj,
         unreadDoctorVisits,
         isInitialized,
+        storesLoaded,
+        isLoggingOut,
         setSelectedStore,
         setUser,
         refreshStores,

@@ -1140,11 +1140,15 @@ class ClinicService {
           for (const du of docUsers) {
             const duName = (du.name || '').trim().toLowerCase();
             const duEmail = (du.email || '').trim().toLowerCase();
-            const exists = staffList.some(s =>
-              (s.email && s.email.trim().toLowerCase() === duEmail) ||
-              (s.name && s.name.trim().toLowerCase() === duName)
+            const matchedStaff = staffList.find(s =>
+              (s.email && duEmail && s.email.trim().toLowerCase() === duEmail) ||
+              (s.name && duName && s.name.trim().toLowerCase() === duName)
             );
-            if (!exists) {
+            if (matchedStaff) {
+              if (du.isActive === false) {
+                matchedStaff.isActive = false;
+              }
+            } else {
               staffList.push({
                 _id: String(du._id),
                 name: du.name || 'Doctor',
@@ -1163,7 +1167,7 @@ class ClinicService {
           }
         }
 
-        if (staffList.length > 0) return staffList;
+        return staffList;
       }
     } catch (e) { }
 
@@ -1175,6 +1179,98 @@ class ClinicService {
       st.stores.includes('ALL') ||
       st.stores.some(s => aliases.includes(s.toUpperCase()))
     );
+  }
+
+  /**
+   * Shared single source of truth for active doctors belonging to a store.
+   * Cross-checks both User and Staff collections so a doctor deactivated in either
+   * collection is never returned in Dashboard, Calendar, Assign Doctor, or POS.
+   */
+  async getActiveDoctors(storeCode?: string): Promise<IUser[]> {
+    const [allUsers, allStaff] = await Promise.all([
+      this.getUsers('ALL'),
+      this.getStaff('ALL'),
+    ]);
+
+    const inactiveEmails = new Set<string>();
+    const inactiveNames = new Set<string>();
+
+    for (const u of allUsers) {
+      if (u.isActive === false) {
+        if (u.email) inactiveEmails.add(u.email.trim().toLowerCase());
+        if (u.name) inactiveNames.add(u.name.trim().toLowerCase());
+      }
+    }
+    for (const s of allStaff) {
+      if (s.isActive === false) {
+        if (s.email) inactiveEmails.add(s.email.trim().toLowerCase());
+        if (s.name) inactiveNames.add(s.name.trim().toLowerCase());
+      }
+    }
+
+    const aliases = storeCode && storeCode !== 'ALL'
+      ? new Set(getStoreAliases(storeCode).map(a => a.toUpperCase()))
+      : null;
+
+    const matchesStore = (storeIds?: string[], primaryStore?: string): boolean => {
+      if (!aliases) return true;
+      const list = (storeIds || []).map(s => s.toUpperCase()).filter(Boolean);
+      if (list.includes('ALL')) return true;
+      if (list.some(s => aliases.has(s))) return true;
+      if (primaryStore && aliases.has(primaryStore.toUpperCase())) return true;
+      return false;
+    };
+
+    const isDoctorDeactivated = (name?: string, email?: string) => {
+      const e = (email || '').trim().toLowerCase();
+      const n = (name || '').trim().toLowerCase();
+      return (e && inactiveEmails.has(e)) || (n && inactiveNames.has(n));
+    };
+
+    const activeDoctors: IUser[] = [];
+    const seenKeys = new Set<string>();
+
+    for (const u of allUsers) {
+      if (u.role !== 'doctor' || u.isActive === false) continue;
+      if (isDoctorDeactivated(u.name, u.email)) continue;
+      if (!matchesStore(u.assignedStoreIds, u.primaryStoreId)) continue;
+
+      const key = (u.email || u.name || u._id || '').trim().toLowerCase();
+      if (key && !seenKeys.has(key)) {
+        seenKeys.add(key);
+        activeDoctors.push(u);
+      }
+    }
+
+    for (const s of allStaff) {
+      const isDoc =
+        s.designation === 'Doctor' ||
+        (s.loginRole && s.loginRole.toLowerCase() === 'doctor');
+      if (!isDoc || s.isActive === false) continue;
+      if (isDoctorDeactivated(s.name, s.email)) continue;
+      if (!matchesStore(s.stores)) continue;
+
+      const emailKey = (s.email || '').trim().toLowerCase();
+      const nameKey = (s.name || '').trim().toLowerCase();
+      if ((emailKey && seenKeys.has(emailKey)) || (nameKey && seenKeys.has(nameKey))) continue;
+      if (activeDoctors.some(d => d.name.trim().toLowerCase() === nameKey)) continue;
+
+      seenKeys.add(emailKey || nameKey || String(s._id));
+      activeDoctors.push({
+        _id: String(s._id),
+        name: s.name,
+        email: s.email || '',
+        role: 'doctor',
+        phone: s.mobile || '',
+        image: s.image || '',
+        assignedStoreIds: s.stores || ['NILA-TH'],
+        primaryStoreId: s.stores?.[0] || 'NILA-TH',
+        isActive: true,
+        specialization: 'Consulting Doctor',
+      });
+    }
+
+    return activeDoctors;
   }
 
   async createStaff(data: Partial<IStaff>): Promise<IStaff> {
@@ -1706,6 +1802,53 @@ class ClinicService {
       phone: c.mobile || (c as any).phone || '',
       storeId: c.firstStoreId || (c as any).storeId || 'NILA-TH',
     }));
+  }
+
+  async countCustomers(storeCode?: string, search?: string): Promise<number> {
+    try {
+      const db = await connectToDatabase();
+      if (db) {
+        const query: any = {};
+        if (storeCode && storeCode !== 'ALL' && !search) {
+          const aliases = getStoreAliases(storeCode);
+          query.$or = [
+            { firstStoreId: { $in: aliases } },
+            { storeId: { $in: aliases } },
+          ];
+        }
+        if (search) {
+          const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          query.$or = [
+            { name: { $regex: escaped, $options: 'i' } },
+            { mobile: { $regex: escaped, $options: 'i' } },
+            { phone: { $regex: escaped, $options: 'i' } },
+            { customerId: { $regex: escaped, $options: 'i' } },
+            { patientId: { $regex: escaped, $options: 'i' } },
+          ];
+        }
+        return await (Customer as any).countDocuments(query);
+      }
+    } catch (e) { }
+
+    let res = this.customers;
+    if (storeCode && storeCode !== 'ALL' && !search) {
+      const aliases = getStoreAliases(storeCode).map(a => a.toUpperCase());
+      res = res.filter(c =>
+        aliases.includes((c.firstStoreId || '').toUpperCase()) ||
+        aliases.includes(((c as any).storeId || '').toUpperCase())
+      );
+    }
+    if (search) {
+      const q = search.toLowerCase();
+      res = res.filter(c =>
+        c.name.toLowerCase().includes(q) ||
+        (c.mobile || '').includes(q) ||
+        ((c as any).phone || '').includes(q) ||
+        (c.customerId || '').toLowerCase().includes(q) ||
+        ((c as any).patientId || '').toLowerCase().includes(q)
+      );
+    }
+    return res.length;
   }
 
   async searchCustomerByMobile(mobileNumber: string): Promise<ICustomer[]> {
@@ -2243,7 +2386,7 @@ class ClinicService {
 
         const query: any = {};
         if (storeCode && storeCode !== 'ALL') {
-          query.storeId = { $in: [storeCode.toUpperCase(), storeCode.replace('NILA-', '')] };
+          query.storeId = { $in: getStoreAliases(storeCode) };
         }
         if (date) query.date = date;
         if (staffId && staffId !== 'ALL') {
@@ -2458,7 +2601,7 @@ class ClinicService {
 
         const query: any = {};
         if (storeCode && storeCode !== 'ALL') {
-          query.storeId = { $in: [storeCode.toUpperCase(), storeCode.replace('NILA-', '')] };
+          query.storeId = { $in: getStoreAliases(storeCode) };
         }
         if (doctorId) {
           const docIdTrim = String(doctorId).trim();
@@ -2708,7 +2851,7 @@ class ClinicService {
       if (db) {
         const query: any = {};
         if (storeCode && storeCode !== 'ALL') {
-          query.storeId = { $in: [storeCode.toUpperCase(), storeCode.replace('NILA-', '')] };
+          query.storeId = { $in: getStoreAliases(storeCode) };
         }
         if (status) query.status = status;
 

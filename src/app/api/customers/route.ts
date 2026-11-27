@@ -16,11 +16,20 @@ export async function GET(req: Request) {
       return NextResponse.json({ success: true, data: matches });
     }
 
-    const customers = await clinicService.getCustomers(storeCode, search, { limit, page });
+    const [customers, total] = await Promise.all([
+      clinicService.getCustomers(storeCode, search, { limit, page }),
+      clinicService.countCustomers(storeCode, search),
+    ]);
     return NextResponse.json({
       success: true,
       data: customers,
-      pagination: { page, limit, count: customers.length },
+      pagination: {
+        page,
+        limit,
+        count: customers.length,
+        total,
+        hasMore: page * limit < total,
+      },
     });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });

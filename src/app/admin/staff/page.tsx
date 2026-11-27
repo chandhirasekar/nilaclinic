@@ -21,6 +21,8 @@ import {
 } from 'lucide-react';
 import { IStaff, StaffDesignation } from '@/types';
 import { useClinic } from '@/context/ClinicContext';
+import { useInfiniteSlice } from '@/hooks/useInfiniteScroll';
+import InfiniteScrollSentinel from '@/components/ui/InfiniteScrollSentinel';
 
 export default function StaffMasterPage() {
   const { stores, selectedStore, user } = useClinic();
@@ -211,6 +213,14 @@ export default function StaffMasterPage() {
     return matchesSearch && matchesDesignation;
   });
 
+  const {
+    visibleItems: visibleStaff,
+    hasMore: hasMoreStaff,
+    loadMore: loadMoreStaff,
+    visibleCount: visibleStaffCount,
+    totalCount: totalStaffCount,
+  } = useInfiniteSlice(filteredStaff, 10, `${selectedStore}|${designationFilter}|${searchQuery}`);
+
   return (
     <div className="space-y-6 pb-24">
       {/* Header */}
@@ -262,7 +272,7 @@ export default function StaffMasterPage() {
 
       {/* Staff Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {filteredStaff.map((st) => {
+        {visibleStaff.map((st) => {
           const isNonDeletableAdmin =
             st.loginRole === 'Admin' ||
             (st.designation as string) === 'Admin' ||
@@ -393,6 +403,13 @@ export default function StaffMasterPage() {
           );
         })}
       </div>
+      <InfiniteScrollSentinel
+        hasMore={hasMoreStaff}
+        onLoadMore={loadMoreStaff}
+        visibleCount={visibleStaffCount}
+        totalCount={totalStaffCount}
+        itemLabel="staff members"
+      />
 
       {/* Modal */}
       {showModal && (
